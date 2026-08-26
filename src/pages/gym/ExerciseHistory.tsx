@@ -3,7 +3,7 @@ import { useNavigate, useParams } from 'react-router-dom'
 import { ChevronLeft, TrendingUp } from 'lucide-react'
 import { CartesianGrid, Line, LineChart, ResponsiveContainer, Tooltip, XAxis, YAxis } from 'recharts'
 import { getExerciseHistory, type ExerciseHistoryPoint } from '../../lib/workouts'
-import { SEED_EXERCISES } from '../../lib/exercises'
+import { ALL_EXERCISES } from '../../lib/exercises'
 import { formatDate } from '../../lib/date'
 
 export default function ExerciseHistory() {
@@ -20,7 +20,7 @@ export default function ExerciseHistory() {
     })
   }, [exerciseId])
 
-  const exercise = SEED_EXERCISES.find((e) => e.id === exerciseId)
+  const exercise = ALL_EXERCISES.find((e) => e.id === exerciseId)
   const chartData = points.map((p) => ({ ...p, label: formatDate(p.date) }))
   const best = points.reduce((max, p) => Math.max(max, p.maxWeightKg), 0)
 

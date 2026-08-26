@@ -4,7 +4,7 @@ import { Check, ChevronLeft, Flame, Plus, Search, X } from 'lucide-react'
 import clsx from 'clsx'
 import { getWorkout, saveWorkout, getLastPerformance, getBestPerformance, detectPr, type LastPerformance } from '../../lib/workouts'
 import { newId } from '../../lib/db'
-import { SEED_EXERCISES } from '../../lib/exercises'
+import { ALL_EXERCISES, MUSCLE_GROUPS } from '../../lib/exercises'
 import { getSettings } from '../../lib/settings'
 import RestTimer from '../../components/RestTimer'
 import type { SetEntry, Workout, WorkoutExercise } from '../../types'
@@ -103,7 +103,7 @@ function ExerciseBlock({
   we: WorkoutExercise
   onAddSet: (set: Omit<SetEntry, 'id' | 'exerciseId' | 'completedAt' | 'isPr'>) => void
 }) {
-  const exercise = SEED_EXERCISES.find((e) => e.id === we.exerciseId)
+  const exercise = ALL_EXERCISES.find((e) => e.id === we.exerciseId)
   const [last, setLast] = useState<LastPerformance | null>(null)
   const [weight, setWeight] = useState('')
   const [reps, setReps] = useState('')
@@ -216,9 +216,16 @@ function ExercisePicker({
   exclude: string[]
 }) {
   const [q, setQ] = useState('')
-  const results = SEED_EXERCISES.filter(
-    (e) => !exclude.includes(e.id) && e.name.toLowerCase().includes(q.toLowerCase()),
+  const [muscleFilter, setMuscleFilter] = useState<string | null>(null)
+  const DISPLAY_LIMIT = 60
+
+  const filtered = ALL_EXERCISES.filter(
+    (e) =>
+      !exclude.includes(e.id) &&
+      e.name.toLowerCase().includes(q.toLowerCase()) &&
+      (!muscleFilter || e.muscleGroup === muscleFilter),
   )
+  const results = filtered.slice(0, DISPLAY_LIMIT)
 
   return (
     <div className="fixed inset-0 z-50 flex items-end justify-center bg-black/60" onClick={onClose}>
@@ -238,11 +245,32 @@ function ExercisePicker({
             autoFocus
             value={q}
             onChange={(e) => setQ(e.target.value)}
-            placeholder="Rechercher…"
+            placeholder="Rechercher parmi 675+ exercices…"
             className="flex-1 bg-transparent text-sm outline-none"
           />
         </div>
-        <ul className="space-y-1 pb-4">
+        <div className="mb-3 flex gap-1.5 overflow-x-auto pb-1">
+          <button
+            onClick={() => setMuscleFilter(null)}
+            className={`shrink-0 rounded-full px-3 py-1.5 text-xs font-medium ${
+              muscleFilter === null ? 'bg-orange-500 text-zinc-950' : 'bg-zinc-900 text-zinc-400'
+            }`}
+          >
+            Tous
+          </button>
+          {MUSCLE_GROUPS.map((m) => (
+            <button
+              key={m}
+              onClick={() => setMuscleFilter(m === muscleFilter ? null : m)}
+              className={`shrink-0 rounded-full px-3 py-1.5 text-xs font-medium ${
+                muscleFilter === m ? 'bg-orange-500 text-zinc-950' : 'bg-zinc-900 text-zinc-400'
+              }`}
+            >
+              {m}
+            </button>
+          ))}
+        </div>
+        <ul className="space-y-1 pb-2">
           {results.map((e) => (
             <li key={e.id}>
               <button
@@ -250,12 +278,19 @@ function ExercisePicker({
                 className="flex w-full items-center justify-between rounded-lg px-3 py-2.5 text-left active:bg-zinc-900"
               >
                 <span className="text-sm font-medium">{e.name}</span>
-                <span className="text-xs text-zinc-500">{e.muscleGroup}</span>
+                <span className="text-xs text-zinc-500">
+                  {e.muscleGroup} · {e.equipment}
+                </span>
               </button>
             </li>
           ))}
           {results.length === 0 && <p className="px-3 py-2 text-sm text-zinc-500">Aucun résultat.</p>}
         </ul>
+        {filtered.length > DISPLAY_LIMIT && (
+          <p className="pb-4 text-center text-xs text-zinc-600">
+            {filtered.length - DISPLAY_LIMIT} exercices supplémentaires — affine ta recherche pour les voir.
+          </p>
+        )}
       </div>
     </div>
   )

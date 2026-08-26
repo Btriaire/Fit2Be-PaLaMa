@@ -4,7 +4,7 @@ import { Dumbbell, Plus, ChevronRight, Flame, TrendingUp } from 'lucide-react'
 import { getAllWorkouts, saveWorkout, getLoggedExerciseIds } from '../../lib/workouts'
 import { newId } from '../../lib/db'
 import { formatDate, formatTime } from '../../lib/date'
-import { SEED_EXERCISES } from '../../lib/exercises'
+import { ALL_EXERCISES } from '../../lib/exercises'
 import type { Workout } from '../../types'
 
 const QUICK_NAMES = ['Push Day', 'Pull Day', 'Leg Day', 'Full Body', 'Haut du corps', 'Bas du corps']
@@ -87,7 +87,7 @@ export default function GymHome() {
           <h2 className="mb-2 text-sm font-medium text-zinc-400">Progression</h2>
           <div className="flex gap-2 overflow-x-auto pb-1">
             {loggedExercises.map(({ exerciseId }) => {
-              const ex = SEED_EXERCISES.find((e) => e.id === exerciseId)
+              const ex = ALL_EXERCISES.find((e) => e.id === exerciseId)
               return (
                 <button
                   key={exerciseId}
