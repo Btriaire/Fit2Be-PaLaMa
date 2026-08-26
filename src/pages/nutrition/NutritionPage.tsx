@@ -5,7 +5,8 @@ import { getDb, newId } from '../../lib/db'
 import { getSettings, saveSettings, type Sex } from '../../lib/settings'
 import { isToday, formatTime, formatDate } from '../../lib/date'
 import { getAllWorkouts, estimateWorkoutCalories } from '../../lib/workouts'
-import { getWeightLogs, logWeight } from '../../lib/weight'
+import { getWeightLogs, logWeight, adoptWeightFromSync } from '../../lib/weight'
+import { pushFoodToNutriTracker, pullLatestWeightFromNutriTracker } from '../../lib/nutriTrackerSync'
 import type { NutritionEntry, WeightLog, Workout } from '../../types'
 
 export default function NutritionPage() {
@@ -26,6 +27,15 @@ export default function NutritionPage() {
     setWorkouts(await getAllWorkouts())
     setWeightLogs(await getWeightLogs())
     setSettings(getSettings())
+
+    const pulled = await pullLatestWeightFromNutriTracker()
+    if (pulled.weightKg && pulled.date) {
+      const adopted = await adoptWeightFromSync(pulled.weightKg, pulled.date)
+      if (adopted) {
+        setWeightLogs(await getWeightLogs())
+        setSettings(getSettings())
+      }
+    }
   }
 
   useEffect(() => {
@@ -56,6 +66,13 @@ export default function NutritionPage() {
     await db.put('nutrition', e)
     setFormOpen(false)
     refresh()
+    void pushFoodToNutriTracker({
+      name: entry.label,
+      calories: entry.calories,
+      proteinG: entry.proteinG,
+      carbsG: entry.carbsG,
+      fatG: entry.fatG,
+    })
   }
 
   async function addWeight(weightKg: number) {

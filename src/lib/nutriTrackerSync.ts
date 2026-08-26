@@ -1,0 +1,52 @@
+// Sync bridge to NutriTracker Palama (~/nutri-tracker). Best-effort only —
+// every call swallows its own errors so a sync hiccup (offline, endpoint
+// down) never blocks a local save. Goes through our own /api/nutritracker
+// serverless proxy so the shared secret never reaches the browser.
+
+interface PullWeightResult {
+  weightKg: number | null
+  date: string | null
+  source: 'withings' | 'vibefit' | null
+}
+
+export async function pushWeightToNutriTracker(weightKg: number, date?: string) {
+  try {
+    await fetch('/api/nutritracker', {
+      method: 'POST',
+      headers: { 'content-type': 'application/json' },
+      body: JSON.stringify({ type: 'weight', weightKg, date }),
+    })
+  } catch {
+    // offline or endpoint unavailable — local save already succeeded, ignore
+  }
+}
+
+export async function pushFoodToNutriTracker(entry: {
+  name: string
+  calories: number
+  proteinG?: number
+  carbsG?: number
+  fatG?: number
+  date?: string
+}) {
+  try {
+    await fetch('/api/nutritracker', {
+      method: 'POST',
+      headers: { 'content-type': 'application/json' },
+      body: JSON.stringify({ type: 'food', ...entry }),
+    })
+  } catch {
+    // same — best effort
+  }
+}
+
+export async function pullLatestWeightFromNutriTracker(): Promise<PullWeightResult> {
+  try {
+    const r = await fetch('/api/nutritracker')
+    if (!r.ok) return { weightKg: null, date: null, source: null }
+    const data = await r.json()
+    return { weightKg: data.weightKg ?? null, date: data.date ?? null, source: data.source ?? null }
+  } catch {
+    return { weightKg: null, date: null, source: null }
+  }
+}
