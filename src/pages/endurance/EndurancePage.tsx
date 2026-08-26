@@ -14,7 +14,7 @@ import { getSettings } from '../../lib/settings'
 import { HR_ZONE_META } from '../../lib/heartRate'
 import { formatDate, formatTime, isToday } from '../../lib/date'
 import { useGeoTracking } from '../../lib/useGeoTracking'
-import { scanMachineResult, machineTypeToActivityType, toMachineStats, type ParsedMachineResult } from '../../lib/machineScan'
+import { scanMachineResults, machineTypeToActivityType, toMachineStats, type ParsedMachineResult } from '../../lib/machineScan'
 import RouteMap from '../../components/RouteMap'
 import ActivityHero, { hasHeroImage } from '../../components/ActivityHero'
 import type { EnduranceActivityType, EnduranceSession, MachineStats, RoutePoint } from '../../types'
@@ -252,16 +252,16 @@ function EnduranceForm({
   }
 
   async function handleScanFile(e: React.ChangeEvent<HTMLInputElement>) {
-    const file = e.target.files?.[0]
+    const files = Array.from(e.target.files ?? [])
     e.target.value = ''
-    if (!file) return
+    if (files.length === 0) return
     setScanning(true)
     setScanError(null)
     try {
-      applyScanResult(await scanMachineResult(file))
+      applyScanResult(await scanMachineResults(files))
     } catch (err) {
       const detail = err instanceof Error ? err.message : ''
-      setScanError(`Impossible de lire cette photo${detail ? ` (${detail})` : ''} — remplis les champs manuellement.`)
+      setScanError(`Impossible de lire ${files.length > 1 ? 'ces photos' : 'cette photo'}${detail ? ` (${detail})` : ''} — remplis les champs manuellement.`)
     } finally {
       setScanning(false)
     }
@@ -385,6 +385,7 @@ function EnduranceForm({
           ref={fileInputRef}
           type="file"
           accept="image/*"
+          multiple
           className="hidden"
           onChange={handleScanFile}
         />
@@ -395,7 +396,7 @@ function EnduranceForm({
         >
           {scanning ? (
             <>
-              <Loader2 size={16} className="animate-spin" /> Analyse de la photo…
+              <Loader2 size={16} className="animate-spin" /> Analyse de la/des photo(s)…
             </>
           ) : (
             <>
@@ -403,11 +404,24 @@ function EnduranceForm({
             </>
           )}
         </button>
+        <p className="mb-2 text-center text-[11px] text-zinc-600">
+          Tu peux sélectionner plusieurs photos si le tableau ne tient pas sur un seul écran.
+        </p>
         {scanError && <p className="mb-3 text-center text-xs text-red-400">{scanError}</p>}
-        {scanCalories !== null && !scanError && (
-          <p className="mb-3 text-center text-xs text-orange-400">
-            Photo analysée · {scanCalories} kcal relevées sur la machine
-          </p>
+        {scanStats && !scanError && (
+          <div className="mb-3 rounded-xl border border-orange-500/30 bg-orange-500/5 p-3">
+            <p className="mb-1.5 text-center text-xs font-medium text-orange-400">Photo(s) analysée(s)</p>
+            <div className="flex flex-wrap justify-center gap-x-3 gap-y-1 text-[11px] text-zinc-400">
+              {scanCalories != null && <span>{scanCalories} kcal</span>}
+              {scanStats.avgWatts != null && <span>{scanStats.avgWatts} W moy.</span>}
+              {scanStats.avgSpeedKph != null && <span>{scanStats.avgSpeedKph} km/h moy.</span>}
+              {scanStats.avgMets != null && <span>{scanStats.avgMets} METs</span>}
+              {scanStats.peakHeartRate != null && <span>pic {scanStats.peakHeartRate} bpm</span>}
+              {scanStats.peakWatts != null && <span>pic {scanStats.peakWatts} W</span>}
+              {scanStats.peakSpeedKph != null && <span>pic {scanStats.peakSpeedKph} km/h</span>}
+              {scanStats.elevationGainM != null && <span>+{scanStats.elevationGainM} m dénivelé</span>}
+            </div>
+          </div>
         )}
 
         {gpsCapable && (

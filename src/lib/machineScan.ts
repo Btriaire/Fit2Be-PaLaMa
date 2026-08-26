@@ -84,3 +84,21 @@ export async function scanMachineResult(file: File): Promise<ParsedMachineResult
   }
   return r.json()
 }
+
+/** Le tableau de résultats d'une machine ne tient souvent pas dans un seul
+ * écran (ex: AVERAGE en haut, PEAK/ELEVATION en bas après scroll) — on
+ * scanne chaque photo séparément et on fusionne : première valeur non-nulle
+ * trouvée pour chaque champ, dans l'ordre des photos fournies. */
+export async function scanMachineResults(files: File[]): Promise<ParsedMachineResult> {
+  if (files.length === 0) throw new Error('Aucune photo')
+  const results = await Promise.all(files.map((f) => scanMachineResult(f)))
+  const merged = { ...results[0] }
+  for (const r of results.slice(1)) {
+    for (const key of Object.keys(merged) as (keyof ParsedMachineResult)[]) {
+      if (merged[key] == null && r[key] != null) {
+        ;(merged as Record<string, unknown>)[key] = r[key]
+      }
+    }
+  }
+  return merged
+}

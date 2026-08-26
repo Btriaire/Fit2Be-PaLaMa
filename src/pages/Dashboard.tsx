@@ -6,7 +6,7 @@ import { getAllWorkouts, estimateWorkoutCalories } from '../lib/workouts'
 import { isToday, todayStr } from '../lib/date'
 import { getSettings } from '../lib/settings'
 import { syncGoogleFit, getTodayGoogleFit } from '../lib/googleFit'
-import { scanMachineResult } from '../lib/machineScan'
+import { scanMachineResults } from '../lib/machineScan'
 import ActivityHero, { type HeroKey } from '../components/ActivityHero'
 import type { ActivityLog, EnduranceSession, GoogleFitDay, NutritionEntry, RecoveryCheckin, Workout } from '../types'
 
@@ -24,17 +24,17 @@ export default function Dashboard() {
   const settings = getSettings()
 
   async function handleScanFile(e: React.ChangeEvent<HTMLInputElement>) {
-    const file = e.target.files?.[0]
+    const files = Array.from(e.target.files ?? [])
     e.target.value = ''
-    if (!file) return
+    if (files.length === 0) return
     setScanning(true)
     setScanError(null)
     try {
-      const result = await scanMachineResult(file)
+      const result = await scanMachineResults(files)
       navigate('/endurance', { state: { openForm: true, scanResult: result } })
     } catch (err) {
       const detail = err instanceof Error ? err.message : ''
-      setScanError(`Impossible de lire cette photo${detail ? ` (${detail})` : ''}.`)
+      setScanError(`Impossible de lire ${files.length > 1 ? 'ces photos' : 'cette photo'}${detail ? ` (${detail})` : ''}.`)
     } finally {
       setScanning(false)
     }
@@ -71,7 +71,7 @@ export default function Dashboard() {
             <h1 className="text-2xl font-bold tracking-tight text-white drop-shadow">Ton activité</h1>
           </div>
           <div className="flex items-center gap-1">
-            <input ref={scanInputRef} type="file" accept="image/*" className="hidden" onChange={handleScanFile} />
+            <input ref={scanInputRef} type="file" accept="image/*" multiple className="hidden" onChange={handleScanFile} />
             <button
               onClick={() => scanInputRef.current?.click()}
               disabled={scanning}
