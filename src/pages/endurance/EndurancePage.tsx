@@ -14,6 +14,7 @@ import { HR_ZONE_META } from '../../lib/heartRate'
 import { formatDate, formatTime, isToday } from '../../lib/date'
 import { useGeoTracking } from '../../lib/useGeoTracking'
 import RouteMap from '../../components/RouteMap'
+import ActivityHero, { hasActivityHero } from '../../components/ActivityHero'
 import type { EnduranceActivityType, EnduranceSession, RoutePoint } from '../../types'
 
 // Activités où un suivi GPS a du sens (extérieur, mouvement continu).
@@ -209,18 +210,25 @@ function EnduranceForm({
     const mm = Math.floor(gps.elapsedSec / 60)
     const ss = gps.elapsedSec % 60
     return (
-      <div className="fixed inset-0 z-50 flex flex-col bg-zinc-950">
-        <div className="flex items-center justify-between px-4 pt-[calc(env(safe-area-inset-top)+12px)] pb-3">
-          <div className="flex items-center gap-1.5 text-teal-400">
-            <MapPin size={16} className="animate-pulse" />
-            <span className="text-xs font-medium uppercase tracking-wide">Suivi en direct · {meta.label}</span>
+      <div className="fixed inset-0 z-50 flex flex-col overflow-y-auto bg-zinc-950">
+        <div className="relative">
+          {hasActivityHero(activityType) && <ActivityHero activityType={activityType} className="h-44" />}
+          <div
+            className={`flex items-center justify-between px-4 pb-3 pt-[calc(env(safe-area-inset-top)+12px)] ${
+              hasActivityHero(activityType) ? 'absolute inset-x-0 top-0' : ''
+            }`}
+          >
+            <div className="flex items-center gap-1.5 text-teal-300">
+              <MapPin size={16} className="animate-pulse" />
+              <span className="text-xs font-semibold uppercase tracking-wide drop-shadow">Suivi en direct · {meta.label}</span>
+            </div>
+            <button onClick={onClose} className="rounded-full bg-zinc-950/40 p-1.5 text-zinc-200 active:bg-zinc-900">
+              <X size={18} />
+            </button>
           </div>
-          <button onClick={onClose} className="rounded-full p-1.5 text-zinc-500 active:bg-zinc-900">
-            <X size={18} />
-          </button>
         </div>
 
-        {gps.error && <p className="mx-4 mb-2 rounded-lg bg-red-500/10 px-3 py-2 text-xs text-red-400">{gps.error}</p>}
+        {gps.error && <p className="mx-4 mb-2 mt-3 rounded-lg bg-red-500/10 px-3 py-2 text-xs text-red-400">{gps.error}</p>}
 
         <div className="px-4">
           <RouteMap route={gps.route} live className="h-64 w-full" />
@@ -252,16 +260,31 @@ function EnduranceForm({
   return (
     <div className="fixed inset-0 z-50 flex items-end justify-center bg-black/60" onClick={onClose}>
       <div
-        className="mesh-backdrop max-h-[85vh] w-full max-w-md overflow-y-auto rounded-t-2xl bg-zinc-950 border-t border-zinc-800 p-4"
+        className={`max-h-[85vh] w-full max-w-md overflow-y-auto rounded-t-2xl border-t border-zinc-800 bg-zinc-950 ${
+          hasActivityHero(activityType) ? '' : 'mesh-backdrop'
+        }`}
         onClick={(e) => e.stopPropagation()}
       >
-        <div className="mb-3 flex items-center justify-between">
-          <h2 className="font-semibold">Nouvelle sortie</h2>
-          <button onClick={onClose} className="rounded-full p-1 active:bg-zinc-900">
-            <X size={18} />
-          </button>
-        </div>
+        {hasActivityHero(activityType) ? (
+          <div className="relative">
+            <ActivityHero activityType={activityType} className="h-32 rounded-t-2xl" />
+            <div className="absolute inset-x-0 top-0 flex items-center justify-between p-4">
+              <h2 className="font-semibold text-white drop-shadow">Nouvelle sortie</h2>
+              <button onClick={onClose} className="rounded-full bg-zinc-950/40 p-1 text-white active:bg-zinc-900">
+                <X size={18} />
+              </button>
+            </div>
+          </div>
+        ) : (
+          <div className="mb-3 flex items-center justify-between p-4 pb-0">
+            <h2 className="font-semibold">Nouvelle sortie</h2>
+            <button onClick={onClose} className="rounded-full p-1 active:bg-zinc-900">
+              <X size={18} />
+            </button>
+          </div>
+        )}
 
+        <div className="p-4 pt-3">
         <div className="mb-4 grid grid-cols-2 gap-1.5">
           {(Object.keys(ENDURANCE_ACTIVITY_META) as EnduranceActivityType[]).map((key) => (
             <button
@@ -330,6 +353,7 @@ function EnduranceForm({
         >
           Enregistrer
         </button>
+        </div>
       </div>
     </div>
   )
