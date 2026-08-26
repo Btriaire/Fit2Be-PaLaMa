@@ -1,12 +1,13 @@
 import { useEffect, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { Dumbbell, Plus, ChevronRight, Flame, TrendingUp, Trash2 } from 'lucide-react'
+import { Dumbbell, Plus, ChevronRight, Flame, TrendingUp, Trash2, Target, X } from 'lucide-react'
 import { getAllWorkouts, saveWorkout, deleteWorkout, getLoggedExerciseIds } from '../../lib/workouts'
 import { newId } from '../../lib/db'
 import { formatDate, formatTime } from '../../lib/date'
 import { ALL_EXERCISES } from '../../lib/exercises'
+import { TRAINING_TEMPLATES, type TrainingTemplate } from '../../lib/trainingTemplates'
 import ActivityHero from '../../components/ActivityHero'
-import type { Workout } from '../../types'
+import type { Workout, WorkoutExercise } from '../../types'
 
 const QUICK_NAMES = ['Push Day', 'Pull Day', 'Leg Day', 'Full Body', 'Haut du corps', 'Bas du corps']
 
@@ -15,6 +16,7 @@ export default function GymHome() {
   const [workouts, setWorkouts] = useState<Workout[]>([])
   const [loading, setLoading] = useState(true)
   const [loggedExercises, setLoggedExercises] = useState<Array<{ exerciseId: string; lastDate: number }>>([])
+  const [previewTemplate, setPreviewTemplate] = useState<TrainingTemplate | null>(null)
 
   useEffect(() => {
     getAllWorkouts().then((w) => {
@@ -36,6 +38,21 @@ export default function GymHome() {
   }
 
   const inProgress = workouts.find((w) => !w.finishedAt)
+
+  async function startFromTemplate(tpl: TrainingTemplate) {
+    const exercises: WorkoutExercise[] = tpl.exercises.map((te, order) => ({
+      exerciseId: te.exerciseId,
+      order,
+      sets: [],
+      targetSets: te.targetSets,
+      targetReps: te.targetReps,
+      note: te.note,
+    }))
+    const workout: Workout = { id: newId(), name: tpl.name, startedAt: Date.now(), exercises }
+    await saveWorkout(workout)
+    setPreviewTemplate(null)
+    navigate(`/gym/workout/${workout.id}`)
+  }
 
   async function removeWorkout(id: string, name: string) {
     if (!confirm(`Supprimer la séance "${name}" ?`)) return
@@ -92,6 +109,28 @@ export default function GymHome() {
         >
           <Plus size={16} /> Séance personnalisée
         </button>
+      </section>
+
+      <section className="mb-6">
+        <h2 className="mb-2 text-sm font-medium text-zinc-400">Templates par chef musculaire</h2>
+        <div className="space-y-2">
+          {TRAINING_TEMPLATES.map((tpl) => (
+            <button
+              key={tpl.id}
+              onClick={() => setPreviewTemplate(tpl)}
+              className="glass flex w-full items-center gap-3 rounded-xl p-3.5 text-left active:scale-[0.98] transition-transform"
+            >
+              <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-orange-500/15 text-orange-400">
+                <Target size={18} />
+              </span>
+              <div className="min-w-0 flex-1">
+                <p className="text-sm font-semibold">{tpl.name}</p>
+                <p className="truncate text-xs text-zinc-500">{tpl.focus}</p>
+              </div>
+              <ChevronRight size={16} className="shrink-0 text-zinc-600" />
+            </button>
+          ))}
+        </div>
       </section>
 
       {loggedExercises.length > 0 && (
@@ -158,6 +197,76 @@ export default function GymHome() {
             })}
         </ul>
       </section>
+      </div>
+
+      {previewTemplate && (
+        <TemplatePreview
+          template={previewTemplate}
+          onClose={() => setPreviewTemplate(null)}
+          onStart={() => startFromTemplate(previewTemplate)}
+        />
+      )}
+    </div>
+  )
+}
+
+function TemplatePreview({
+  template,
+  onClose,
+  onStart,
+}: {
+  template: TrainingTemplate
+  onClose: () => void
+  onStart: () => void
+}) {
+  return (
+    <div className="fixed inset-0 z-50 flex items-end justify-center bg-black/60" onClick={onClose}>
+      <div
+        className="mesh-backdrop max-h-[85vh] w-full max-w-md overflow-y-auto rounded-t-2xl bg-zinc-950 border-t border-zinc-800 p-4"
+        onClick={(e) => e.stopPropagation()}
+      >
+        <div className="mb-1 flex items-center justify-between">
+          <h2 className="font-semibold">{template.name}</h2>
+          <button onClick={onClose} className="rounded-full p-1 active:bg-zinc-900">
+            <X size={18} />
+          </button>
+        </div>
+        <p className="mb-1 text-xs font-medium uppercase tracking-wide text-orange-400">{template.focus}</p>
+        <p className="mb-4 text-sm text-zinc-400">{template.description}</p>
+
+        <ul className="mb-4 space-y-2.5">
+          {template.exercises.map((te) => {
+            const ex = ALL_EXERCISES.find((e) => e.id === te.exerciseId)
+            return (
+              <li key={te.exerciseId} className="glass flex gap-2.5 rounded-xl p-3">
+                {ex?.images?.[0] ? (
+                  <img src={ex.images[0]} alt="" loading="lazy" className="h-16 w-16 shrink-0 rounded-lg bg-zinc-900 object-cover" />
+                ) : (
+                  <div className="h-16 w-16 shrink-0 rounded-lg bg-zinc-900" />
+                )}
+                <div className="min-w-0 flex-1">
+                  <div className="flex items-baseline justify-between gap-2">
+                    <p className="text-sm font-medium">{ex?.name ?? te.exerciseId}</p>
+                    <span className="shrink-0 rounded-full bg-orange-500/15 px-2 py-0.5 font-mono text-xs font-semibold text-orange-400">
+                      {te.targetSets}×{te.targetReps}
+                    </span>
+                  </div>
+                  <p className="text-[11px] text-zinc-500">
+                    {ex?.muscleGroup} · {ex?.equipment}
+                  </p>
+                  <p className="mt-1 text-xs leading-snug text-zinc-400">{te.note}</p>
+                </div>
+              </li>
+            )
+          })}
+        </ul>
+
+        <button
+          onClick={onStart}
+          className="w-full rounded-xl bg-orange-500 py-3 text-sm font-semibold text-zinc-950 active:bg-orange-400"
+        >
+          Démarrer cette séance
+        </button>
       </div>
     </div>
   )

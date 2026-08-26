@@ -24,6 +24,12 @@ export interface WorkoutExercise {
   exerciseId: string
   order: number
   sets: SetEntry[]
+  /** Prescription d'un template d'entraînement (nb de séries visé). */
+  targetSets?: number
+  /** Prescription d'un template d'entraînement (ex: "8-10", "AMRAP"). */
+  targetReps?: string
+  /** Chef musculaire ciblé + repère technique, affiché sous l'exercice. */
+  note?: string
 }
 
 export interface Workout {

@@ -167,7 +167,14 @@ function ExerciseBlock({
           )}
           <div>
             <h3 className="font-semibold">{exercise?.name ?? we.exerciseId}</h3>
-            <p className="text-[11px] text-zinc-600">~{estimatedMin} min estimées</p>
+            <p className="text-[11px] text-zinc-600">
+              ~{estimatedMin} min estimées
+              {we.targetSets && we.targetReps && (
+                <span className="ml-1.5 rounded-full bg-orange-500/15 px-1.5 py-0.5 font-mono text-orange-400">
+                  cible {we.targetSets}×{we.targetReps}
+                </span>
+              )}
+            </p>
           </div>
         </div>
         {last && (
@@ -176,6 +183,7 @@ function ExerciseBlock({
           </p>
         )}
       </div>
+      {we.note && <p className="mb-2.5 text-xs leading-snug text-zinc-500">{we.note}</p>}
 
       {we.sets.length > 0 && (
         <ul className="mb-2 space-y-1">
