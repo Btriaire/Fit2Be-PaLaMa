@@ -138,6 +138,7 @@ export interface EnduranceHistoryPoint {
   paceMinPerKm: number | null
   durationMin: number
   avgHeartRate?: number
+  caloriesBurned: number
 }
 
 /** Historique chronologique des sorties pour un type d'activité donné. */
@@ -152,6 +153,7 @@ export async function getEnduranceHistory(activityType: EnduranceActivityType): 
       paceMinPerKm: s.distanceKm ? computePaceMinPerKm(s.durationMin, s.distanceKm) : null,
       durationMin: s.durationMin,
       avgHeartRate: s.avgHeartRate,
+      caloriesBurned: s.caloriesBurned,
     }))
 }
 

@@ -6,7 +6,7 @@ import { getDb, newId } from '../../lib/db'
 import { getSettings } from '../../lib/settings'
 import { isSameDay, formatTime, formatDate, formatFullDate, todayStr, addDays } from '../../lib/date'
 import { getAllWorkouts, estimateWorkoutCalories } from '../../lib/workouts'
-import { getWeightLogs, logWeight, adoptWeightFromSync } from '../../lib/weight'
+import { getWeightLogs, logWeight, deleteWeightLog, adoptWeightFromSync } from '../../lib/weight'
 import { pushFoodToNutriTracker, pullLatestWeightFromNutriTracker, pullNutritionFromNutriTracker, type RemoteNutritionTotals } from '../../lib/nutriTrackerSync'
 import { getGoogleFitForDate } from '../../lib/googleFit'
 import { computeCaloriesFromSteps } from '../../lib/met'
@@ -109,6 +109,12 @@ export default function NutritionPage() {
     refresh()
   }
 
+  async function removeWeight(id: string) {
+    if (!confirm('Supprimer cette pesée ?')) return
+    await deleteWeightLog(id)
+    refresh()
+  }
+
   return (
     <div>
       <div className="relative">
@@ -155,7 +161,7 @@ export default function NutritionPage() {
         <ChevronRight size={16} className="text-zinc-500" />
       </Link>
 
-      <WeightTracker logs={weightLogs} currentWeight={settings.bodyWeightKg} onLog={addWeight} />
+      <WeightTracker logs={weightLogs} currentWeight={settings.bodyWeightKg} onLog={addWeight} onDelete={removeWeight} />
 
       <div className="glass mb-4 rounded-2xl p-4">
         <div className="mb-2 flex items-baseline justify-between">
@@ -260,12 +266,15 @@ function WeightTracker({
   logs,
   currentWeight,
   onLog,
+  onDelete,
 }: {
   logs: WeightLog[]
   currentWeight: number
   onLog: (weightKg: number) => void
+  onDelete: (id: string) => void
 }) {
   const [value, setValue] = useState(String(currentWeight))
+  const [historyOpen, setHistoryOpen] = useState(false)
 
   useEffect(() => {
     setValue(String(currentWeight))
@@ -333,6 +342,33 @@ function WeightTracker({
         </button>
       </div>
       {logs.length === 0 && <p className="mt-2 text-xs text-zinc-600">Aucune pesée enregistrée pour l'instant.</p>}
+
+      {logs.length > 0 && (
+        <>
+          <button onClick={() => setHistoryOpen((v) => !v)} className="mt-3 w-full text-center text-xs text-zinc-500 active:text-zinc-300">
+            {historyOpen ? 'Masquer' : 'Voir'} l'historique des pesées ({logs.length})
+          </button>
+          {historyOpen && (
+            <ul className="mt-2 space-y-1">
+              {logs.map((l) => (
+                <li key={l.id} className="flex items-center justify-between rounded-lg bg-zinc-900 px-3 py-2 text-xs">
+                  <span className="text-zinc-400">{formatDate(l.loggedAt)}</span>
+                  <span className="flex items-center gap-2">
+                    <span className="font-mono font-semibold text-zinc-200">{l.weightKg}kg</span>
+                    <button
+                      onClick={() => onDelete(l.id)}
+                      className="rounded-full p-1 text-zinc-600 active:bg-red-500/10 active:text-red-400"
+                      aria-label="Supprimer cette pesée"
+                    >
+                      <Trash2 size={13} />
+                    </button>
+                  </span>
+                </li>
+              ))}
+            </ul>
+          )}
+        </>
+      )}
     </div>
   )
 }

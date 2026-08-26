@@ -61,6 +61,7 @@ export default function RecoveryPage() {
   const [sleepDebt, setSleepDebt] = useState<SleepDebt | null>(null)
   const [streak, setStreak] = useState<ActivityStreak | null>(null)
   const [readiness, setReadiness] = useState<Readiness | null>(null)
+  const [savedFlash, setSavedFlash] = useState(false)
   const settings = getSettings()
 
   async function refresh() {
@@ -110,6 +111,8 @@ export default function RecoveryPage() {
     }
     await db.put('recovery', checkin)
     refresh()
+    setSavedFlash(true)
+    setTimeout(() => setSavedFlash(false), 1500)
   }
 
   const scoreColor = score >= 70 ? 'text-indigo-300' : score >= 40 ? 'text-orange-400' : 'text-red-400'
@@ -251,7 +254,7 @@ export default function RecoveryPage() {
           onClick={submit}
           className="w-full rounded-xl bg-indigo-500 py-3 text-sm font-semibold text-zinc-950 active:bg-indigo-400"
         >
-          {todayCheckin ? 'Mettre à jour le check-in' : 'Valider le check-in du jour'}
+          {savedFlash ? 'Enregistré ✓' : todayCheckin ? 'Mettre à jour le check-in' : 'Valider le check-in du jour'}
         </button>
       </section>
 

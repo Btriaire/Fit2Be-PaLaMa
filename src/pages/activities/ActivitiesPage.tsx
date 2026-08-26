@@ -2,11 +2,12 @@ import { useEffect, useMemo, useState } from 'react'
 import { useLocation } from 'react-router-dom'
 import { Footprints, Plus, Trash2, X } from 'lucide-react'
 import { getDb, newId } from '../../lib/db'
-import { MET_ACTIVITIES, CATEGORY_META, computeCaloriesForUser } from '../../lib/met'
+import { MET_ACTIVITIES, computeCaloriesForUser } from '../../lib/met'
 import { getSettings } from '../../lib/settings'
 import { isToday, formatTime } from '../../lib/date'
 import { pushActivityToNutriTracker } from '../../lib/nutriTrackerSync'
 import ActivityHero from '../../components/ActivityHero'
+import ActivityIcon from '../../components/ActivityIcon'
 import type { ActivityLog } from '../../types'
 
 interface NavState {
@@ -92,11 +93,13 @@ export default function ActivitiesPage() {
         {logs.length === 0 && <p className="text-sm text-zinc-500">Rien pour l'instant.</p>}
         <ul className="space-y-2">
           {logs.map((l) => {
-            const meta = CATEGORY_META[l.category]
+            const activityId = MET_ACTIVITIES.find((a) => a.label === l.label)?.id
             return (
               <li key={l.id} className="glass flex items-center justify-between rounded-xl p-3">
                 <div className="flex items-center gap-2.5">
-                  <span className="text-lg leading-none">{meta.emoji}</span>
+                  <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-zinc-900 text-teal-400">
+                    <ActivityIcon activityId={activityId ?? ''} size={16} />
+                  </span>
                   <div>
                     <p className="text-sm font-medium">{l.label}</p>
                     <p className="text-xs text-zinc-500">
@@ -174,11 +177,12 @@ function ActivityForm({
             <button
               key={a.id}
               onClick={() => setActivityId(a.id)}
-              className={`rounded-lg px-2.5 py-2 text-left text-xs ${
+              className={`flex items-center gap-1.5 rounded-lg px-2.5 py-2 text-left text-xs ${
                 a.id === activityId ? 'bg-teal-500 text-zinc-950 font-semibold' : 'bg-zinc-900 text-zinc-300'
               }`}
             >
-              {CATEGORY_META[a.category].emoji} {a.label}
+              <ActivityIcon activityId={a.id} size={15} className="shrink-0" />
+              {a.label}
             </button>
           ))}
         </div>
