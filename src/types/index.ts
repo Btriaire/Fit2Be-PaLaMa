@@ -60,6 +60,19 @@ export interface RoutePoint {
   ts: number
 }
 
+/** Toutes les métriques lues sur l'écran d'une machine de cardio scannée —
+ * conservées telles quelles, même celles non (encore) utilisées ailleurs. */
+export interface MachineStats {
+  machineType: 'treadmill' | 'bike' | 'rower' | 'elliptical' | 'other'
+  avgWatts?: number
+  avgSpeedKph?: number
+  avgMets?: number
+  peakHeartRate?: number
+  peakWatts?: number
+  peakSpeedKph?: number
+  elevationGainM?: number
+}
+
 export interface EnduranceSession {
   id: string
   activityType: EnduranceActivityType
@@ -71,6 +84,7 @@ export interface EnduranceSession {
   caloriesBurned: number
   notes?: string
   route?: RoutePoint[]
+  machineStats?: MachineStats
 }
 
 // ---- Récupération & Santé ----

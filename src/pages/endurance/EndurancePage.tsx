@@ -14,10 +14,10 @@ import { getSettings } from '../../lib/settings'
 import { HR_ZONE_META } from '../../lib/heartRate'
 import { formatDate, formatTime, isToday } from '../../lib/date'
 import { useGeoTracking } from '../../lib/useGeoTracking'
-import { scanMachineResult, machineTypeToActivityType, type ParsedMachineResult } from '../../lib/machineScan'
+import { scanMachineResult, machineTypeToActivityType, toMachineStats, type ParsedMachineResult } from '../../lib/machineScan'
 import RouteMap from '../../components/RouteMap'
 import ActivityHero, { hasHeroImage } from '../../components/ActivityHero'
-import type { EnduranceActivityType, EnduranceSession, RoutePoint } from '../../types'
+import type { EnduranceActivityType, EnduranceSession, MachineStats, RoutePoint } from '../../types'
 
 interface NavState {
   openForm?: boolean
@@ -66,6 +66,7 @@ export default function EndurancePage() {
     avgHeartRate?: number
     route?: RoutePoint[]
     caloriesBurned?: number
+    machineStats?: MachineStats
   }) {
     await logEnduranceSession(input, settings)
     setFormOpen(false)
@@ -180,6 +181,15 @@ export default function EndurancePage() {
                   )}
                   <span className="ml-auto font-semibold text-orange-400">{s.caloriesBurned} kcal</span>
                 </div>
+                {s.machineStats && (
+                  <div className="mt-1.5 flex flex-wrap items-center gap-x-3 gap-y-1 text-[11px] text-zinc-500">
+                    {s.machineStats.avgWatts != null && <span>{s.machineStats.avgWatts} W moy.</span>}
+                    {s.machineStats.avgMets != null && <span>{s.machineStats.avgMets} METs</span>}
+                    {s.machineStats.peakHeartRate != null && <span>pic {s.machineStats.peakHeartRate} bpm</span>}
+                    {s.machineStats.peakWatts != null && <span>pic {s.machineStats.peakWatts} W</span>}
+                    {s.machineStats.elevationGainM != null && <span>+{s.machineStats.elevationGainM} m</span>}
+                  </div>
+                )}
                 {s.route && s.route.length > 1 && (
                   <div className="mt-2">
                     <RouteMap route={s.route} className="h-28 w-full" />
@@ -211,6 +221,7 @@ function EnduranceForm({
     avgHeartRate?: number
     route?: RoutePoint[]
     caloriesBurned?: number
+    machineStats?: MachineStats
   }) => void
   onClose: () => void
   initialScan?: ParsedMachineResult
@@ -226,6 +237,7 @@ function EnduranceForm({
   const gpsCapable = GPS_CAPABLE.includes(activityType)
   const [savedRoute, setSavedRoute] = useState<RoutePoint[] | null>(null)
   const [scanCalories, setScanCalories] = useState<number | null>(initialScan?.calories ?? null)
+  const [scanStats, setScanStats] = useState<MachineStats | null>(initialScan ? toMachineStats(initialScan) : null)
   const [scanning, setScanning] = useState(false)
   const [scanError, setScanError] = useState<string | null>(null)
   const fileInputRef = useRef<HTMLInputElement>(null)
@@ -236,6 +248,7 @@ function EnduranceForm({
     if (result.distanceKm) setDistance(String(result.distanceKm))
     if (result.avgHeartRate) setAvgHr(String(result.avgHeartRate))
     setScanCalories(result.calories ?? null)
+    setScanStats(toMachineStats(result))
   }
 
   async function handleScanFile(e: React.ChangeEvent<HTMLInputElement>) {
@@ -264,6 +277,7 @@ function EnduranceForm({
       avgHeartRate: avgHr ? parseInt(avgHr, 10) : undefined,
       route: savedRoute ?? undefined,
       caloriesBurned: scanCalories ?? undefined,
+      machineStats: scanStats ?? undefined,
     })
   }
 

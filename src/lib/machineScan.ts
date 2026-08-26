@@ -1,4 +1,4 @@
-import type { EnduranceActivityType } from '../types'
+import type { EnduranceActivityType, MachineStats } from '../types'
 
 export interface ParsedMachineResult {
   machineType: 'treadmill' | 'bike' | 'rower' | 'elliptical' | 'other'
@@ -9,6 +9,10 @@ export interface ParsedMachineResult {
   avgWatts: number | null
   avgSpeedKph: number | null
   avgMets: number | null
+  peakHeartRate: number | null
+  peakWatts: number | null
+  peakSpeedKph: number | null
+  elevationGainM: number | null
 }
 
 const MACHINE_TO_ACTIVITY: Record<ParsedMachineResult['machineType'], EnduranceActivityType> = {
@@ -21,6 +25,22 @@ const MACHINE_TO_ACTIVITY: Record<ParsedMachineResult['machineType'], EnduranceA
 
 export function machineTypeToActivityType(machineType: ParsedMachineResult['machineType']): EnduranceActivityType {
   return MACHINE_TO_ACTIVITY[machineType]
+}
+
+/** Conserve toutes les métriques lues sur la machine, pas seulement celles
+ * qui alimentent le formulaire (durée/distance/FC) — utile pour les index de
+ * progression cardiaque (watts/FC) plus tard. */
+export function toMachineStats(result: ParsedMachineResult): MachineStats {
+  return {
+    machineType: result.machineType,
+    avgWatts: result.avgWatts ?? undefined,
+    avgSpeedKph: result.avgSpeedKph ?? undefined,
+    avgMets: result.avgMets ?? undefined,
+    peakHeartRate: result.peakHeartRate ?? undefined,
+    peakWatts: result.peakWatts ?? undefined,
+    peakSpeedKph: result.peakSpeedKph ?? undefined,
+    elevationGainM: result.elevationGainM ?? undefined,
+  }
 }
 
 /** Downscale + recompresse en JPEG côté client — les photos de téléphone

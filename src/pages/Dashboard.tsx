@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
-import { Dumbbell, Footprints, HeartPulse, Apple, Camera, ChevronRight, Settings, Activity, BarChart3, Loader2, Plus, Moon } from 'lucide-react'
+import { Dumbbell, Footprints, HeartPulse, Apple, Camera, ChevronRight, Settings, Activity, BarChart3, Loader2, Plus, Moon, TrendingUp } from 'lucide-react'
 import { getDb } from '../lib/db'
 import { getAllWorkouts, estimateWorkoutCalories } from '../lib/workouts'
 import { isToday, todayStr } from '../lib/date'
@@ -126,6 +126,13 @@ export default function Dashboard() {
       </Link>
 
       <div className="space-y-2.5">
+        <ModuleCard
+          to="/progression"
+          heroKey="course"
+          icon={<TrendingUp className="text-indigo-300" size={20} />}
+          title="Progression"
+          subtitle="Index général, musculaire et cardiaque"
+        />
         <ModuleCard
           to="/gym"
           heroKey="gym"

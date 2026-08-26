@@ -23,6 +23,10 @@ interface ParsedMachineResult {
   avgWatts: number | null
   avgSpeedKph: number | null
   avgMets: number | null
+  peakHeartRate: number | null
+  peakWatts: number | null
+  peakSpeedKph: number | null
+  elevationGainM: number | null
 }
 
 const PROMPT = `Tu analyses une photo d'écran de résultats d'une machine de cardio de salle de sport
@@ -31,7 +35,7 @@ Extrait les valeurs de la colonne TOTAL (ou WORKOUT si pas de colonne total) et 
 Réponds UNIQUEMENT avec un JSON valide, sans markdown ni texte autour.
 
 Format exact :
-{"machineType":"treadmill|bike|rower|elliptical|other","durationMin":45,"distanceKm":4.07,"calories":265,"avgHeartRate":115,"avgWatts":83,"avgSpeedKph":5.4,"avgMets":4.9}
+{"machineType":"treadmill|bike|rower|elliptical|other","durationMin":45,"distanceKm":4.07,"calories":265,"avgHeartRate":115,"avgWatts":83,"avgSpeedKph":5.4,"avgMets":4.9,"peakHeartRate":131,"peakWatts":110,"peakSpeedKph":5.8,"elevationGainM":117}
 
 Convertis le temps total (ex "45:21") en minutes décimales arrondies à l'entier. Mets null pour toute valeur absente ou illisible.`
 

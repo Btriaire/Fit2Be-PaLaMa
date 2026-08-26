@@ -3,7 +3,7 @@ import { computeCaloriesForUser } from './met'
 import { computeHrZone } from './heartRate'
 import { pushActivityToNutriTracker } from './nutriTrackerSync'
 import type { Settings } from './settings'
-import type { EnduranceActivityType, EnduranceSession, RoutePoint } from '../types'
+import type { EnduranceActivityType, EnduranceSession, MachineStats, RoutePoint } from '../types'
 
 // googleFitType : code d'activité Google Fit repris par NutriTracker Palama
 // (app/api/activity/route.ts) pour dénormaliser un nom d'activité côté sync.
@@ -47,6 +47,8 @@ export async function logEnduranceSession(
     route?: RoutePoint[]
     /** Calories réelles lues sur la machine — prioritaires sur l'estimation MET. */
     caloriesBurned?: number
+    /** Métriques complètes lues sur l'écran de la machine (watts, pics, dénivelé...). */
+    machineStats?: MachineStats
   },
   settings: Settings,
 ): Promise<EnduranceSession> {
@@ -63,6 +65,7 @@ export async function logEnduranceSession(
     hrZone,
     caloriesBurned,
     ...(input.route && input.route.length > 0 ? { route: input.route } : {}),
+    ...(input.machineStats ? { machineStats: input.machineStats } : {}),
   }
   const db = await getDb()
   await db.put('endurance', session)
