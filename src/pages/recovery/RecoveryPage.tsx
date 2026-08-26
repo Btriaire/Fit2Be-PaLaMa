@@ -44,6 +44,13 @@ export default function RecoveryPage() {
     const all = await db.getAllFromIndex('recovery', 'byDate')
     setCheckins(all.reverse())
     setRecovery(await computeDailyRecovery(settings.ageYears))
+    const today = all.find((c) => c.date === todayStr())
+    if (today) {
+      setSleepQuality(today.sleepQuality)
+      setMuscleFatigue(today.muscleFatigue)
+      setStressLevel(today.stressLevel)
+      setMotivation(today.motivation)
+    }
   }
 
   useEffect(() => {
@@ -53,6 +60,8 @@ export default function RecoveryPage() {
   const todayCheckin = checkins.find((c) => c.date === todayStr())
   const subjective = computeSubjectiveScore({ sleepQuality, muscleFatigue, stressLevel, motivation })
   const loadPenalty = recovery?.bodyBatteryPenalty ?? 0
+  // Toujours recalculé en direct — un check-in validé plus tôt dans la
+  // journée ne doit pas figer le score si une séance est loggée après coup.
   const score = Math.max(0, subjective - loadPenalty)
 
   async function submit() {
@@ -87,8 +96,14 @@ export default function RecoveryPage() {
 
       <div className="glass mb-4 rounded-2xl p-5 text-center">
         <p className="text-xs uppercase tracking-wide text-zinc-500">Body Battery</p>
-        <p className={`mt-1 text-5xl font-bold ${scoreColor}`}>{todayCheckin?.bodyBatteryScore ?? score}</p>
-        <p className="mt-1 text-xs text-zinc-500">{todayCheckin ? 'Check-in du jour enregistré' : 'Aperçu — valide ton check-in'}</p>
+        <p className={`mt-1 text-5xl font-bold ${scoreColor}`}>{score}</p>
+        <p className="mt-1 text-xs text-zinc-500">
+          {todayCheckin
+            ? todayCheckin.bodyBatteryScore !== score
+              ? 'Recalculé avec ton activité du jour — mets à jour ton check-in pour le fixer'
+              : 'Check-in du jour enregistré'
+            : 'Aperçu — valide ton check-in'}
+        </p>
       </div>
 
       {recovery && (
