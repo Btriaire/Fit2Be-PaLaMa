@@ -40,7 +40,7 @@ export default function ExerciseHistory() {
       {exercise?.images && exercise.images.length > 0 && (
         <div className="mb-4 grid grid-cols-2 gap-2 overflow-hidden rounded-2xl">
           {exercise.images.slice(0, 2).map((src, i) => (
-            <img key={i} src={src} alt="" loading="lazy" className="h-40 w-full rounded-2xl bg-zinc-900 object-cover" />
+            <img key={i} src={src} alt="" loading="lazy" className="h-56 w-full rounded-2xl bg-zinc-900 object-cover" />
           ))}
         </div>
       )}

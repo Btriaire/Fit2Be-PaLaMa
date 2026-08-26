@@ -149,7 +149,7 @@ function ExerciseBlock({
       <div className="mb-2 flex items-baseline justify-between">
         <div className="flex items-center gap-2.5">
           {exercise?.images?.[0] && (
-            <img src={exercise.images[0]} alt="" loading="lazy" className="h-9 w-9 shrink-0 self-center rounded-lg bg-zinc-900 object-cover" />
+            <img src={exercise.images[0]} alt="" loading="lazy" className="h-16 w-16 shrink-0 self-center rounded-xl bg-zinc-900 object-cover" />
           )}
           <div>
             <h3 className="font-semibold">{exercise?.name ?? we.exerciseId}</h3>
@@ -307,9 +307,9 @@ function ExercisePicker({
                 className="flex w-full items-center gap-2.5 rounded-lg px-3 py-2.5 text-left active:bg-zinc-900"
               >
                 {e.images?.[0] ? (
-                  <img src={e.images[0]} alt="" loading="lazy" className="h-10 w-10 shrink-0 rounded-lg bg-zinc-900 object-cover" />
+                  <img src={e.images[0]} alt="" loading="lazy" className="h-16 w-16 shrink-0 rounded-xl bg-zinc-900 object-cover" />
                 ) : (
-                  <div className="h-10 w-10 shrink-0 rounded-lg bg-zinc-900" />
+                  <div className="h-16 w-16 shrink-0 rounded-xl bg-zinc-900" />
                 )}
                 <div className="min-w-0 flex-1">
                   <p className="truncate text-sm font-medium">{e.name}</p>
