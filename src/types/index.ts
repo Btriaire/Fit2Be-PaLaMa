@@ -5,6 +5,8 @@ export interface Exercise {
   name: string
   muscleGroup: string
   equipment?: string
+  /** Photos démonstratives (Free Exercise DB, domaine public) — [position de départ, position finale]. */
+  images?: string[]
 }
 
 export interface SetEntry {

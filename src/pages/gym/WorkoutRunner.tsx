@@ -16,6 +16,7 @@ import { newId } from '../../lib/db'
 import { ALL_EXERCISES, MUSCLE_GROUPS } from '../../lib/exercises'
 import { getSettings } from '../../lib/settings'
 import RestTimer from '../../components/RestTimer'
+import MuscleBodyMap from '../../components/MuscleBodyMap'
 import type { SetEntry, Workout, WorkoutExercise } from '../../types'
 
 export default function WorkoutRunner() {
@@ -146,9 +147,14 @@ function ExerciseBlock({
   return (
     <div className="glass rounded-2xl p-3.5">
       <div className="mb-2 flex items-baseline justify-between">
-        <div>
-          <h3 className="font-semibold">{exercise?.name ?? we.exerciseId}</h3>
-          <p className="text-[11px] text-zinc-600">~{estimatedMin} min estimées</p>
+        <div className="flex items-center gap-2.5">
+          {exercise?.images?.[0] && (
+            <img src={exercise.images[0]} alt="" loading="lazy" className="h-9 w-9 shrink-0 self-center rounded-lg bg-zinc-900 object-cover" />
+          )}
+          <div>
+            <h3 className="font-semibold">{exercise?.name ?? we.exerciseId}</h3>
+            <p className="text-[11px] text-zinc-600">~{estimatedMin} min estimées</p>
+          </div>
         </div>
         {last && (
           <p className="text-xs text-zinc-500">
@@ -271,6 +277,7 @@ function ExercisePicker({
             className="flex-1 bg-transparent text-sm outline-none"
           />
         </div>
+        <MuscleBodyMap selected={muscleFilter} onSelect={setMuscleFilter} />
         <div className="mb-3 flex gap-1.5 overflow-x-auto pb-1">
           <button
             onClick={() => setMuscleFilter(null)}
@@ -297,12 +304,19 @@ function ExercisePicker({
             <li key={e.id}>
               <button
                 onClick={() => onPick(e.id)}
-                className="flex w-full items-center justify-between rounded-lg px-3 py-2.5 text-left active:bg-zinc-900"
+                className="flex w-full items-center gap-2.5 rounded-lg px-3 py-2.5 text-left active:bg-zinc-900"
               >
-                <span className="text-sm font-medium">{e.name}</span>
-                <span className="text-xs text-zinc-500">
-                  {e.muscleGroup} · {e.equipment} · ~{estimatedMin}min
-                </span>
+                {e.images?.[0] ? (
+                  <img src={e.images[0]} alt="" loading="lazy" className="h-10 w-10 shrink-0 rounded-lg bg-zinc-900 object-cover" />
+                ) : (
+                  <div className="h-10 w-10 shrink-0 rounded-lg bg-zinc-900" />
+                )}
+                <div className="min-w-0 flex-1">
+                  <p className="truncate text-sm font-medium">{e.name}</p>
+                  <p className="text-xs text-zinc-500">
+                    {e.muscleGroup} · {e.equipment} · ~{estimatedMin}min
+                  </p>
+                </div>
               </button>
             </li>
           ))}
