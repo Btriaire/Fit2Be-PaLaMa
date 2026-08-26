@@ -1,13 +1,21 @@
 const KEY = 'vibefit_settings_v1'
 
+export type Sex = 'homme' | 'femme'
+
 export interface Settings {
   bodyWeightKg: number
+  heightCm: number
+  ageYears: number
+  sex: Sex
   dailyCalorieTarget: number
   restTimerDefaultSec: number
 }
 
 const DEFAULTS: Settings = {
   bodyWeightKg: 75,
+  heightCm: 175,
+  ageYears: 30,
+  sex: 'homme',
   dailyCalorieTarget: 2400,
   restTimerDefaultSec: 90,
 }

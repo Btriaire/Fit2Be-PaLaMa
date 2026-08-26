@@ -7,7 +7,6 @@ import { getDb } from '../lib/db'
 export default function SettingsPage() {
   const navigate = useNavigate()
   const initial = getSettings()
-  const [bodyWeightKg, setBodyWeightKg] = useState(String(initial.bodyWeightKg))
   const [dailyCalorieTarget, setDailyCalorieTarget] = useState(String(initial.dailyCalorieTarget))
   const [restTimerDefaultSec, setRestTimerDefaultSec] = useState(String(initial.restTimerDefaultSec))
   const [savedFlash, setSavedFlash] = useState(false)
@@ -15,7 +14,6 @@ export default function SettingsPage() {
 
   function submit() {
     saveSettings({
-      bodyWeightKg: parseFloat(bodyWeightKg) || initial.bodyWeightKg,
       dailyCalorieTarget: parseInt(dailyCalorieTarget, 10) || initial.dailyCalorieTarget,
       restTimerDefaultSec: parseInt(restTimerDefaultSec, 10) || initial.restTimerDefaultSec,
     })
@@ -76,8 +74,12 @@ export default function SettingsPage() {
         <h1 className="text-xl font-semibold tracking-tight">Réglages</h1>
       </header>
 
+      <p className="mb-3 px-1 text-xs text-zinc-500">
+        Ton profil démographique (poids, taille, âge, sexe) se règle depuis l'onglet NutriTracker — il sert au calcul
+        des calories brûlées.
+      </p>
+
       <section className="glass mb-4 space-y-4 rounded-2xl p-4">
-        <Field label="Poids corporel (kg)" value={bodyWeightKg} onChange={setBodyWeightKg} suffix="kg" />
         <Field label="Objectif calorique quotidien" value={dailyCalorieTarget} onChange={setDailyCalorieTarget} suffix="kcal" />
         <Field label="Repos par défaut entre séries" value={restTimerDefaultSec} onChange={setRestTimerDefaultSec} suffix="sec" />
         <button

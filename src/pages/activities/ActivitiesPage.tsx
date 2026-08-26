@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useState } from 'react'
 import { Footprints, Plus, X } from 'lucide-react'
 import { getDb, newId } from '../../lib/db'
-import { MET_ACTIVITIES, CATEGORY_META, computeCalories } from '../../lib/met'
+import { MET_ACTIVITIES, CATEGORY_META, computeCaloriesForUser } from '../../lib/met'
 import { getSettings } from '../../lib/settings'
 import { isToday, formatTime } from '../../lib/date'
 import type { ActivityLog } from '../../types'
@@ -107,7 +107,7 @@ function ActivityForm({
       label: activity.label,
       metValue: activity.met,
       durationMin: dur,
-      caloriesBurned: computeCalories(activity.met, settings.bodyWeightKg, dur),
+      caloriesBurned: computeCaloriesForUser(activity.met, dur, settings),
     })
   }
 
@@ -147,7 +147,7 @@ function ActivityForm({
         />
 
         <p className="mb-4 text-center text-sm text-zinc-500">
-          ≈ {computeCalories(activity.met, settings.bodyWeightKg, parseInt(duration || '0', 10))} kcal
+          ≈ {computeCaloriesForUser(activity.met, parseInt(duration || '0', 10), settings)} kcal
         </p>
 
         <button

@@ -1,4 +1,6 @@
 import { getDb } from './db'
+import { computeCaloriesForUser, GYM_WORKOUT_MET } from './met'
+import type { Settings } from './settings'
 import type { SetEntry, Workout } from '../types'
 
 export interface LastPerformance {
@@ -70,6 +72,14 @@ export async function getAllWorkouts(): Promise<Workout[]> {
   const db = await getDb()
   const all = await db.getAllFromIndex('workouts', 'byStartedAt')
   return all.reverse()
+}
+
+/** Calories brûlées estimées pour une séance de gym, selon le profil démographique. */
+export function estimateWorkoutCalories(workout: Workout, settings: Settings): number {
+  if (!workout.finishedAt) return 0
+  const durationMin = (workout.finishedAt - workout.startedAt) / 60000
+  if (durationMin <= 0) return 0
+  return computeCaloriesForUser(GYM_WORKOUT_MET, durationMin, settings)
 }
 
 export async function deleteWorkout(id: string) {

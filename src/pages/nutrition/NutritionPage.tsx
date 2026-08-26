@@ -1,19 +1,26 @@
 import { useEffect, useMemo, useState } from 'react'
-import { Apple, Mic, Plus, Square, X } from 'lucide-react'
+import { Apple, ChevronDown, Flame, Mic, Plus, Square, User, X } from 'lucide-react'
 import { getDb, newId } from '../../lib/db'
-import { getSettings } from '../../lib/settings'
+import { getSettings, saveSettings, type Sex } from '../../lib/settings'
 import { isToday, formatTime } from '../../lib/date'
-import type { NutritionEntry } from '../../types'
+import { getAllWorkouts, estimateWorkoutCalories } from '../../lib/workouts'
+import type { NutritionEntry, Workout } from '../../types'
 
 export default function NutritionPage() {
   const [entries, setEntries] = useState<NutritionEntry[]>([])
+  const [workouts, setWorkouts] = useState<Workout[]>([])
+  const [activityCalories, setActivityCalories] = useState(0)
   const [formOpen, setFormOpen] = useState(false)
-  const settings = getSettings()
+  const [profileOpen, setProfileOpen] = useState(false)
+  const [settings, setSettings] = useState(getSettings())
 
   async function refresh() {
     const db = await getDb()
     const all = await db.getAllFromIndex('nutrition', 'byLoggedAt')
     setEntries(all.reverse())
+    const activities = await db.getAll('activities')
+    setActivityCalories(activities.filter((a) => isToday(a.loggedAt)).reduce((s, a) => s + a.caloriesBurned, 0))
+    setWorkouts(await getAllWorkouts())
   }
 
   useEffect(() => {
@@ -25,8 +32,18 @@ export default function NutritionPage() {
   const protein = todayEntries.reduce((s, e) => s + (e.proteinG ?? 0), 0)
   const carbs = todayEntries.reduce((s, e) => s + (e.carbsG ?? 0), 0)
   const fat = todayEntries.reduce((s, e) => s + (e.fatG ?? 0), 0)
-  const remaining = settings.dailyCalorieTarget - consumed
-  const pct = Math.min(100, Math.round((consumed / settings.dailyCalorieTarget) * 100))
+
+  const gymCalories = useMemo(
+    () =>
+      workouts
+        .filter((w) => w.finishedAt && isToday(w.startedAt))
+        .reduce((s, w) => s + estimateWorkoutCalories(w, settings), 0),
+    [workouts, settings],
+  )
+  const totalBurned = gymCalories + activityCalories
+  const adjustedTarget = settings.dailyCalorieTarget + totalBurned
+  const remaining = adjustedTarget - consumed
+  const pct = Math.min(100, Math.round((consumed / adjustedTarget) * 100))
 
   async function addEntry(entry: Omit<NutritionEntry, 'id' | 'loggedAt'>) {
     const db = await getDb()
@@ -43,6 +60,29 @@ export default function NutritionPage() {
         <h1 className="text-xl font-semibold tracking-tight">NutriTracker</h1>
       </header>
 
+      <button
+        onClick={() => setProfileOpen((v) => !v)}
+        className="glass mb-4 flex w-full items-center justify-between rounded-2xl p-4"
+      >
+        <div className="flex items-center gap-2">
+          <User size={16} className="text-sky-400" />
+          <span className="text-sm font-medium">
+            Profil — {settings.bodyWeightKg}kg · {settings.heightCm}cm · {settings.ageYears} ans · {settings.sex}
+          </span>
+        </div>
+        <ChevronDown size={16} className={`text-zinc-500 transition-transform ${profileOpen ? 'rotate-180' : ''}`} />
+      </button>
+
+      {profileOpen && (
+        <ProfileForm
+          settings={settings}
+          onChange={(next) => {
+            const saved = saveSettings(next)
+            setSettings(saved)
+          }}
+        />
+      )}
+
       <div className="glass mb-4 rounded-2xl p-4">
         <div className="mb-2 flex items-baseline justify-between">
           <p className="text-sm text-zinc-400">Consommées</p>
@@ -52,8 +92,25 @@ export default function NutritionPage() {
         <div className="mb-1 h-2 overflow-hidden rounded-full bg-zinc-800">
           <div className="h-full rounded-full bg-sky-500" style={{ width: `${pct}%` }} />
         </div>
-        <p className="text-xs text-zinc-500">{remaining >= 0 ? `${remaining} kcal restantes` : `${-remaining} kcal au-dessus de l'objectif`}</p>
+        <p className="text-xs text-zinc-500">
+          {remaining >= 0 ? `${remaining} kcal restantes` : `${-remaining} kcal au-dessus de l'objectif`}
+          {totalBurned > 0 && <span className="text-zinc-600"> · objectif ajusté avec {totalBurned} kcal brûlées</span>}
+        </p>
       </div>
+
+      {totalBurned > 0 && (
+        <div className="glass mb-4 rounded-2xl p-4">
+          <div className="mb-2 flex items-center gap-1.5">
+            <Flame size={14} className="text-orange-400" />
+            <p className="text-sm font-medium text-zinc-300">Calories brûlées aujourd'hui</p>
+          </div>
+          <p className="mb-2 text-2xl font-bold text-orange-400">{totalBurned} kcal</p>
+          <div className="flex gap-4 text-xs text-zinc-500">
+            <span>🏋️‍♂️ Gym : {gymCalories} kcal</span>
+            <span>🏃 Activités : {activityCalories} kcal</span>
+          </div>
+        </div>
+      )}
 
       {(protein > 0 || carbs > 0 || fat > 0) && (
         <div className="mb-6 grid grid-cols-3 gap-2">
@@ -95,6 +152,86 @@ export default function NutritionPage() {
       </section>
 
       {formOpen && <NutritionForm onSubmit={addEntry} onClose={() => setFormOpen(false)} />}
+    </div>
+  )
+}
+
+function ProfileForm({
+  settings,
+  onChange,
+}: {
+  settings: ReturnType<typeof getSettings>
+  onChange: (next: { bodyWeightKg?: number; heightCm?: number; ageYears?: number; sex?: Sex }) => void
+}) {
+  const [weight, setWeight] = useState(String(settings.bodyWeightKg))
+  const [height, setHeight] = useState(String(settings.heightCm))
+  const [age, setAge] = useState(String(settings.ageYears))
+  const [sex, setSex] = useState<Sex>(settings.sex)
+
+  function save() {
+    onChange({
+      bodyWeightKg: parseFloat(weight) || settings.bodyWeightKg,
+      heightCm: parseFloat(height) || settings.heightCm,
+      ageYears: parseInt(age, 10) || settings.ageYears,
+      sex,
+    })
+  }
+
+  return (
+    <div className="glass mb-4 space-y-3 rounded-2xl p-4">
+      <p className="text-xs text-zinc-500">
+        Ces données démographiques permettent de calculer précisément les calories brûlées pour toutes tes séances
+        (gym + activités quotidiennes).
+      </p>
+      <div className="grid grid-cols-2 gap-2">
+        <LabeledInput label="Poids (kg)" value={weight} onChange={setWeight} onBlur={save} />
+        <LabeledInput label="Taille (cm)" value={height} onChange={setHeight} onBlur={save} />
+        <LabeledInput label="Âge (ans)" value={age} onChange={setAge} onBlur={save} />
+        <div>
+          <label className="mb-1 block text-xs text-zinc-500">Sexe</label>
+          <div className="flex gap-1.5">
+            {(['homme', 'femme'] as Sex[]).map((s) => (
+              <button
+                key={s}
+                onClick={() => {
+                  setSex(s)
+                  onChange({ sex: s })
+                }}
+                className={`flex-1 rounded-lg py-2.5 text-xs font-medium capitalize ${
+                  sex === s ? 'bg-sky-500 text-zinc-950' : 'bg-zinc-900 text-zinc-400'
+                }`}
+              >
+                {s}
+              </button>
+            ))}
+          </div>
+        </div>
+      </div>
+    </div>
+  )
+}
+
+function LabeledInput({
+  label,
+  value,
+  onChange,
+  onBlur,
+}: {
+  label: string
+  value: string
+  onChange: (v: string) => void
+  onBlur: () => void
+}) {
+  return (
+    <div>
+      <label className="mb-1 block text-xs text-zinc-500">{label}</label>
+      <input
+        inputMode="decimal"
+        value={value}
+        onChange={(e) => onChange(e.target.value)}
+        onBlur={onBlur}
+        className="w-full rounded-lg bg-zinc-900 px-3 py-2.5 text-center text-sm outline-none focus:ring-1 focus:ring-sky-500"
+      />
     </div>
   )
 }

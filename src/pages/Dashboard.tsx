@@ -2,7 +2,7 @@ import { useEffect, useState } from 'react'
 import { Link } from 'react-router-dom'
 import { Dumbbell, Footprints, HeartPulse, Apple, ChevronRight, Settings } from 'lucide-react'
 import { getDb } from '../lib/db'
-import { getAllWorkouts } from '../lib/workouts'
+import { getAllWorkouts, estimateWorkoutCalories } from '../lib/workouts'
 import { isToday, todayStr } from '../lib/date'
 import { getSettings } from '../lib/settings'
 import type { ActivityLog, NutritionEntry, RecoveryCheckin, Workout } from '../types'
@@ -25,9 +25,11 @@ export default function Dashboard() {
   }, [])
 
   const todayWorkouts = workouts.filter((w) => isToday(w.startedAt) && w.finishedAt)
+  const todayGymCalories = todayWorkouts.reduce((s, w) => s + estimateWorkoutCalories(w, settings), 0)
   const todayActivityCalories = activities.filter((a) => isToday(a.loggedAt)).reduce((s, a) => s + a.caloriesBurned, 0)
+  const todayBurnedCalories = todayGymCalories + todayActivityCalories
   const todayNutritionCalories = nutrition.filter((n) => isToday(n.loggedAt)).reduce((s, n) => s + n.calories, 0)
-  const balance = todayNutritionCalories - todayActivityCalories
+  const balance = todayNutritionCalories - todayBurnedCalories
 
   return (
     <div className="px-4 pt-6">
@@ -43,7 +45,7 @@ export default function Dashboard() {
 
       <div className="mb-6 grid grid-cols-2 gap-2">
         <StatTile label="Séances gym" value={`${todayWorkouts.length}`} color="text-orange-400" />
-        <StatTile label="Calories brûlées" value={`${todayActivityCalories}`} color="text-green-400" />
+        <StatTile label="Calories brûlées" value={`${todayBurnedCalories}`} color="text-green-400" />
         <StatTile label="Body Battery" value={recovery ? `${recovery.bodyBatteryScore}` : '—'} color="text-purple-400" />
         <StatTile label="Balance kcal" value={`${balance >= 0 ? '+' : ''}${balance}`} color="text-sky-400" />
       </div>

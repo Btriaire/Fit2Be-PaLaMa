@@ -1,4 +1,5 @@
 import type { ActivityCategory } from '../types'
+import type { Settings } from './settings'
 
 export interface MetActivity {
   id: string
@@ -39,6 +40,25 @@ export const MET_ACTIVITIES: MetActivity[] = [
 export function computeCalories(met: number, weightKg: number, durationMin: number) {
   return Math.round(met * weightKg * (durationMin / 60))
 }
+
+/**
+ * Calcul des calories brûlées pour une activité en tenant compte du profil
+ * démographique de l'utilisateur (poids + léger ajustement selon le sexe,
+ * la masse maigre moyenne étant plus élevée chez les hommes à poids égal).
+ */
+export function computeCaloriesForUser(met: number, durationMin: number, settings: Settings) {
+  const sexFactor = settings.sex === 'femme' ? 0.95 : 1
+  return Math.round(met * settings.bodyWeightKg * (durationMin / 60) * sexFactor)
+}
+
+/** Métabolisme de base (Mifflin-St Jeor), en kcal/jour. */
+export function computeBmr(settings: Settings) {
+  const base = 10 * settings.bodyWeightKg + 6.25 * settings.heightCm - 5 * settings.ageYears
+  return Math.round(settings.sex === 'homme' ? base + 5 : base - 161)
+}
+
+// MET usuel pour une séance de musculation (charges libres/machines, effort modéré à soutenu)
+export const GYM_WORKOUT_MET = 5.5
 
 export const CATEGORY_META: Record<ActivityCategory, { label: string; emoji: string; color: string }> = {
   gym: { label: 'Gym / Fitness', emoji: '🏋️‍♂️', color: 'var(--color-gym)' },
