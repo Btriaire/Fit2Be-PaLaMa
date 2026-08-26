@@ -75,6 +75,12 @@ export interface NutritionEntry {
   rawInput?: string
 }
 
+export interface WeightLog {
+  id: string
+  loggedAt: number
+  weightKg: number
+}
+
 export interface UserSettings {
   dailyCalorieTarget: number
   restTimerDefaultSec: number

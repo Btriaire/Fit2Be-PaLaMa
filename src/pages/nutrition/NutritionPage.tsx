@@ -1,14 +1,17 @@
 import { useEffect, useMemo, useState } from 'react'
-import { Apple, ChevronDown, Flame, Mic, Plus, Square, User, X } from 'lucide-react'
+import { Apple, ChevronDown, Flame, Mic, Plus, Scale, Square, User, X } from 'lucide-react'
+import { CartesianGrid, Line, LineChart, ResponsiveContainer, Tooltip, XAxis, YAxis } from 'recharts'
 import { getDb, newId } from '../../lib/db'
 import { getSettings, saveSettings, type Sex } from '../../lib/settings'
-import { isToday, formatTime } from '../../lib/date'
+import { isToday, formatTime, formatDate } from '../../lib/date'
 import { getAllWorkouts, estimateWorkoutCalories } from '../../lib/workouts'
-import type { NutritionEntry, Workout } from '../../types'
+import { getWeightLogs, logWeight } from '../../lib/weight'
+import type { NutritionEntry, WeightLog, Workout } from '../../types'
 
 export default function NutritionPage() {
   const [entries, setEntries] = useState<NutritionEntry[]>([])
   const [workouts, setWorkouts] = useState<Workout[]>([])
+  const [weightLogs, setWeightLogs] = useState<WeightLog[]>([])
   const [activityCalories, setActivityCalories] = useState(0)
   const [formOpen, setFormOpen] = useState(false)
   const [profileOpen, setProfileOpen] = useState(false)
@@ -21,6 +24,8 @@ export default function NutritionPage() {
     const activities = await db.getAll('activities')
     setActivityCalories(activities.filter((a) => isToday(a.loggedAt)).reduce((s, a) => s + a.caloriesBurned, 0))
     setWorkouts(await getAllWorkouts())
+    setWeightLogs(await getWeightLogs())
+    setSettings(getSettings())
   }
 
   useEffect(() => {
@@ -53,6 +58,11 @@ export default function NutritionPage() {
     refresh()
   }
 
+  async function addWeight(weightKg: number) {
+    await logWeight(weightKg)
+    refresh()
+  }
+
   return (
     <div className="px-4 pt-6">
       <header className="mb-6 flex items-center gap-2">
@@ -82,6 +92,8 @@ export default function NutritionPage() {
           }}
         />
       )}
+
+      <WeightTracker logs={weightLogs} currentWeight={settings.bodyWeightKg} onLog={addWeight} />
 
       <div className="glass mb-4 rounded-2xl p-4">
         <div className="mb-2 flex items-baseline justify-between">
@@ -161,16 +173,14 @@ function ProfileForm({
   onChange,
 }: {
   settings: ReturnType<typeof getSettings>
-  onChange: (next: { bodyWeightKg?: number; heightCm?: number; ageYears?: number; sex?: Sex }) => void
+  onChange: (next: { heightCm?: number; ageYears?: number; sex?: Sex }) => void
 }) {
-  const [weight, setWeight] = useState(String(settings.bodyWeightKg))
   const [height, setHeight] = useState(String(settings.heightCm))
   const [age, setAge] = useState(String(settings.ageYears))
   const [sex, setSex] = useState<Sex>(settings.sex)
 
   function save() {
     onChange({
-      bodyWeightKg: parseFloat(weight) || settings.bodyWeightKg,
       heightCm: parseFloat(height) || settings.heightCm,
       ageYears: parseInt(age, 10) || settings.ageYears,
       sex,
@@ -181,13 +191,12 @@ function ProfileForm({
     <div className="glass mb-4 space-y-3 rounded-2xl p-4">
       <p className="text-xs text-zinc-500">
         Ces données démographiques permettent de calculer précisément les calories brûlées pour toutes tes séances
-        (gym + activités quotidiennes).
+        (gym + activités quotidiennes). Le poids se met à jour via tes pesées ci-dessous.
       </p>
       <div className="grid grid-cols-2 gap-2">
-        <LabeledInput label="Poids (kg)" value={weight} onChange={setWeight} onBlur={save} />
         <LabeledInput label="Taille (cm)" value={height} onChange={setHeight} onBlur={save} />
         <LabeledInput label="Âge (ans)" value={age} onChange={setAge} onBlur={save} />
-        <div>
+        <div className="col-span-2">
           <label className="mb-1 block text-xs text-zinc-500">Sexe</label>
           <div className="flex gap-1.5">
             {(['homme', 'femme'] as Sex[]).map((s) => (
@@ -207,6 +216,87 @@ function ProfileForm({
           </div>
         </div>
       </div>
+    </div>
+  )
+}
+
+function WeightTracker({
+  logs,
+  currentWeight,
+  onLog,
+}: {
+  logs: WeightLog[]
+  currentWeight: number
+  onLog: (weightKg: number) => void
+}) {
+  const [value, setValue] = useState(String(currentWeight))
+
+  useEffect(() => {
+    setValue(String(currentWeight))
+  }, [currentWeight])
+
+  function submit() {
+    const w = parseFloat(value)
+    if (!w || w <= 0) return
+    onLog(w)
+  }
+
+  const chartData = [...logs].reverse().map((l) => ({ ...l, label: formatDate(l.loggedAt) }))
+  const trend = logs.length >= 2 ? logs[0].weightKg - logs[1].weightKg : 0
+
+  return (
+    <div className="glass mb-4 rounded-2xl p-4">
+      <div className="mb-3 flex items-center justify-between">
+        <div className="flex items-center gap-1.5">
+          <Scale size={16} className="text-sky-400" />
+          <p className="text-sm font-medium text-zinc-300">Suivi du poids</p>
+        </div>
+        {logs.length > 0 && (
+          <p className="text-xs text-zinc-500">
+            {logs[0].weightKg}kg
+            {trend !== 0 && (
+              <span className={trend > 0 ? 'text-orange-400' : 'text-green-400'}>
+                {' '}
+                ({trend > 0 ? '+' : ''}
+                {trend.toFixed(1)}kg)
+              </span>
+            )}
+          </p>
+        )}
+      </div>
+
+      {chartData.length >= 2 && (
+        <div className="mb-3 h-32 w-full">
+          <ResponsiveContainer width="100%" height="100%">
+            <LineChart data={chartData} margin={{ top: 4, right: 8, left: -24, bottom: 0 }}>
+              <CartesianGrid strokeDasharray="3 3" stroke="#27272a" vertical={false} />
+              <XAxis dataKey="label" tick={{ fill: '#71717a', fontSize: 10 }} axisLine={false} tickLine={false} />
+              <YAxis tick={{ fill: '#71717a', fontSize: 10 }} axisLine={false} tickLine={false} domain={['dataMin - 1', 'dataMax + 1']} />
+              <Tooltip
+                contentStyle={{ background: '#18181b', border: '1px solid #3f3f46', borderRadius: 8, fontSize: 12 }}
+                labelStyle={{ color: '#a1a1aa' }}
+              />
+              <Line type="monotone" dataKey="weightKg" name="Poids (kg)" stroke="#38bdf8" strokeWidth={2} dot={{ r: 3, fill: '#38bdf8' }} />
+            </LineChart>
+          </ResponsiveContainer>
+        </div>
+      )}
+
+      <div className="flex items-center gap-1.5">
+        <input
+          inputMode="decimal"
+          value={value}
+          onChange={(e) => setValue(e.target.value)}
+          className="flex-1 rounded-lg bg-zinc-900 px-3 py-2.5 text-center text-sm outline-none focus:ring-1 focus:ring-sky-500"
+        />
+        <button
+          onClick={submit}
+          className="shrink-0 rounded-lg bg-sky-500 px-4 py-2.5 text-sm font-semibold text-zinc-950 active:bg-sky-400"
+        >
+          Peser
+        </button>
+      </div>
+      {logs.length === 0 && <p className="mt-2 text-xs text-zinc-600">Aucune pesée enregistrée pour l'instant.</p>}
     </div>
   )
 }
