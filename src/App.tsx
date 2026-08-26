@@ -10,6 +10,8 @@ import ExerciseHistory from './pages/gym/ExerciseHistory'
 import ActivitiesPage from './pages/activities/ActivitiesPage'
 import RecoveryPage from './pages/recovery/RecoveryPage'
 import NutritionPage from './pages/nutrition/NutritionPage'
+import EndurancePage from './pages/endurance/EndurancePage'
+import StatsPage from './pages/StatsPage'
 
 const ENTERED_KEY = 'vibefit_entered'
 
@@ -38,6 +40,8 @@ function App() {
           <Route path="/activities" element={<ActivitiesPage />} />
           <Route path="/recovery" element={<RecoveryPage />} />
           <Route path="/nutrition" element={<NutritionPage />} />
+          <Route path="/endurance" element={<EndurancePage />} />
+          <Route path="/stats" element={<StatsPage />} />
           <Route path="/settings" element={<SettingsPage />} />
         </Routes>
       </main>

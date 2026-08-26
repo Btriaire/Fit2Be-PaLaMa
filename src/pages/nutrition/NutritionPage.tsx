@@ -66,7 +66,7 @@ export default function NutritionPage() {
   return (
     <div className="px-4 pt-6">
       <header className="mb-6 flex items-center gap-2">
-        <Apple className="text-sky-400" size={26} />
+        <Apple className="text-teal-400" size={26} />
         <h1 className="text-xl font-semibold tracking-tight">NutriTracker</h1>
       </header>
 
@@ -75,7 +75,7 @@ export default function NutritionPage() {
         className="glass mb-4 flex w-full items-center justify-between rounded-2xl p-4"
       >
         <div className="flex items-center gap-2">
-          <User size={16} className="text-sky-400" />
+          <User size={16} className="text-teal-400" />
           <span className="text-sm font-medium">
             Profil — {settings.bodyWeightKg}kg · {settings.heightCm}cm · {settings.ageYears} ans · {settings.sex}
           </span>
@@ -100,9 +100,9 @@ export default function NutritionPage() {
           <p className="text-sm text-zinc-400">Consommées</p>
           <p className="text-sm text-zinc-400">Objectif {settings.dailyCalorieTarget} kcal</p>
         </div>
-        <p className="mb-2 text-3xl font-bold text-sky-400">{consumed} kcal</p>
+        <p className="mb-2 text-3xl font-bold text-teal-400">{consumed} kcal</p>
         <div className="mb-1 h-2 overflow-hidden rounded-full bg-zinc-800">
-          <div className="h-full rounded-full bg-sky-500" style={{ width: `${pct}%` }} />
+          <div className="h-full rounded-full bg-teal-500" style={{ width: `${pct}%` }} />
         </div>
         <p className="text-xs text-zinc-500">
           {remaining >= 0 ? `${remaining} kcal restantes` : `${-remaining} kcal au-dessus de l'objectif`}
@@ -128,14 +128,14 @@ export default function NutritionPage() {
         <div className="mb-6 grid grid-cols-3 gap-2">
           <MacroTile label="Protéines" value={protein} color="bg-rose-500" />
           <MacroTile label="Glucides" value={carbs} color="bg-amber-500" />
-          <MacroTile label="Lipides" value={fat} color="bg-emerald-500" />
+          <MacroTile label="Lipides" value={fat} color="bg-teal-500" />
         </div>
       )}
       {!(protein > 0 || carbs > 0 || fat > 0) && <div className="mb-6" />}
 
       <button
         onClick={() => setFormOpen(true)}
-        className="mb-6 flex w-full items-center justify-center gap-1.5 rounded-xl bg-sky-500 py-3 text-sm font-semibold text-zinc-950 active:bg-sky-400"
+        className="mb-6 flex w-full items-center justify-center gap-1.5 rounded-xl bg-teal-500 py-3 text-sm font-semibold text-zinc-950 active:bg-teal-400"
       >
         <Plus size={16} /> Ajouter un repas
       </button>
@@ -157,7 +157,7 @@ export default function NutritionPage() {
                   )}
                 </p>
               </div>
-              <p className="text-sm font-semibold text-sky-400">{e.calories} kcal</p>
+              <p className="text-sm font-semibold text-teal-400">{e.calories} kcal</p>
             </li>
           ))}
         </ul>
@@ -207,7 +207,7 @@ function ProfileForm({
                   onChange({ sex: s })
                 }}
                 className={`flex-1 rounded-lg py-2.5 text-xs font-medium capitalize ${
-                  sex === s ? 'bg-sky-500 text-zinc-950' : 'bg-zinc-900 text-zinc-400'
+                  sex === s ? 'bg-teal-500 text-zinc-950' : 'bg-zinc-900 text-zinc-400'
                 }`}
               >
                 {s}
@@ -248,14 +248,14 @@ function WeightTracker({
     <div className="glass mb-4 rounded-2xl p-4">
       <div className="mb-3 flex items-center justify-between">
         <div className="flex items-center gap-1.5">
-          <Scale size={16} className="text-sky-400" />
+          <Scale size={16} className="text-teal-400" />
           <p className="text-sm font-medium text-zinc-300">Suivi du poids</p>
         </div>
         {logs.length > 0 && (
           <p className="text-xs text-zinc-500">
             {logs[0].weightKg}kg
             {trend !== 0 && (
-              <span className={trend > 0 ? 'text-orange-400' : 'text-green-400'}>
+              <span className={trend > 0 ? 'text-orange-400' : 'text-teal-400'}>
                 {' '}
                 ({trend > 0 ? '+' : ''}
                 {trend.toFixed(1)}kg)
@@ -287,11 +287,11 @@ function WeightTracker({
           inputMode="decimal"
           value={value}
           onChange={(e) => setValue(e.target.value)}
-          className="flex-1 rounded-lg bg-zinc-900 px-3 py-2.5 text-center text-sm outline-none focus:ring-1 focus:ring-sky-500"
+          className="flex-1 rounded-lg bg-zinc-900 px-3 py-2.5 text-center text-sm outline-none focus:ring-1 focus:ring-teal-500"
         />
         <button
           onClick={submit}
-          className="shrink-0 rounded-lg bg-sky-500 px-4 py-2.5 text-sm font-semibold text-zinc-950 active:bg-sky-400"
+          className="shrink-0 rounded-lg bg-teal-500 px-4 py-2.5 text-sm font-semibold text-zinc-950 active:bg-teal-400"
         >
           Peser
         </button>
@@ -320,7 +320,7 @@ function LabeledInput({
         value={value}
         onChange={(e) => onChange(e.target.value)}
         onBlur={onBlur}
-        className="w-full rounded-lg bg-zinc-900 px-3 py-2.5 text-center text-sm outline-none focus:ring-1 focus:ring-sky-500"
+        className="w-full rounded-lg bg-zinc-900 px-3 py-2.5 text-center text-sm outline-none focus:ring-1 focus:ring-teal-500"
       />
     </div>
   )
@@ -412,7 +412,7 @@ function NutritionForm({
             value={label}
             onChange={(e) => setLabel(e.target.value)}
             placeholder="ex: 200g de poulet + riz"
-            className="flex-1 rounded-lg bg-zinc-900 px-3 py-2.5 outline-none focus:ring-1 focus:ring-sky-500"
+            className="flex-1 rounded-lg bg-zinc-900 px-3 py-2.5 outline-none focus:ring-1 focus:ring-teal-500"
           />
           {speechSupported && (
             <button
@@ -431,7 +431,7 @@ function NutritionForm({
           inputMode="numeric"
           value={calories}
           onChange={(e) => setCalories(e.target.value)}
-          className="mb-3 w-full rounded-lg bg-zinc-900 px-3 py-2.5 text-center outline-none focus:ring-1 focus:ring-sky-500"
+          className="mb-3 w-full rounded-lg bg-zinc-900 px-3 py-2.5 text-center outline-none focus:ring-1 focus:ring-teal-500"
         />
 
         <label className="mb-1 block text-xs text-zinc-500">Macros (optionnel, en grammes)</label>
@@ -441,27 +441,27 @@ function NutritionForm({
             placeholder="Protéines"
             value={proteinG}
             onChange={(e) => setProteinG(e.target.value)}
-            className="rounded-lg bg-zinc-900 px-2 py-2.5 text-center text-sm outline-none focus:ring-1 focus:ring-sky-500"
+            className="rounded-lg bg-zinc-900 px-2 py-2.5 text-center text-sm outline-none focus:ring-1 focus:ring-teal-500"
           />
           <input
             inputMode="decimal"
             placeholder="Glucides"
             value={carbsG}
             onChange={(e) => setCarbsG(e.target.value)}
-            className="rounded-lg bg-zinc-900 px-2 py-2.5 text-center text-sm outline-none focus:ring-1 focus:ring-sky-500"
+            className="rounded-lg bg-zinc-900 px-2 py-2.5 text-center text-sm outline-none focus:ring-1 focus:ring-teal-500"
           />
           <input
             inputMode="decimal"
             placeholder="Lipides"
             value={fatG}
             onChange={(e) => setFatG(e.target.value)}
-            className="rounded-lg bg-zinc-900 px-2 py-2.5 text-center text-sm outline-none focus:ring-1 focus:ring-sky-500"
+            className="rounded-lg bg-zinc-900 px-2 py-2.5 text-center text-sm outline-none focus:ring-1 focus:ring-teal-500"
           />
         </div>
 
         <button
           onClick={submit}
-          className="w-full rounded-xl bg-sky-500 py-3 text-sm font-semibold text-zinc-950 active:bg-sky-400"
+          className="w-full rounded-xl bg-teal-500 py-3 text-sm font-semibold text-zinc-950 active:bg-teal-400"
         >
           Enregistrer
         </button>

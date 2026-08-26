@@ -5,11 +5,10 @@
 
   --color-base: #09090b;
   --color-surface: #18181b;
-  --color-gym: #f97316;
-  --color-outdoor: #22c55e;
-  --color-loisir: #38bdf8;
-  --color-quotidien: #fb923c;
-  --color-recup: #a78bfa;
+  /* Palette resserrée à 3 accents : turquoise, orange foncé lumineux, violet-bleu foncé */
+  --color-turquoise: #2dd4bf;
+  --color-orange: #f97316;
+  --color-indigo: #6366f1;
 }
 
 :root {
@@ -27,6 +26,9 @@ body {
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
   overscroll-behavior-y: none;
+  padding-top: env(safe-area-inset-top);
+  padding-left: env(safe-area-inset-left);
+  padding-right: env(safe-area-inset-right);
 }
 
 * {

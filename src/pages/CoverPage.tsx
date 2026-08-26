@@ -2,9 +2,9 @@ import { Dumbbell, Footprints, HeartPulse, Apple } from 'lucide-react'
 
 const MODULES = [
   { icon: Dumbbell, label: 'Gym', color: 'text-orange-400', bg: 'bg-orange-500/10' },
-  { icon: Footprints, label: 'Activités', color: 'text-green-400', bg: 'bg-green-500/10' },
-  { icon: HeartPulse, label: 'Récup', color: 'text-purple-400', bg: 'bg-purple-500/10' },
-  { icon: Apple, label: 'Nutrition', color: 'text-sky-400', bg: 'bg-sky-500/10' },
+  { icon: Footprints, label: 'Activités', color: 'text-teal-400', bg: 'bg-teal-500/10' },
+  { icon: HeartPulse, label: 'Récup', color: 'text-indigo-400', bg: 'bg-indigo-500/10' },
+  { icon: Apple, label: 'Nutrition', color: 'text-teal-400', bg: 'bg-teal-500/10' },
 ]
 
 export default function CoverPage({ onEnter }: { onEnter: () => void }) {
@@ -14,12 +14,12 @@ export default function CoverPage({ onEnter }: { onEnter: () => void }) {
         className="pointer-events-none absolute inset-x-0 top-0 h-96 opacity-40"
         style={{
           background:
-            'radial-gradient(60% 50% at 50% 0%, rgba(249,115,22,0.25), rgba(56,189,248,0.12) 55%, transparent 75%)',
+            'radial-gradient(60% 50% at 50% 0%, rgba(249,115,22,0.25), rgba(45,212,191,0.12) 55%, transparent 75%)',
         }}
       />
 
       <div className="relative z-10 flex flex-1 flex-col items-center justify-center">
-        <div className="mb-6 flex h-20 w-20 items-center justify-center rounded-3xl bg-gradient-to-br from-orange-500 to-sky-500 shadow-[0_0_40px_rgba(249,115,22,0.35)]">
+        <div className="mb-6 flex h-20 w-20 items-center justify-center rounded-3xl bg-gradient-to-br from-orange-500 to-teal-500 shadow-[0_0_40px_rgba(249,115,22,0.35)]">
           <Dumbbell size={36} className="text-zinc-950" strokeWidth={2.4} />
         </div>
 

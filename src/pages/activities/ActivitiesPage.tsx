@@ -35,14 +35,14 @@ export default function ActivitiesPage() {
   return (
     <div className="px-4 pt-6">
       <header className="mb-6 flex items-center gap-2">
-        <Footprints className="text-green-400" size={26} />
+        <Footprints className="text-teal-400" size={26} />
         <h1 className="text-xl font-semibold tracking-tight">Activités & Quotidien</h1>
       </header>
 
       <div className="mb-6 grid grid-cols-2 gap-2">
         <div className="glass rounded-2xl p-3.5">
           <p className="text-xs text-zinc-500">Calories aujourd'hui</p>
-          <p className="mt-1 text-2xl font-bold text-green-400">{todayCalories}</p>
+          <p className="mt-1 text-2xl font-bold text-teal-400">{todayCalories}</p>
         </div>
         <div className="glass rounded-2xl p-3.5">
           <p className="text-xs text-zinc-500">Life MET Score</p>
@@ -52,7 +52,7 @@ export default function ActivitiesPage() {
 
       <button
         onClick={() => setFormOpen(true)}
-        className="mb-6 flex w-full items-center justify-center gap-1.5 rounded-xl bg-green-500 py-3 text-sm font-semibold text-zinc-950 active:bg-green-400"
+        className="mb-6 flex w-full items-center justify-center gap-1.5 rounded-xl bg-teal-500 py-3 text-sm font-semibold text-zinc-950 active:bg-teal-400"
       >
         <Plus size={16} /> Ajouter une activité
       </button>
@@ -74,7 +74,7 @@ export default function ActivitiesPage() {
                     </p>
                   </div>
                 </div>
-                <p className="text-sm font-semibold text-green-400">{l.caloriesBurned} kcal</p>
+                <p className="text-sm font-semibold text-teal-400">{l.caloriesBurned} kcal</p>
               </li>
             )
           })}
@@ -130,7 +130,7 @@ function ActivityForm({
               key={a.id}
               onClick={() => setActivityId(a.id)}
               className={`rounded-lg px-2.5 py-2 text-left text-xs ${
-                a.id === activityId ? 'bg-green-500 text-zinc-950 font-semibold' : 'bg-zinc-900 text-zinc-300'
+                a.id === activityId ? 'bg-teal-500 text-zinc-950 font-semibold' : 'bg-zinc-900 text-zinc-300'
               }`}
             >
               {CATEGORY_META[a.category].emoji} {a.label}
@@ -143,7 +143,7 @@ function ActivityForm({
           inputMode="numeric"
           value={duration}
           onChange={(e) => setDuration(e.target.value)}
-          className="mb-4 w-full rounded-lg bg-zinc-900 px-3 py-2.5 text-center outline-none focus:ring-1 focus:ring-green-500"
+          className="mb-4 w-full rounded-lg bg-zinc-900 px-3 py-2.5 text-center outline-none focus:ring-1 focus:ring-teal-500"
         />
 
         <p className="mb-4 text-center text-sm text-zinc-500">
@@ -152,7 +152,7 @@ function ActivityForm({
 
         <button
           onClick={submit}
-          className="w-full rounded-xl bg-green-500 py-3 text-sm font-semibold text-zinc-950 active:bg-green-400"
+          className="w-full rounded-xl bg-teal-500 py-3 text-sm font-semibold text-zinc-950 active:bg-teal-400"
         >
           Enregistrer
         </button>

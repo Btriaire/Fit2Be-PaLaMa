@@ -48,6 +48,24 @@ export interface ActivityLog {
   notes?: string
 }
 
+// ---- Endurance ----
+
+export type EnduranceActivityType = 'course' | 'velo' | 'natation' | 'rameur' | 'velo-appart' | 'tapis' | 'marche'
+
+export type HrZone = 1 | 2 | 3 | 4 | 5
+
+export interface EnduranceSession {
+  id: string
+  activityType: EnduranceActivityType
+  startedAt: number
+  durationMin: number
+  distanceKm?: number
+  avgHeartRate?: number
+  hrZone?: HrZone
+  caloriesBurned: number
+  notes?: string
+}
+
 // ---- Récupération & Santé ----
 
 export interface RecoveryCheckin {

@@ -68,12 +68,12 @@ export default function RecoveryPage() {
     refresh()
   }
 
-  const scoreColor = score >= 70 ? 'text-purple-300' : score >= 40 ? 'text-orange-400' : 'text-red-400'
+  const scoreColor = score >= 70 ? 'text-indigo-300' : score >= 40 ? 'text-orange-400' : 'text-red-400'
 
   return (
     <div className="px-4 pt-6">
       <header className="mb-6 flex items-center gap-2">
-        <HeartPulse className="text-purple-400" size={26} />
+        <HeartPulse className="text-indigo-400" size={26} />
         <h1 className="text-xl font-semibold tracking-tight">Récupération</h1>
       </header>
 
@@ -86,9 +86,9 @@ export default function RecoveryPage() {
       <section className="glass mb-6 rounded-2xl p-4">
         <h2 className="mb-3 text-xs font-medium uppercase tracking-wide text-zinc-500">Charge du jour</h2>
         <div className="grid grid-cols-3 gap-2">
-          <LoadTile icon={<Moon size={16} className="text-purple-300" />} label="Sommeil" value={SCALE_LABELS[sleepQuality]} />
+          <LoadTile icon={<Moon size={16} className="text-indigo-300" />} label="Sommeil" value={SCALE_LABELS[sleepQuality]} />
           <LoadTile icon={<Dumbbell size={16} className="text-orange-400" />} label="Séries gym" value={`${gymSetsToday}`} />
-          <LoadTile icon={<Footprints size={16} className="text-green-400" />} label="Activités" value={`${activityCaloriesToday} kcal`} />
+          <LoadTile icon={<Footprints size={16} className="text-teal-400" />} label="Activités" value={`${activityCaloriesToday} kcal`} />
         </div>
         {loadPenalty > 0 && (
           <p className="mt-3 text-center text-xs text-zinc-500">
@@ -104,7 +104,7 @@ export default function RecoveryPage() {
         <SliderRow label="Motivation" value={motivation} onChange={setMotivation} />
         <button
           onClick={submit}
-          className="w-full rounded-xl bg-purple-500 py-3 text-sm font-semibold text-zinc-950 active:bg-purple-400"
+          className="w-full rounded-xl bg-indigo-500 py-3 text-sm font-semibold text-zinc-950 active:bg-indigo-400"
         >
           {todayCheckin ? 'Mettre à jour le check-in' : 'Valider le check-in du jour'}
         </button>
@@ -158,7 +158,7 @@ function SliderRow({
             key={n}
             onClick={() => onChange(n)}
             className={`h-8 flex-1 rounded-lg transition-colors ${
-              n <= value ? 'bg-purple-500' : 'bg-zinc-800'
+              n <= value ? 'bg-indigo-500' : 'bg-zinc-800'
             }`}
           />
         ))}

@@ -61,8 +61,8 @@ export function computeBmr(settings: Settings) {
 export const GYM_WORKOUT_MET = 5.5
 
 export const CATEGORY_META: Record<ActivityCategory, { label: string; emoji: string; color: string }> = {
-  gym: { label: 'Gym / Fitness', emoji: '🏋️‍♂️', color: 'var(--color-gym)' },
-  outdoor: { label: 'Sport Outdoor', emoji: '🟢', color: 'var(--color-outdoor)' },
-  loisir: { label: 'Loisir', emoji: '🔵', color: 'var(--color-loisir)' },
-  quotidien: { label: 'Quotidien', emoji: '🟠', color: 'var(--color-quotidien)' },
+  gym: { label: 'Gym / Fitness', emoji: '🏋️‍♂️', color: 'var(--color-orange)' },
+  outdoor: { label: 'Sport Outdoor', emoji: '🟢', color: 'var(--color-turquoise)' },
+  loisir: { label: 'Loisir', emoji: '🔵', color: 'var(--color-turquoise)' },
+  quotidien: { label: 'Quotidien', emoji: '🟠', color: 'var(--color-turquoise)' },
 }
