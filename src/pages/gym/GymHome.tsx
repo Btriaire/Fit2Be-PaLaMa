@@ -1,9 +1,10 @@
 import { useEffect, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { Dumbbell, Plus, ChevronRight, Flame } from 'lucide-react'
-import { getAllWorkouts, saveWorkout } from '../../lib/workouts'
+import { Dumbbell, Plus, ChevronRight, Flame, TrendingUp } from 'lucide-react'
+import { getAllWorkouts, saveWorkout, getLoggedExerciseIds } from '../../lib/workouts'
 import { newId } from '../../lib/db'
 import { formatDate, formatTime } from '../../lib/date'
+import { SEED_EXERCISES } from '../../lib/exercises'
 import type { Workout } from '../../types'
 
 const QUICK_NAMES = ['Push Day', 'Pull Day', 'Leg Day', 'Full Body', 'Haut du corps', 'Bas du corps']
@@ -12,12 +13,14 @@ export default function GymHome() {
   const navigate = useNavigate()
   const [workouts, setWorkouts] = useState<Workout[]>([])
   const [loading, setLoading] = useState(true)
+  const [loggedExercises, setLoggedExercises] = useState<Array<{ exerciseId: string; lastDate: number }>>([])
 
   useEffect(() => {
     getAllWorkouts().then((w) => {
       setWorkouts(w)
       setLoading(false)
     })
+    getLoggedExerciseIds().then(setLoggedExercises)
   }, [])
 
   async function startWorkout(name: string) {
@@ -78,6 +81,27 @@ export default function GymHome() {
           <Plus size={16} /> Séance personnalisée
         </button>
       </section>
+
+      {loggedExercises.length > 0 && (
+        <section className="mb-6">
+          <h2 className="mb-2 text-sm font-medium text-zinc-400">Progression</h2>
+          <div className="flex gap-2 overflow-x-auto pb-1">
+            {loggedExercises.map(({ exerciseId }) => {
+              const ex = SEED_EXERCISES.find((e) => e.id === exerciseId)
+              return (
+                <button
+                  key={exerciseId}
+                  onClick={() => navigate(`/gym/exercise/${exerciseId}`)}
+                  className="glass flex shrink-0 items-center gap-1.5 rounded-xl px-3 py-2 text-xs font-medium active:scale-95 transition-transform"
+                >
+                  <TrendingUp size={13} className="text-orange-400" />
+                  {ex?.name ?? exerciseId}
+                </button>
+              )
+            })}
+          </div>
+        </section>
+      )}
 
       <section>
         <h2 className="mb-2 text-sm font-medium text-zinc-400">Historique</h2>

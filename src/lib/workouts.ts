@@ -76,3 +76,44 @@ export async function deleteWorkout(id: string) {
   const db = await getDb()
   await db.delete('workouts', id)
 }
+
+export interface ExerciseHistoryPoint {
+  date: number
+  maxWeightKg: number
+  bestVolume: number
+  totalSets: number
+}
+
+/** Historique chronologique (une entrée par séance) des perfs pour un exercice donné. */
+export async function getExerciseHistory(exerciseId: string): Promise<ExerciseHistoryPoint[]> {
+  const db = await getDb()
+  const all = await db.getAllFromIndex('workouts', 'byStartedAt')
+  const points: ExerciseHistoryPoint[] = []
+  for (const w of all) {
+    const we = w.exercises.find((e) => e.exerciseId === exerciseId)
+    if (!we) continue
+    const workingSets = we.sets.filter((s) => !s.isWarmup)
+    if (workingSets.length === 0) continue
+    const maxWeightKg = Math.max(...workingSets.map((s) => s.weightKg))
+    const bestVolume = Math.max(...workingSets.map((s) => s.weightKg * s.reps))
+    points.push({ date: w.startedAt, maxWeightKg, bestVolume, totalSets: workingSets.length })
+  }
+  return points
+}
+
+/** Identifiants de tous les exercices déjà loggés au moins une fois, avec leur dernière date. */
+export async function getLoggedExerciseIds(): Promise<Array<{ exerciseId: string; lastDate: number }>> {
+  const db = await getDb()
+  const all = await db.getAll('workouts')
+  const map = new Map<string, number>()
+  for (const w of all) {
+    for (const we of w.exercises) {
+      if (we.sets.length === 0) continue
+      const prev = map.get(we.exerciseId) ?? 0
+      if (w.startedAt > prev) map.set(we.exerciseId, w.startedAt)
+    }
+  }
+  return Array.from(map.entries())
+    .map(([exerciseId, lastDate]) => ({ exerciseId, lastDate }))
+    .sort((a, b) => b.lastDate - a.lastDate)
+}

@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react'
 import { Link } from 'react-router-dom'
-import { Dumbbell, Footprints, HeartPulse, Apple, ChevronRight } from 'lucide-react'
+import { Dumbbell, Footprints, HeartPulse, Apple, ChevronRight, Settings } from 'lucide-react'
 import { getDb } from '../lib/db'
 import { getAllWorkouts } from '../lib/workouts'
 import { isToday, todayStr } from '../lib/date'
@@ -31,9 +31,14 @@ export default function Dashboard() {
 
   return (
     <div className="px-4 pt-6">
-      <header className="mb-6">
-        <p className="text-sm text-zinc-500">Aujourd'hui</p>
-        <h1 className="text-2xl font-bold tracking-tight">Ton activité</h1>
+      <header className="mb-6 flex items-start justify-between">
+        <div>
+          <p className="text-sm text-zinc-500">Aujourd'hui</p>
+          <h1 className="text-2xl font-bold tracking-tight">Ton activité</h1>
+        </div>
+        <Link to="/settings" className="rounded-full p-2 text-zinc-500 active:bg-zinc-900">
+          <Settings size={20} />
+        </Link>
       </header>
 
       <div className="mb-6 grid grid-cols-2 gap-2">
