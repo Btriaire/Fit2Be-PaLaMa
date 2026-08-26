@@ -1,6 +1,6 @@
-import { useEffect, useMemo, useState } from 'react'
+import { useEffect, useMemo, useRef, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { Activity, HeartPulse, MapPin, Pause, Plus, Route, Trash2, TrendingUp, Timer, X } from 'lucide-react'
+import { Activity, Camera, HeartPulse, Loader2, MapPin, Pause, Plus, Route, Trash2, TrendingUp, Timer, X } from 'lucide-react'
 import {
   ENDURANCE_ACTIVITY_META,
   computePaceMinPerKm,
@@ -14,6 +14,7 @@ import { getSettings } from '../../lib/settings'
 import { HR_ZONE_META } from '../../lib/heartRate'
 import { formatDate, formatTime, isToday } from '../../lib/date'
 import { useGeoTracking } from '../../lib/useGeoTracking'
+import { scanMachineResult, machineTypeToActivityType } from '../../lib/machineScan'
 import RouteMap from '../../components/RouteMap'
 import ActivityHero, { hasHeroImage } from '../../components/ActivityHero'
 import type { EnduranceActivityType, EnduranceSession, RoutePoint } from '../../types'
@@ -57,6 +58,7 @@ export default function EndurancePage() {
     distanceKm?: number
     avgHeartRate?: number
     route?: RoutePoint[]
+    caloriesBurned?: number
   }) {
     await logEnduranceSession(input, settings)
     setFormOpen(false)
@@ -198,6 +200,7 @@ function EnduranceForm({
     distanceKm?: number
     avgHeartRate?: number
     route?: RoutePoint[]
+    caloriesBurned?: number
   }) => void
   onClose: () => void
 }) {
@@ -209,6 +212,30 @@ function EnduranceForm({
   const gps = useGeoTracking()
   const gpsCapable = GPS_CAPABLE.includes(activityType)
   const [savedRoute, setSavedRoute] = useState<RoutePoint[] | null>(null)
+  const [scanCalories, setScanCalories] = useState<number | null>(null)
+  const [scanning, setScanning] = useState(false)
+  const [scanError, setScanError] = useState<string | null>(null)
+  const fileInputRef = useRef<HTMLInputElement>(null)
+
+  async function handleScanFile(e: React.ChangeEvent<HTMLInputElement>) {
+    const file = e.target.files?.[0]
+    e.target.value = ''
+    if (!file) return
+    setScanning(true)
+    setScanError(null)
+    try {
+      const result = await scanMachineResult(file)
+      setActivityType(machineTypeToActivityType(result.machineType))
+      if (result.durationMin) setDuration(String(result.durationMin))
+      if (result.distanceKm) setDistance(String(result.distanceKm))
+      if (result.avgHeartRate) setAvgHr(String(result.avgHeartRate))
+      setScanCalories(result.calories ?? null)
+    } catch {
+      setScanError("Impossible de lire cette photo — remplis les champs manuellement.")
+    } finally {
+      setScanning(false)
+    }
+  }
 
   function submit() {
     const dur = parseInt(duration, 10)
@@ -219,6 +246,7 @@ function EnduranceForm({
       distanceKm: distance ? parseFloat(distance) : undefined,
       avgHeartRate: avgHr ? parseInt(avgHr, 10) : undefined,
       route: savedRoute ?? undefined,
+      caloriesBurned: scanCalories ?? undefined,
     })
   }
 
@@ -321,6 +349,36 @@ function EnduranceForm({
             </button>
           ))}
         </div>
+
+        <input
+          ref={fileInputRef}
+          type="file"
+          accept="image/*"
+          capture="environment"
+          className="hidden"
+          onChange={handleScanFile}
+        />
+        <button
+          onClick={() => fileInputRef.current?.click()}
+          disabled={scanning}
+          className="mb-2 flex w-full items-center justify-center gap-1.5 rounded-xl border border-orange-500/40 bg-orange-500/10 py-3 text-sm font-semibold text-orange-400 active:bg-orange-500/20 disabled:opacity-60"
+        >
+          {scanning ? (
+            <>
+              <Loader2 size={16} className="animate-spin" /> Analyse de la photo…
+            </>
+          ) : (
+            <>
+              <Camera size={16} /> Scanner un résultat machine
+            </>
+          )}
+        </button>
+        {scanError && <p className="mb-3 text-center text-xs text-red-400">{scanError}</p>}
+        {scanCalories !== null && !scanError && (
+          <p className="mb-3 text-center text-xs text-orange-400">
+            Photo analysée · {scanCalories} kcal relevées sur la machine
+          </p>
+        )}
 
         {gpsCapable && (
           <button

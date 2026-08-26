@@ -45,11 +45,13 @@ export async function logEnduranceSession(
     avgHeartRate?: number
     startedAt?: number
     route?: RoutePoint[]
+    /** Calories réelles lues sur la machine — prioritaires sur l'estimation MET. */
+    caloriesBurned?: number
   },
   settings: Settings,
 ): Promise<EnduranceSession> {
   const meta = ENDURANCE_ACTIVITY_META[input.activityType]
-  const caloriesBurned = computeCaloriesForUser(meta.met, input.durationMin, settings)
+  const caloriesBurned = input.caloriesBurned ?? computeCaloriesForUser(meta.met, input.durationMin, settings)
   const hrZone = input.avgHeartRate ? computeHrZone(input.avgHeartRate, settings.ageYears) : undefined
   const session: EnduranceSession = {
     id: newId(),
