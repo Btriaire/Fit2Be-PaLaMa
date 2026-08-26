@@ -39,6 +39,11 @@ export async function getEnduranceSessions(): Promise<EnduranceSession[]> {
   return all.reverse()
 }
 
+export async function getEnduranceSession(id: string): Promise<EnduranceSession | undefined> {
+  const db = await getDb()
+  return db.get('endurance', id)
+}
+
 export async function logEnduranceSession(
   input: {
     activityType: EnduranceActivityType

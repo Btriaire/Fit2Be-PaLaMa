@@ -93,7 +93,7 @@ function activitySessionLoad(a: ActivityLog): SessionLoad {
   }
 }
 
-function enduranceSessionLoad(s: EnduranceSession, ageYears: number, label: string): SessionLoad {
+export function enduranceSessionLoad(s: EnduranceSession, ageYears: number, label: string): SessionLoad {
   const maxHr = computeMaxHr(ageYears)
   const peakHr = s.machineStats?.peakHeartRate ?? s.avgHeartRate ?? null
   const hrPct = peakHr ? Math.round((peakHr / maxHr) * 100) : null

@@ -143,7 +143,11 @@ export default function EndurancePage() {
             const pace = s.distanceKm ? computePaceMinPerKm(s.durationMin, s.distanceKm) : null
             const zoneMeta = s.hrZone ? HR_ZONE_META[s.hrZone] : null
             return (
-              <li key={s.id} className="glass rounded-xl p-3">
+              <li
+                key={s.id}
+                onClick={() => navigate(`/endurance/session/${s.id}`)}
+                className="glass rounded-xl p-3 active:bg-zinc-900/80"
+              >
                 <div className="mb-1 flex items-center justify-between">
                   <p className="text-sm font-medium">{meta.label}</p>
                   <div className="flex items-center gap-2">
@@ -151,7 +155,10 @@ export default function EndurancePage() {
                       {formatDate(s.startedAt)} · {formatTime(s.startedAt)}
                     </p>
                     <button
-                      onClick={() => removeSession(s.id)}
+                      onClick={(e) => {
+                        e.stopPropagation()
+                        removeSession(s.id)
+                      }}
                       className="shrink-0 rounded-full p-1 text-zinc-600 active:bg-red-500/10 active:text-red-400"
                       aria-label="Supprimer la sortie"
                     >

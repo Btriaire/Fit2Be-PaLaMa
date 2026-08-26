@@ -97,7 +97,7 @@ export interface ActivityIndex {
  * une distance, sinon watts/FC (puissance par battement) si scanné sur
  * machine — plus la valeur est haute, moins l'effort cardiaque est grand
  * pour le même travail, donc plus la forme cardio est bonne. */
-function sessionEfficiency(s: EnduranceSession): number | null {
+export function sessionEfficiency(s: EnduranceSession): number | null {
   if (!s.avgHeartRate || s.avgHeartRate <= 0) return null
   if (s.distanceKm && s.durationMin > 0) {
     return (s.distanceKm / s.durationMin / s.avgHeartRate) * 1000
