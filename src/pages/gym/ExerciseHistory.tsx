@@ -23,6 +23,7 @@ export default function ExerciseHistory() {
   const exercise = ALL_EXERCISES.find((e) => e.id === exerciseId)
   const chartData = points.map((p) => ({ ...p, label: formatDate(p.date) }))
   const best = points.reduce((max, p) => Math.max(max, p.maxWeightKg), 0)
+  const best1Rm = points.reduce((max, p) => Math.max(max, p.estimated1RM), 0)
 
   return (
     <div className="px-4 pt-6">
@@ -44,16 +45,25 @@ export default function ExerciseHistory() {
 
       {!loading && points.length > 0 && (
         <>
-          <div className="glass mb-4 flex items-center gap-2 rounded-2xl p-4">
-            <TrendingUp className="text-orange-400" size={20} />
-            <div>
-              <p className="text-xs text-zinc-500">Record actuel</p>
-              <p className="text-xl font-bold text-orange-400">{best} kg</p>
+          <div className="mb-4 grid grid-cols-2 gap-2">
+            <div className="glass flex items-center gap-2 rounded-2xl p-4">
+              <TrendingUp className="text-orange-400" size={20} />
+              <div>
+                <p className="text-xs text-zinc-500">Poids max</p>
+                <p className="text-xl font-bold text-orange-400">{best} kg</p>
+              </div>
+            </div>
+            <div className="glass flex items-center gap-2 rounded-2xl p-4">
+              <TrendingUp className="text-indigo-300" size={20} />
+              <div>
+                <p className="text-xs text-zinc-500">1RM estimé</p>
+                <p className="text-xl font-bold text-indigo-300">{best1Rm} kg</p>
+              </div>
             </div>
           </div>
 
           <div className="glass mb-4 rounded-2xl p-3">
-            <p className="mb-2 px-1 text-xs font-medium text-zinc-400">Poids max par séance</p>
+            <p className="mb-2 px-1 text-xs font-medium text-zinc-400">Poids max et 1RM estimé par séance</p>
             <div className="h-52 w-full">
               <ResponsiveContainer width="100%" height="100%">
                 <LineChart data={chartData} margin={{ top: 8, right: 12, left: -20, bottom: 0 }}>
@@ -65,6 +75,7 @@ export default function ExerciseHistory() {
                     labelStyle={{ color: '#a1a1aa' }}
                   />
                   <Line type="monotone" dataKey="maxWeightKg" name="Poids max (kg)" stroke="#e2361c" strokeWidth={2} dot={{ r: 3, fill: '#e2361c' }} />
+                  <Line type="monotone" dataKey="estimated1RM" name="1RM estimé (kg)" stroke="#5b3fc4" strokeWidth={2} dot={{ r: 3, fill: '#5b3fc4' }} />
                 </LineChart>
               </ResponsiveContainer>
             </div>

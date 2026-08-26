@@ -1,6 +1,7 @@
 import { getDb } from './db'
 import { computeCaloriesForUser, GYM_WORKOUT_MET } from './met'
 import { pushActivityToNutriTracker } from './nutriTrackerSync'
+import { ALL_EXERCISES, MUSCLE_GROUPS } from './exercises'
 import type { Settings } from './settings'
 import type { SetEntry, Workout } from '../types'
 
@@ -130,11 +131,18 @@ export async function finishWorkout(workout: Workout, settings: Settings): Promi
   return finished
 }
 
+/** 1RM estimé (formule d'Epley) — un 100kg×1 et un 100kg×8 ne représentent
+ * pas la même force ; l'estimation ramène toute série à une base comparable. */
+export function estimated1Rm(weightKg: number, reps: number): number {
+  return Math.round(weightKg * (1 + reps / 30) * 10) / 10
+}
+
 export interface ExerciseHistoryPoint {
   date: number
   maxWeightKg: number
   bestVolume: number
   totalSets: number
+  estimated1RM: number
 }
 
 /** Historique chronologique (une entrée par séance) des perfs pour un exercice donné. */
@@ -149,9 +157,82 @@ export async function getExerciseHistory(exerciseId: string): Promise<ExerciseHi
     if (workingSets.length === 0) continue
     const maxWeightKg = Math.max(...workingSets.map((s) => s.weightKg))
     const bestVolume = Math.max(...workingSets.map((s) => s.weightKg * s.reps))
-    points.push({ date: w.startedAt, maxWeightKg, bestVolume, totalSets: workingSets.length })
+    const estimated1RM = Math.max(...workingSets.map((s) => estimated1Rm(s.weightKg, s.reps)))
+    points.push({ date: w.startedAt, maxWeightKg, bestVolume, totalSets: workingSets.length, estimated1RM })
   }
   return points
+}
+
+export interface MuscleGroupStat {
+  muscleGroup: string
+  totalSets: number
+  totalVolume: number
+}
+
+/** Volume (séries + kg soulevés) par groupe musculaire sur les N derniers jours. */
+export async function getMuscleGroupVolume(days = 7): Promise<MuscleGroupStat[]> {
+  const exerciseById = new Map(ALL_EXERCISES.map((e) => [e.id, e]))
+  const cutoff = Date.now() - days * 24 * 3600_000
+  const all = await getAllWorkouts()
+  const map = new Map<string, MuscleGroupStat>()
+  for (const w of all.filter((w) => w.startedAt >= cutoff)) {
+    for (const we of w.exercises) {
+      const group = exerciseById.get(we.exerciseId)?.muscleGroup
+      if (!group) continue
+      const workingSets = we.sets.filter((s) => !s.isWarmup)
+      if (workingSets.length === 0) continue
+      const entry = map.get(group) ?? { muscleGroup: group, totalSets: 0, totalVolume: 0 }
+      entry.totalSets += workingSets.length
+      entry.totalVolume += workingSets.reduce((s, x) => s + x.weightKg * x.reps, 0)
+      map.set(group, entry)
+    }
+  }
+  return Array.from(map.values()).sort((a, b) => b.totalVolume - a.totalVolume)
+}
+
+export interface MuscleGroupFreshness {
+  muscleGroup: string
+  daysSinceLast: number | null
+}
+
+/** Jours écoulés depuis la dernière séance ayant sollicité chaque groupe
+ * musculaire connu (tous ceux de la bibliothèque, pas seulement ceux déjà loggés). */
+export async function getMuscleGroupFreshness(): Promise<MuscleGroupFreshness[]> {
+  const exerciseById = new Map(ALL_EXERCISES.map((e) => [e.id, e]))
+  const all = await getAllWorkouts()
+  const lastTrained = new Map<string, number>()
+  for (const w of all) {
+    for (const we of w.exercises) {
+      if (we.sets.filter((s) => !s.isWarmup).length === 0) continue
+      const group = exerciseById.get(we.exerciseId)?.muscleGroup
+      if (!group) continue
+      const prev = lastTrained.get(group) ?? 0
+      if (w.startedAt > prev) lastTrained.set(group, w.startedAt)
+    }
+  }
+  const now = Date.now()
+  return MUSCLE_GROUPS.map((muscleGroup) => {
+    const last = lastTrained.get(muscleGroup)
+    return { muscleGroup, daysSinceLast: last ? Math.floor((now - last) / 86_400_000) : null }
+  })
+}
+
+export interface SessionPrStat {
+  date: number
+  workingSets: number
+  prCount: number
+}
+
+/** Séries de travail et PR par séance, pour calculer un taux de PR dans le temps. */
+export async function getPrStats(): Promise<SessionPrStat[]> {
+  const all = await getAllWorkouts()
+  return all
+    .filter((w) => w.finishedAt)
+    .map((w) => {
+      const workingSets = w.exercises.flatMap((e) => e.sets.filter((s) => !s.isWarmup))
+      return { date: w.startedAt, workingSets: workingSets.length, prCount: workingSets.filter((s) => s.isPr).length }
+    })
+    .filter((s) => s.workingSets > 0)
 }
 
 /** Identifiants de tous les exercices déjà loggés au moins une fois, avec leur dernière date. */

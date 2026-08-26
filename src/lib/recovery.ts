@@ -171,3 +171,147 @@ export async function computeDailyRecovery(ageYears: number): Promise<DailyRecov
     weeklyAvgLoad: Math.round(weeklySum / 7),
   }
 }
+
+// ---- ACWR (Acute:Chronic Workload Ratio) ----
+
+export type AcwrRisk = 'sous-charge' | 'optimal' | 'à surveiller' | 'risque élevé'
+
+export interface Acwr {
+  acute: number // charge moyenne des 7 derniers jours
+  chronic: number // charge moyenne des 28 derniers jours
+  ratio: number | null // acute / chronic
+  risk: AcwrRisk
+}
+
+/** Ratio charge aiguë (7j) / charge chronique (28j) — un des indicateurs les
+ * mieux établis en sciences du sport pour repérer un risque de blessure par
+ * surcharge relative (Gabbett, 2016). Zone saine ≈ 0.8-1.3 ; >1.5 = risque
+ * élevé ; <0.8 = perte de forme progressive plutôt qu'un risque immédiat. */
+export async function computeAcwr(ageYears: number): Promise<Acwr> {
+  const [workouts, endurance, db] = await Promise.all([getAllWorkouts(), getEnduranceSessions(), getDb()])
+  const activities = await db.getAll('activities')
+
+  const dailyLoads: number[] = []
+  for (let i = 0; i < 28; i++) {
+    const dayStart = new Date()
+    dayStart.setHours(0, 0, 0, 0)
+    dayStart.setDate(dayStart.getDate() - i)
+    const dayEnd = dayStart.getTime() + 24 * 3600_000
+    dailyLoads.push(dailyLoadFor((ts) => ts >= dayStart.getTime() && ts < dayEnd, ageYears, workouts, activities, endurance))
+  }
+
+  const acute = dailyLoads.slice(0, 7).reduce((a, b) => a + b, 0) / 7
+  const chronic = dailyLoads.reduce((a, b) => a + b, 0) / 28
+  // En dessous de ce seuil, le ratio existe mathématiquement mais n'est pas
+  // interprétable (trop peu d'entraînement chronique pour que la comparaison
+  // ait un sens) — on le masque plutôt que d'afficher un chiffre trompeur.
+  const hasEnoughHistory = chronic >= 50
+  const ratio = hasEnoughHistory && chronic > 0 ? acute / chronic : null
+
+  let risk: AcwrRisk = 'optimal'
+  if (ratio === null) risk = 'optimal'
+  else if (ratio > 1.5) risk = 'risque élevé'
+  else if (ratio > 1.3) risk = 'à surveiller'
+  else if (ratio < 0.8) risk = 'sous-charge'
+
+  return { acute: Math.round(acute), chronic: Math.round(chronic), ratio: ratio != null ? Math.round(ratio * 100) / 100 : null, risk }
+}
+
+// ---- Dette de sommeil ----
+
+export interface SleepDebt {
+  totalDebtMin: number // somme des manques sur les jours avec donnée
+  daysWithData: number
+  avgSleepMin: number | null
+}
+
+/** Somme des écarts (objectif - sommeil réel) sur les 7 derniers jours où une
+ * donnée Google Fit existe — jours sans donnée simplement ignorés. */
+export async function computeSleepDebt(sleepTargetMin: number): Promise<SleepDebt> {
+  const db = await getDb()
+  let totalDebt = 0
+  let daysWithData = 0
+  let sleepSum = 0
+  for (let i = 0; i < 7; i++) {
+    const d = new Date()
+    d.setDate(d.getDate() - i)
+    const dateStr = d.toISOString().slice(0, 10)
+    const day = await db.get('googleFitDaily', dateStr)
+    if (day?.sleepMinutes == null) continue
+    daysWithData++
+    sleepSum += day.sleepMinutes
+    totalDebt += Math.max(0, sleepTargetMin - day.sleepMinutes)
+  }
+  return { totalDebtMin: totalDebt, daysWithData, avgSleepMin: daysWithData > 0 ? Math.round(sleepSum / daysWithData) : null }
+}
+
+// ---- Streak d'activité ----
+
+export interface ActivityStreak {
+  activeDaysStreak: number // jours consécutifs (jusqu'à aujourd'hui) avec au moins une séance
+  restDaysStreak: number // jours consécutifs sans aucune séance (0 si actif aujourd'hui)
+}
+
+export async function computeActivityStreak(ageYears: number): Promise<ActivityStreak> {
+  const [workouts, endurance, db] = await Promise.all([getAllWorkouts(), getEnduranceSessions(), getDb()])
+  const activities = await db.getAll('activities')
+
+  function loadOnDay(daysAgo: number): number {
+    const dayStart = new Date()
+    dayStart.setHours(0, 0, 0, 0)
+    dayStart.setDate(dayStart.getDate() - daysAgo)
+    const dayEnd = dayStart.getTime() + 24 * 3600_000
+    return dailyLoadFor((ts) => ts >= dayStart.getTime() && ts < dayEnd, ageYears, workouts, activities, endurance)
+  }
+
+  let activeDaysStreak = 0
+  for (let i = 0; i < 60; i++) {
+    if (loadOnDay(i) > 0) activeDaysStreak++
+    else break
+  }
+  let restDaysStreak = 0
+  if (activeDaysStreak === 0) {
+    for (let i = 0; i < 60; i++) {
+      if (loadOnDay(i) === 0) restDaysStreak++
+      else break
+    }
+  }
+  return { activeDaysStreak, restDaysStreak }
+}
+
+// ---- Readiness du matin ----
+
+export interface Readiness {
+  score: number // 0-100
+  loadComponent: number
+  sleepComponent: number | null
+  subjectiveComponent: number
+}
+
+/** Score "prêt à performer aujourd'hui", distinct du Body Battery (qui mélange
+ * check-in + charge du jour même) — combine la charge d'hier, le sommeil de
+ * cette nuit (si connu via Google Fit) et le ressenti subjectif du jour. */
+export async function computeReadiness(ageYears: number, subjectiveScore: number, sleepTargetMin: number): Promise<Readiness> {
+  const [workouts, endurance, db] = await Promise.all([getAllWorkouts(), getEnduranceSessions(), getDb()])
+  const activities = await db.getAll('activities')
+
+  const yesterdayStart = new Date()
+  yesterdayStart.setHours(0, 0, 0, 0)
+  yesterdayStart.setDate(yesterdayStart.getDate() - 1)
+  const yesterdayEnd = yesterdayStart.getTime() + 24 * 3600_000
+  const yesterdayLoad = dailyLoadFor((ts) => ts >= yesterdayStart.getTime() && ts < yesterdayEnd, ageYears, workouts, activities, endurance)
+  const { penalty } = bandFor(yesterdayLoad)
+  const loadComponent = Math.round(100 - (penalty / 30) * 100)
+
+  const todayStr = new Date().toISOString().slice(0, 10)
+  const todayFit = await db.get('googleFitDaily', todayStr)
+  const sleepComponent = todayFit?.sleepMinutes != null ? Math.round(Math.min(100, (todayFit.sleepMinutes / sleepTargetMin) * 100)) : null
+
+  const score = Math.round(
+    sleepComponent != null
+      ? loadComponent * 0.35 + sleepComponent * 0.35 + subjectiveScore * 0.3
+      : loadComponent * 0.5 + subjectiveScore * 0.5,
+  )
+
+  return { score: Math.max(0, Math.min(100, score)), loadComponent, sleepComponent, subjectiveComponent: subjectiveScore }
+}

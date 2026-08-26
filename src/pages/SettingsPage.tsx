@@ -9,6 +9,8 @@ export default function SettingsPage() {
   const initial = getSettings()
   const [dailyCalorieTarget, setDailyCalorieTarget] = useState(String(initial.dailyCalorieTarget))
   const [restTimerDefaultSec, setRestTimerDefaultSec] = useState(String(initial.restTimerDefaultSec))
+  const [restingHeartRateBpm, setRestingHeartRateBpm] = useState(String(initial.restingHeartRateBpm))
+  const [sleepTargetMin, setSleepTargetMin] = useState(String(initial.sleepTargetMin))
   const [savedFlash, setSavedFlash] = useState(false)
   const [importFlash, setImportFlash] = useState<string | null>(null)
 
@@ -16,6 +18,8 @@ export default function SettingsPage() {
     saveSettings({
       dailyCalorieTarget: parseInt(dailyCalorieTarget, 10) || initial.dailyCalorieTarget,
       restTimerDefaultSec: parseInt(restTimerDefaultSec, 10) || initial.restTimerDefaultSec,
+      restingHeartRateBpm: parseInt(restingHeartRateBpm, 10) || initial.restingHeartRateBpm,
+      sleepTargetMin: parseInt(sleepTargetMin, 10) || initial.sleepTargetMin,
     })
     setSavedFlash(true)
     setTimeout(() => setSavedFlash(false), 1500)
@@ -82,6 +86,8 @@ export default function SettingsPage() {
       <section className="glass mb-4 space-y-4 rounded-2xl p-4">
         <Field label="Objectif calorique quotidien" value={dailyCalorieTarget} onChange={setDailyCalorieTarget} suffix="kcal" />
         <Field label="Repos par défaut entre séries" value={restTimerDefaultSec} onChange={setRestTimerDefaultSec} suffix="sec" />
+        <Field label="FC de repos (pour le VO2max estimé)" value={restingHeartRateBpm} onChange={setRestingHeartRateBpm} suffix="bpm" />
+        <Field label="Objectif de sommeil" value={sleepTargetMin} onChange={setSleepTargetMin} suffix="min" />
         <button
           onClick={submit}
           className="w-full rounded-xl bg-zinc-100 py-3 text-sm font-semibold text-zinc-950 active:bg-zinc-300"

@@ -1,9 +1,22 @@
 import { useEffect, useState } from 'react'
-import { HeartPulse, Dumbbell, Footprints, Activity, Flame } from 'lucide-react'
+import { HeartPulse, Dumbbell, Footprints, Activity, Flame, Gauge, Moon, Flame as StreakIcon, Sunrise } from 'lucide-react'
 import { getDb, newId } from '../../lib/db'
 import { todayStr, formatDate } from '../../lib/date'
 import { getSettings } from '../../lib/settings'
-import { computeDailyRecovery, type DailyRecovery, type SessionLoad } from '../../lib/recovery'
+import {
+  computeDailyRecovery,
+  computeAcwr,
+  computeSleepDebt,
+  computeActivityStreak,
+  computeReadiness,
+  type DailyRecovery,
+  type SessionLoad,
+  type Acwr,
+  type AcwrRisk,
+  type SleepDebt,
+  type ActivityStreak,
+  type Readiness,
+} from '../../lib/recovery'
 import ActivityHero from '../../components/ActivityHero'
 import type { RecoveryCheckin } from '../../types'
 
@@ -23,6 +36,13 @@ const SOURCE_ICON: Record<SessionLoad['source'], React.ReactNode> = {
   endurance: <Activity size={13} className="text-teal-400" />,
 }
 
+const ACWR_COLOR: Record<AcwrRisk, string> = {
+  'sous-charge': '#2f4bd6',
+  optimal: '#2dd4bf',
+  'à surveiller': '#facc15',
+  'risque élevé': '#e2361c',
+}
+
 function computeSubjectiveScore(c: { sleepQuality: number; muscleFatigue: number; stressLevel: number; motivation: number }) {
   // Sommeil + motivation pèsent positif, fatigue musculaire + stress pèsent négatif (inversés)
   const positive = c.sleepQuality + c.motivation
@@ -37,6 +57,10 @@ export default function RecoveryPage() {
   const [stressLevel, setStressLevel] = useState(3)
   const [motivation, setMotivation] = useState(3)
   const [recovery, setRecovery] = useState<DailyRecovery | null>(null)
+  const [acwr, setAcwr] = useState<Acwr | null>(null)
+  const [sleepDebt, setSleepDebt] = useState<SleepDebt | null>(null)
+  const [streak, setStreak] = useState<ActivityStreak | null>(null)
+  const [readiness, setReadiness] = useState<Readiness | null>(null)
   const settings = getSettings()
 
   async function refresh() {
@@ -44,6 +68,9 @@ export default function RecoveryPage() {
     const all = await db.getAllFromIndex('recovery', 'byDate')
     setCheckins(all.reverse())
     setRecovery(await computeDailyRecovery(settings.ageYears))
+    setAcwr(await computeAcwr(settings.ageYears))
+    setSleepDebt(await computeSleepDebt(settings.sleepTargetMin))
+    setStreak(await computeActivityStreak(settings.ageYears))
     const today = all.find((c) => c.date === todayStr())
     if (today) {
       setSleepQuality(today.sleepQuality)
@@ -55,6 +82,7 @@ export default function RecoveryPage() {
 
   useEffect(() => {
     refresh()
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
 
   const todayCheckin = checkins.find((c) => c.date === todayStr())
@@ -63,6 +91,11 @@ export default function RecoveryPage() {
   // Toujours recalculé en direct — un check-in validé plus tôt dans la
   // journée ne doit pas figer le score si une séance est loggée après coup.
   const score = Math.max(0, subjective - loadPenalty)
+
+  useEffect(() => {
+    computeReadiness(settings.ageYears, subjective, settings.sleepTargetMin).then(setReadiness)
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [subjective, recovery])
 
   async function submit() {
     const db = await getDb()
@@ -94,16 +127,65 @@ export default function RecoveryPage() {
 
       <div className="px-4 pt-4">
 
-      <div className="glass mb-4 rounded-2xl p-5 text-center">
-        <p className="text-xs uppercase tracking-wide text-zinc-500">Body Battery</p>
-        <p className={`mt-1 text-5xl font-bold ${scoreColor}`}>{score}</p>
-        <p className="mt-1 text-xs text-zinc-500">
-          {todayCheckin
-            ? todayCheckin.bodyBatteryScore !== score
-              ? 'Recalculé avec ton activité du jour — mets à jour ton check-in pour le fixer'
-              : 'Check-in du jour enregistré'
-            : 'Aperçu — valide ton check-in'}
-        </p>
+      <div className="mb-4 grid grid-cols-2 gap-2">
+        <div className="glass rounded-2xl p-5 text-center">
+          <p className="text-xs uppercase tracking-wide text-zinc-500">Body Battery</p>
+          <p className={`mt-1 text-4xl font-bold ${scoreColor}`}>{score}</p>
+          <p className="mt-1 text-[10px] text-zinc-500">
+            {todayCheckin
+              ? todayCheckin.bodyBatteryScore !== score
+                ? 'Recalculé avec ton activité'
+                : 'Check-in enregistré'
+              : 'Aperçu — valide ton check-in'}
+          </p>
+        </div>
+        <div className="glass rounded-2xl p-5 text-center">
+          <p className="flex items-center justify-center gap-1 text-xs uppercase tracking-wide text-zinc-500">
+            <Sunrise size={12} /> Readiness
+          </p>
+          <p className="mt-1 text-4xl font-bold text-teal-400">{readiness ? readiness.score : '—'}</p>
+          <p className="mt-1 text-[10px] text-zinc-500">
+            {readiness?.sleepComponent != null ? 'Charge + sommeil + ressenti' : 'Charge + ressenti (pas de sommeil connu)'}
+          </p>
+        </div>
+      </div>
+
+      {acwr && acwr.ratio != null && (acwr.risk === 'à surveiller' || acwr.risk === 'risque élevé') && (
+        <div
+          className="mb-4 rounded-2xl border p-3 text-xs"
+          style={{ borderColor: `${ACWR_COLOR[acwr.risk]}55`, backgroundColor: `${ACWR_COLOR[acwr.risk]}11`, color: ACWR_COLOR[acwr.risk] }}
+        >
+          <span className="flex items-center gap-1.5 font-semibold">
+            <Gauge size={13} /> Charge {acwr.risk} (ACWR {acwr.ratio})
+          </span>
+          <p className="mt-1 text-zinc-400">
+            Ta charge des 7 derniers jours ({acwr.acute} pts/j) est nettement au-dessus de ta charge habituelle sur 28 jours ({acwr.chronic}{' '}
+            pts/j). {acwr.risk === 'risque élevé' ? 'Un jour de repos ou une séance légère est recommandé.' : 'Surveille la fatigue ces prochains jours.'}
+          </p>
+        </div>
+      )}
+
+      <div className="mb-4 grid grid-cols-2 gap-2">
+        {sleepDebt && sleepDebt.daysWithData > 0 && (
+          <div className="glass rounded-2xl p-3.5">
+            <p className="flex items-center gap-1 text-xs text-zinc-500">
+              <Moon size={12} /> Dette de sommeil (7j)
+            </p>
+            <p className={`mt-1 text-xl font-bold ${sleepDebt.totalDebtMin > 120 ? 'text-red-400' : 'text-indigo-300'}`}>
+              {sleepDebt.totalDebtMin > 0 ? `-${Math.round(sleepDebt.totalDebtMin / 60)}h` : '0h'}
+            </p>
+            <p className="mt-0.5 text-[10px] text-zinc-600">Moy. {sleepDebt.avgSleepMin ? Math.round(sleepDebt.avgSleepMin / 60) : '—'}h/nuit</p>
+          </div>
+        )}
+        {streak && (streak.activeDaysStreak > 0 || streak.restDaysStreak > 0) && (
+          <div className="glass rounded-2xl p-3.5">
+            <p className="flex items-center gap-1 text-xs text-zinc-500">
+              <StreakIcon size={12} /> {streak.activeDaysStreak > 0 ? 'Jours actifs' : 'Jours de repos'}
+            </p>
+            <p className="mt-1 text-xl font-bold text-orange-400">{streak.activeDaysStreak > 0 ? streak.activeDaysStreak : streak.restDaysStreak}</p>
+            <p className="mt-0.5 text-[10px] text-zinc-600">d'affilée</p>
+          </div>
+        )}
       </div>
 
       {recovery && (

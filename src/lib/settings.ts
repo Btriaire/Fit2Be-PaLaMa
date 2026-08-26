@@ -9,6 +9,11 @@ export interface Settings {
   sex: Sex
   dailyCalorieTarget: number
   restTimerDefaultSec: number
+  /** FC de repos (bpm) — utilisée pour l'estimation du VO2max. 60 = valeur
+   * moyenne par défaut pour un adulte non entraîné, à affiner dans Réglages. */
+  restingHeartRateBpm: number
+  /** Objectif de sommeil (minutes) — sert au calcul de la dette de sommeil. */
+  sleepTargetMin: number
 }
 
 const DEFAULTS: Settings = {
@@ -18,6 +23,8 @@ const DEFAULTS: Settings = {
   sex: 'homme',
   dailyCalorieTarget: 2400,
   restTimerDefaultSec: 90,
+  restingHeartRateBpm: 60,
+  sleepTargetMin: 480,
 }
 
 export function getSettings(): Settings {
