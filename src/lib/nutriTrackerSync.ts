@@ -69,3 +69,25 @@ export async function pullLatestWeightFromNutriTracker(): Promise<PullWeightResu
     return { weightKg: null, date: null, source: null }
   }
 }
+
+interface GoogleFitDayRaw {
+  date: string
+  steps: number
+  activeCaloriesBurned: number
+  activeMinutes: number
+  heartRateAvg: number | null
+  sleepMinutes: number | null
+}
+
+/** Google Fit n'est connecté que côté NutriTracker (OAuth) — on lit ici ce
+ * qu'il a déjà synchronisé, on ne fait jamais l'OAuth nous-mêmes. */
+export async function pullGoogleFitFromNutriTracker(days = 7): Promise<GoogleFitDayRaw[]> {
+  try {
+    const r = await fetch(`/api/nutritracker?type=googlefit&days=${days}`)
+    if (!r.ok) return []
+    const data = await r.json()
+    return Array.isArray(data.days) ? data.days : []
+  } catch {
+    return []
+  }
+}

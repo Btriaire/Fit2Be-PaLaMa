@@ -1,12 +1,13 @@
 import { useEffect, useState } from 'react'
 import { Link } from 'react-router-dom'
-import { Dumbbell, Footprints, HeartPulse, Apple, ChevronRight, Settings, Activity, BarChart3, Plus } from 'lucide-react'
+import { Dumbbell, Footprints, HeartPulse, Apple, ChevronRight, Settings, Activity, BarChart3, Plus, Moon } from 'lucide-react'
 import { getDb } from '../lib/db'
 import { getAllWorkouts, estimateWorkoutCalories } from '../lib/workouts'
 import { isToday, todayStr } from '../lib/date'
 import { getSettings } from '../lib/settings'
+import { syncGoogleFit, getTodayGoogleFit } from '../lib/googleFit'
 import ActivityHero, { type HeroKey } from '../components/ActivityHero'
-import type { ActivityLog, EnduranceSession, NutritionEntry, RecoveryCheckin, Workout } from '../types'
+import type { ActivityLog, EnduranceSession, GoogleFitDay, NutritionEntry, RecoveryCheckin, Workout } from '../types'
 
 export default function Dashboard() {
   const [workouts, setWorkouts] = useState<Workout[]>([])
@@ -14,6 +15,7 @@ export default function Dashboard() {
   const [endurance, setEndurance] = useState<EnduranceSession[]>([])
   const [recovery, setRecovery] = useState<RecoveryCheckin | null>(null)
   const [nutrition, setNutrition] = useState<NutritionEntry[]>([])
+  const [googleFit, setGoogleFit] = useState<GoogleFitDay | null>(null)
   const settings = getSettings()
 
   useEffect(() => {
@@ -25,6 +27,8 @@ export default function Dashboard() {
       const rec = await db.getAllFromIndex('recovery', 'byDate')
       setRecovery(rec.find((r) => r.date === todayStr()) ?? null)
     })
+    getTodayGoogleFit().then(setGoogleFit)
+    syncGoogleFit().then(() => getTodayGoogleFit().then(setGoogleFit))
   }, [])
 
   const todayWorkouts = workouts.filter((w) => isToday(w.startedAt) && w.finishedAt)
@@ -63,6 +67,23 @@ export default function Dashboard() {
         <StatTile label="Body Battery" value={recovery ? `${recovery.bodyBatteryScore}` : '—'} color="text-indigo-400" />
         <StatTile label="Balance kcal" value={`${balance >= 0 ? '+' : ''}${balance}`} color="text-teal-400" />
       </div>
+
+      {googleFit && (
+        <div className="mb-6 grid grid-cols-2 gap-2">
+          <StatTile
+            icon={<Footprints size={14} className="text-teal-400" />}
+            label="Pas (Google Fit)"
+            value={googleFit.steps.toLocaleString('fr-FR')}
+            color="text-teal-400"
+          />
+          <StatTile
+            icon={<Moon size={14} className="text-indigo-400" />}
+            label="Sommeil (Google Fit)"
+            value={googleFit.sleepMinutes != null ? `${Math.floor(googleFit.sleepMinutes / 60)}h${String(googleFit.sleepMinutes % 60).padStart(2, '0')}` : '—'}
+            color="text-indigo-400"
+          />
+        </div>
+      )}
 
       <Link
         to="/add"
@@ -113,10 +134,13 @@ export default function Dashboard() {
   )
 }
 
-function StatTile({ label, value, color }: { label: string; value: string; color: string }) {
+function StatTile({ label, value, color, icon }: { label: string; value: string; color: string; icon?: React.ReactNode }) {
   return (
     <div className="glass rounded-2xl p-3.5">
-      <p className="text-xs text-zinc-500">{label}</p>
+      <p className="flex items-center gap-1 text-xs text-zinc-500">
+        {icon}
+        {label}
+      </p>
       <p className={`mt-1 text-2xl font-bold ${color}`}>{value}</p>
     </div>
   )

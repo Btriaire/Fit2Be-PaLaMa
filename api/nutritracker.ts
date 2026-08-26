@@ -25,7 +25,12 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
 
   try {
     if (req.method === 'GET') {
-      const r = await fetch(`${NUTRITRACKER_BASE_URL}/api/vibefit`, {
+      const qs = new URLSearchParams()
+      for (const [key, value] of Object.entries(req.query)) {
+        if (typeof value === 'string') qs.set(key, value)
+      }
+      const suffix = qs.toString() ? `?${qs.toString()}` : ''
+      const r = await fetch(`${NUTRITRACKER_BASE_URL}/api/vibefit${suffix}`, {
         headers: { 'x-cron-secret': secret },
       })
       const data = await r.json()

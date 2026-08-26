@@ -1,5 +1,5 @@
 import { openDB, type DBSchema, type IDBPDatabase } from 'idb'
-import type { ActivityLog, EnduranceSession, Exercise, NutritionEntry, RecoveryCheckin, WeightLog, Workout } from '../types'
+import type { ActivityLog, EnduranceSession, Exercise, GoogleFitDay, NutritionEntry, RecoveryCheckin, WeightLog, Workout } from '../types'
 
 interface VibeFitDB extends DBSchema {
   workouts: { key: string; value: Workout; indexes: { byStartedAt: number } }
@@ -9,13 +9,14 @@ interface VibeFitDB extends DBSchema {
   nutrition: { key: string; value: NutritionEntry; indexes: { byLoggedAt: number } }
   weightLogs: { key: string; value: WeightLog; indexes: { byLoggedAt: number } }
   endurance: { key: string; value: EnduranceSession; indexes: { byStartedAt: number } }
+  googleFitDaily: { key: string; value: GoogleFitDay }
 }
 
 let dbPromise: Promise<IDBPDatabase<VibeFitDB>> | null = null
 
 export function getDb() {
   if (!dbPromise) {
-    dbPromise = openDB<VibeFitDB>('vibefit', 3, {
+    dbPromise = openDB<VibeFitDB>('vibefit', 4, {
       upgrade(db, oldVersion) {
         if (oldVersion < 1) {
           const workouts = db.createObjectStore('workouts', { keyPath: 'id' })
@@ -39,6 +40,9 @@ export function getDb() {
         if (oldVersion < 3) {
           const endurance = db.createObjectStore('endurance', { keyPath: 'id' })
           endurance.createIndex('byStartedAt', 'startedAt')
+        }
+        if (oldVersion < 4) {
+          db.createObjectStore('googleFitDaily', { keyPath: 'date' })
         }
       },
     })

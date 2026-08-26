@@ -112,3 +112,15 @@ export interface UserSettings {
   restTimerDefaultSec: number
   units: 'kg' | 'lb'
 }
+
+// ---- Google Fit (lu depuis NutriTracker, pas d'OAuth propre à cette app) ----
+
+export interface GoogleFitDay {
+  date: string // YYYY-MM-DD, clé primaire
+  steps: number
+  activeCaloriesBurned: number
+  activeMinutes: number
+  heartRateAvg: number | null
+  sleepMinutes: number | null
+  syncedAt: number
+}
