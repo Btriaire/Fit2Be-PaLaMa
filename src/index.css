@@ -1,0 +1,52 @@
+@import "tailwindcss";
+
+@theme {
+  --font-sans: 'Inter', system-ui, 'Segoe UI', Roboto, sans-serif;
+
+  --color-base: #09090b;
+  --color-surface: #18181b;
+  --color-gym: #f97316;
+  --color-outdoor: #22c55e;
+  --color-loisir: #38bdf8;
+  --color-quotidien: #fb923c;
+  --color-recup: #a78bfa;
+}
+
+:root {
+  color-scheme: dark;
+}
+
+html, body, #root {
+  height: 100%;
+  background: var(--color-base);
+}
+
+body {
+  margin: 0;
+  font-family: var(--font-sans);
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  overscroll-behavior-y: none;
+}
+
+* {
+  -webkit-tap-highlight-color: transparent;
+}
+
+::-webkit-scrollbar {
+  display: none;
+}
+
+.glass {
+  background: rgb(24 24 27 / 0.6);
+  backdrop-filter: blur(16px);
+  border: 1px solid rgb(63 63 70 / 0.6);
+}
+
+@keyframes pulse-ring {
+  0% { box-shadow: 0 0 0 0 rgb(249 115 22 / 0.4); }
+  100% { box-shadow: 0 0 0 12px rgb(249 115 22 / 0); }
+}
+.pulse-ring {
+  animation: pulse-ring 1.6s cubic-bezier(0.4, 0, 0.6, 1) infinite;
+}
