@@ -165,7 +165,7 @@ export default function Dashboard() {
           to="/nutrition"
           heroKey="food"
           icon={<Apple className="text-teal-400" size={20} />}
-          title="NutriTracker"
+          title="Diet Deficit"
           subtitle={`Objectif ${settings.dailyCalorieTarget} kcal/jour`}
         />
       </div>

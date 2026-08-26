@@ -100,7 +100,7 @@ export default function NutritionPage() {
         <ActivityHero heroKey="food" className="h-40" />
         <div className="absolute inset-x-0 top-0 flex items-center gap-2 px-4 pt-[calc(env(safe-area-inset-top)+16px)]">
           <Apple className="text-teal-400" size={24} />
-          <h1 className="text-xl font-semibold tracking-tight text-white drop-shadow">NutriTracker</h1>
+          <h1 className="text-xl font-semibold tracking-tight text-white drop-shadow">Diet Deficit</h1>
         </div>
       </div>
 

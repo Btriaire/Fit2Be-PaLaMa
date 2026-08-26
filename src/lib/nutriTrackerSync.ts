@@ -100,6 +100,11 @@ export interface RemoteActivity {
   durationMin: number
   caloriesBurned: number | null
   source: string
+  startMs: number | null
+  distanceM: number | null
+  avgSpeedKmh: number | null
+  heartRateAvg: number | null
+  elevationGainM: number | null
 }
 
 /** Historique des activités loggées côté NutriTracker (dans son UI, pas

@@ -7,7 +7,7 @@ const NAV_ITEMS = [
   { to: '/gym', label: 'Gym', icon: Dumbbell },
   { to: '/activities', label: 'Activités', icon: Footprints },
   { to: '/recovery', label: 'Récup', icon: HeartPulse },
-  { to: '/nutrition', label: 'Nutri', icon: Apple },
+  { to: '/nutrition', label: 'Déficit', icon: Apple },
 ]
 
 export default function BottomNav() {

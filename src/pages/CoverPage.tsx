@@ -4,7 +4,7 @@ const MODULES = [
   { icon: Dumbbell, label: 'Gym', color: 'text-orange-400', bg: 'bg-orange-500/10' },
   { icon: Footprints, label: 'Activités', color: 'text-teal-400', bg: 'bg-teal-500/10' },
   { icon: HeartPulse, label: 'Récup', color: 'text-indigo-400', bg: 'bg-indigo-500/10' },
-  { icon: Apple, label: 'Nutrition', color: 'text-teal-400', bg: 'bg-teal-500/10' },
+  { icon: Apple, label: 'Déficit', color: 'text-teal-400', bg: 'bg-teal-500/10' },
 ]
 
 export default function CoverPage({ onEnter }: { onEnter: () => void }) {
