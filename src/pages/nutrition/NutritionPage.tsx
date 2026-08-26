@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from 'react'
-import { Apple, ChevronDown, ChevronLeft, ChevronRight, Flame, Mic, Plus, Scale, Square, User, X } from 'lucide-react'
+import { Apple, ChevronDown, ChevronLeft, ChevronRight, Flame, Mic, Plus, Scale, Square, Trash2, User, X } from 'lucide-react'
 import { CartesianGrid, Line, LineChart, ResponsiveContainer, Tooltip, XAxis, YAxis } from 'recharts'
 import { getDb, newId } from '../../lib/db'
 import { getSettings, saveSettings, type Sex } from '../../lib/settings'
@@ -79,6 +79,13 @@ export default function NutritionPage() {
       fatG: entry.fatG,
       sugarG: entry.sugarG,
     })
+  }
+
+  async function removeEntry(id: string) {
+    if (!confirm('Supprimer ce repas ?')) return
+    const db = await getDb()
+    await db.delete('nutrition', id)
+    refresh()
   }
 
   async function addWeight(weightKg: number) {
@@ -209,7 +216,16 @@ export default function NutritionPage() {
                   )}
                 </p>
               </div>
-              <p className="text-sm font-semibold text-teal-400">{e.calories} kcal</p>
+              <div className="flex items-center gap-2">
+                <p className="text-sm font-semibold text-teal-400">{e.calories} kcal</p>
+                <button
+                  onClick={() => removeEntry(e.id)}
+                  className="shrink-0 rounded-full p-1 text-zinc-600 active:bg-red-500/10 active:text-red-400"
+                  aria-label="Supprimer le repas"
+                >
+                  <Trash2 size={14} />
+                </button>
+              </div>
             </li>
           ))}
         </ul>

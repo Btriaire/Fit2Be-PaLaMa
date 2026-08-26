@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { Dumbbell, Plus, ChevronRight, Flame, TrendingUp } from 'lucide-react'
-import { getAllWorkouts, saveWorkout, getLoggedExerciseIds } from '../../lib/workouts'
+import { Dumbbell, Plus, ChevronRight, Flame, TrendingUp, Trash2 } from 'lucide-react'
+import { getAllWorkouts, saveWorkout, deleteWorkout, getLoggedExerciseIds } from '../../lib/workouts'
 import { newId } from '../../lib/db'
 import { formatDate, formatTime } from '../../lib/date'
 import { ALL_EXERCISES } from '../../lib/exercises'
@@ -35,6 +35,12 @@ export default function GymHome() {
   }
 
   const inProgress = workouts.find((w) => !w.finishedAt)
+
+  async function removeWorkout(id: string, name: string) {
+    if (!confirm(`Supprimer la séance "${name}" ?`)) return
+    await deleteWorkout(id)
+    setWorkouts((prev) => prev.filter((w) => w.id !== id))
+  }
 
   return (
     <div className="px-4 pt-6">
@@ -116,11 +122,8 @@ export default function GymHome() {
               const totalSets = w.exercises.reduce((n, e) => n + e.sets.length, 0)
               const prCount = w.exercises.reduce((n, e) => n + e.sets.filter((s) => s.isPr).length, 0)
               return (
-                <li key={w.id}>
-                  <button
-                    onClick={() => navigate(`/gym/workout/${w.id}`)}
-                    className="glass w-full rounded-xl p-3 text-left"
-                  >
+                <li key={w.id} className="glass flex items-center gap-1 rounded-xl p-3">
+                  <button onClick={() => navigate(`/gym/workout/${w.id}`)} className="flex-1 min-w-0 text-left">
                     <div className="flex items-center justify-between">
                       <p className="font-medium">{w.name}</p>
                       <p className="text-xs text-zinc-500">
@@ -136,6 +139,13 @@ export default function GymHome() {
                         </span>
                       )}
                     </div>
+                  </button>
+                  <button
+                    onClick={() => removeWorkout(w.id, w.name)}
+                    className="shrink-0 rounded-full p-2 text-zinc-600 active:bg-red-500/10 active:text-red-400"
+                    aria-label="Supprimer la séance"
+                  >
+                    <Trash2 size={16} />
                   </button>
                 </li>
               )

@@ -1,12 +1,13 @@
 import { useEffect, useMemo, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { Activity, HeartPulse, MapPin, Pause, Plus, Route, TrendingUp, Timer, X } from 'lucide-react'
+import { Activity, HeartPulse, MapPin, Pause, Plus, Route, Trash2, TrendingUp, Timer, X } from 'lucide-react'
 import {
   ENDURANCE_ACTIVITY_META,
   computePaceMinPerKm,
   formatPace,
   getEnduranceSessions,
   logEnduranceSession,
+  deleteEnduranceSession,
   getLoggedActivityTypes,
 } from '../../lib/endurance'
 import { getSettings } from '../../lib/settings'
@@ -59,6 +60,12 @@ export default function EndurancePage() {
   }) {
     await logEnduranceSession(input, settings)
     setFormOpen(false)
+    refresh()
+  }
+
+  async function removeSession(id: string) {
+    if (!confirm('Supprimer cette sortie ?')) return
+    await deleteEnduranceSession(id)
     refresh()
   }
 
@@ -123,9 +130,18 @@ export default function EndurancePage() {
               <li key={s.id} className="glass rounded-xl p-3">
                 <div className="mb-1 flex items-center justify-between">
                   <p className="text-sm font-medium">{meta.label}</p>
-                  <p className="text-xs text-zinc-500">
-                    {formatDate(s.startedAt)} · {formatTime(s.startedAt)}
-                  </p>
+                  <div className="flex items-center gap-2">
+                    <p className="text-xs text-zinc-500">
+                      {formatDate(s.startedAt)} · {formatTime(s.startedAt)}
+                    </p>
+                    <button
+                      onClick={() => removeSession(s.id)}
+                      className="shrink-0 rounded-full p-1 text-zinc-600 active:bg-red-500/10 active:text-red-400"
+                      aria-label="Supprimer la sortie"
+                    >
+                      <Trash2 size={14} />
+                    </button>
+                  </div>
                 </div>
                 <div className="flex flex-wrap items-center gap-x-3 gap-y-1 text-xs text-zinc-400">
                   <span className="flex items-center gap-1">

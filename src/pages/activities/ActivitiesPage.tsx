@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from 'react'
 import { useLocation } from 'react-router-dom'
-import { Footprints, Plus, X } from 'lucide-react'
+import { Footprints, Plus, Trash2, X } from 'lucide-react'
 import { getDb, newId } from '../../lib/db'
 import { MET_ACTIVITIES, CATEGORY_META, computeCaloriesForUser } from '../../lib/met'
 import { getSettings } from '../../lib/settings'
@@ -37,6 +37,13 @@ export default function ActivitiesPage() {
     const log: ActivityLog = { ...entry, id: newId(), loggedAt: Date.now() }
     await db.put('activities', log)
     setFormOpen(false)
+    refresh()
+  }
+
+  async function removeLog(id: string) {
+    if (!confirm('Supprimer cette activité ?')) return
+    const db = await getDb()
+    await db.delete('activities', id)
     refresh()
   }
 
@@ -82,7 +89,16 @@ export default function ActivitiesPage() {
                     </p>
                   </div>
                 </div>
-                <p className="text-sm font-semibold text-teal-400">{l.caloriesBurned} kcal</p>
+                <div className="flex items-center gap-2">
+                  <p className="text-sm font-semibold text-teal-400">{l.caloriesBurned} kcal</p>
+                  <button
+                    onClick={() => removeLog(l.id)}
+                    className="shrink-0 rounded-full p-1 text-zinc-600 active:bg-red-500/10 active:text-red-400"
+                    aria-label="Supprimer l'activité"
+                  >
+                    <Trash2 size={14} />
+                  </button>
+                </div>
               </li>
             )
           })}
