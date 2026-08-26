@@ -230,8 +230,9 @@ function EnduranceForm({
       if (result.distanceKm) setDistance(String(result.distanceKm))
       if (result.avgHeartRate) setAvgHr(String(result.avgHeartRate))
       setScanCalories(result.calories ?? null)
-    } catch {
-      setScanError("Impossible de lire cette photo — remplis les champs manuellement.")
+    } catch (err) {
+      const detail = err instanceof Error ? err.message : ''
+      setScanError(`Impossible de lire cette photo${detail ? ` (${detail})` : ''} — remplis les champs manuellement.`)
     } finally {
       setScanning(false)
     }

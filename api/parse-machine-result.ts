@@ -78,7 +78,9 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     })
 
     if (!r.ok) {
-      res.status(502).json({ error: 'Vision API error' })
+      const errText = await r.text().catch(() => '')
+      console.error('Groq vision error:', r.status, errText)
+      res.status(502).json({ error: `Vision API error (${r.status})` })
       return
     }
 
@@ -90,7 +92,9 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     const parsed = JSON.parse(jsonStr) as ParsedMachineResult
 
     res.status(200).json(parsed)
-  } catch {
-    res.status(500).json({ error: 'Reconnaissance échouée' })
+  } catch (err) {
+    console.error('parse-machine-result error:', err)
+    const msg = err instanceof Error ? err.message : 'erreur inconnue'
+    res.status(500).json({ error: `Reconnaissance échouée: ${msg}` })
   }
 }
