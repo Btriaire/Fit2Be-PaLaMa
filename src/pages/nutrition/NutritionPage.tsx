@@ -1,15 +1,17 @@
 import { useEffect, useMemo, useState } from 'react'
 import { Link } from 'react-router-dom'
-import { Apple, ChevronLeft, ChevronRight, Flame, Mic, Plus, Scale, Square, Trash2, User, X } from 'lucide-react'
+import { Apple, ChevronLeft, ChevronRight, Flame, Footprints, Mic, Plus, Scale, Square, Trash2, User, X } from 'lucide-react'
 import { CartesianGrid, Line, LineChart, ResponsiveContainer, Tooltip, XAxis, YAxis } from 'recharts'
 import { getDb, newId } from '../../lib/db'
 import { getSettings } from '../../lib/settings'
 import { isSameDay, formatTime, formatDate, formatFullDate, todayStr, addDays } from '../../lib/date'
 import { getAllWorkouts, estimateWorkoutCalories } from '../../lib/workouts'
 import { getWeightLogs, logWeight, adoptWeightFromSync } from '../../lib/weight'
-import { pushFoodToNutriTracker, pullLatestWeightFromNutriTracker } from '../../lib/nutriTrackerSync'
+import { pushFoodToNutriTracker, pullLatestWeightFromNutriTracker, pullNutritionFromNutriTracker, type RemoteNutritionTotals } from '../../lib/nutriTrackerSync'
+import { getGoogleFitForDate } from '../../lib/googleFit'
+import { computeCaloriesFromSteps } from '../../lib/met'
 import ActivityHero from '../../components/ActivityHero'
-import type { ActivityLog, NutritionEntry, WeightLog, Workout } from '../../types'
+import type { ActivityLog, GoogleFitDay, NutritionEntry, WeightLog, Workout } from '../../types'
 
 export default function NutritionPage() {
   const [entries, setEntries] = useState<NutritionEntry[]>([])
@@ -19,6 +21,8 @@ export default function NutritionPage() {
   const [selectedDate, setSelectedDate] = useState(todayStr())
   const [formOpen, setFormOpen] = useState(false)
   const [settings, setSettings] = useState(getSettings())
+  const [remoteNutrition, setRemoteNutrition] = useState<RemoteNutritionTotals | null>(null)
+  const [googleFitDay, setGoogleFitDay] = useState<GoogleFitDay | null>(null)
 
   async function refresh() {
     const db = await getDb()
@@ -43,11 +47,19 @@ export default function NutritionPage() {
     refresh()
   }, [])
 
+  useEffect(() => {
+    pullNutritionFromNutriTracker(selectedDate).then(setRemoteNutrition)
+    getGoogleFitForDate(selectedDate).then(setGoogleFitDay)
+  }, [selectedDate])
+
   const dayEntries = useMemo(() => entries.filter((e) => isSameDay(e.loggedAt, selectedDate)), [entries, selectedDate])
-  const consumed = dayEntries.reduce((s, e) => s + e.calories, 0)
-  const protein = dayEntries.reduce((s, e) => s + (e.proteinG ?? 0), 0)
-  const carbs = dayEntries.reduce((s, e) => s + (e.carbsG ?? 0), 0)
-  const fat = dayEntries.reduce((s, e) => s + (e.fatG ?? 0), 0)
+  // On ajoute ce qui a été loggé directement dans NutriTracker (le serveur
+  // exclut déjà ce que cette app y a elle-même poussé, donc pas de double compte).
+  const consumed = dayEntries.reduce((s, e) => s + e.calories, 0) + (remoteNutrition?.calories ?? 0)
+  const protein = dayEntries.reduce((s, e) => s + (e.proteinG ?? 0), 0) + (remoteNutrition?.proteinG ?? 0)
+  const carbs = dayEntries.reduce((s, e) => s + (e.carbsG ?? 0), 0) + (remoteNutrition?.carbsG ?? 0)
+  const fat = dayEntries.reduce((s, e) => s + (e.fatG ?? 0), 0) + (remoteNutrition?.fatG ?? 0)
+  const sugar = dayEntries.reduce((s, e) => s + (e.sugarG ?? 0), 0) + (remoteNutrition?.sugarG ?? 0)
 
   const gymCalories = useMemo(
     () =>
@@ -60,7 +72,10 @@ export default function NutritionPage() {
     () => activities.filter((a) => isSameDay(a.loggedAt, selectedDate)).reduce((s, a) => s + a.caloriesBurned, 0),
     [activities, selectedDate],
   )
-  const totalBurned = gymCalories + activityCalories
+  // NEAT : activité "non sportive" du jour (pas comptés), distincte des
+  // séances de sport déjà comptées via gymCalories/activityCalories.
+  const stepsCalories = googleFitDay ? computeCaloriesFromSteps(googleFitDay.steps, settings) : 0
+  const totalBurned = gymCalories + activityCalories + stepsCalories
   const adjustedTarget = settings.dailyCalorieTarget + totalBurned
   const remaining = adjustedTarget - consumed
   const pct = Math.min(100, Math.round((consumed / adjustedTarget) * 100))
@@ -155,6 +170,11 @@ export default function NutritionPage() {
           {remaining >= 0 ? `${remaining} kcal restantes` : `${-remaining} kcal au-dessus de l'objectif`}
           {totalBurned > 0 && <span className="text-zinc-600"> · objectif ajusté avec {totalBurned} kcal brûlées</span>}
         </p>
+        {!!remoteNutrition?.calories && (
+          <p className="mt-1 text-[11px] text-zinc-600">
+            dont {remoteNutrition.calories} kcal loggées directement dans NutriTracker
+          </p>
+        )}
       </div>
 
       {totalBurned > 0 && (
@@ -164,17 +184,23 @@ export default function NutritionPage() {
             <p className="text-sm font-medium text-zinc-300">Calories brûlées ce jour-là</p>
           </div>
           <p className="mb-2 text-2xl font-bold text-orange-400">{totalBurned} kcal</p>
-          <div className="flex gap-4 text-xs text-zinc-500">
+          <div className="flex flex-wrap gap-x-4 gap-y-1 text-xs text-zinc-500">
             <span>🏋️‍♂️ Gym : {gymCalories} kcal</span>
             <span>🏃 Activités : {activityCalories} kcal</span>
+            {stepsCalories > 0 && (
+              <span className="flex items-center gap-1">
+                <Footprints size={12} /> {googleFitDay?.steps.toLocaleString('fr-FR')} pas : {stepsCalories} kcal
+              </span>
+            )}
           </div>
         </div>
       )}
 
       {(protein > 0 || carbs > 0 || fat > 0) && (
-        <div className="mb-6 grid grid-cols-3 gap-2">
+        <div className="mb-6 grid grid-cols-2 gap-2">
           <MacroTile label="Protéines" value={protein} color="bg-rose-500" />
           <MacroTile label="Glucides" value={carbs} color="bg-amber-500" />
+          <MacroTile label="dont Sucres" value={sugar} color="bg-orange-400" />
           <MacroTile label="Lipides" value={fat} color="bg-teal-500" />
         </div>
       )}

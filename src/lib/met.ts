@@ -81,6 +81,18 @@ export function computeCaloriesFromHr(avgHeartRate: number, durationMin: number,
   return Math.max(0, Math.round(kcalPerMin * durationMin))
 }
 
+/**
+ * Calories NEAT (Non-Exercise Activity Thermogenesis) à partir du nombre de
+ * pas — l'activité "non sportive" de la journée (marcher au bureau, monter
+ * des escaliers, etc.), distincte des séances de sport déjà comptées
+ * ailleurs. Approximation courante ≈ 0.0005 kcal par pas et par kg de poids
+ * corporel (≈ 350 kcal pour 10 000 pas chez un adulte de 70 kg, cohérent
+ * avec les ordres de grandeur habituellement cités).
+ */
+export function computeCaloriesFromSteps(steps: number, settings: Settings): number {
+  return Math.round(steps * 0.0005 * settings.bodyWeightKg)
+}
+
 // MET usuel pour une séance de musculation (charges libres/machines, effort modéré à soutenu)
 export const GYM_WORKOUT_MET = 5.5
 

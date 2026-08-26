@@ -92,6 +92,40 @@ export async function pullGoogleFitFromNutriTracker(days = 7): Promise<GoogleFit
   }
 }
 
+export interface RemoteNutritionTotals {
+  date: string
+  calories: number
+  proteinG: number
+  carbsG: number
+  fatG: number
+  sugarG: number
+  entryCount: number
+}
+
+const EMPTY_NUTRITION: RemoteNutritionTotals = { date: '', calories: 0, proteinG: 0, carbsG: 0, fatG: 0, sugarG: 0, entryCount: 0 }
+
+/** Total du jour loggé directement dans NutriTracker (hors ce que VibeFit lui
+ * a déjà poussé — le serveur les exclut), pour compléter la balance
+ * calorique locale sans compter deux fois les repas ajoutés depuis VibeFit. */
+export async function pullNutritionFromNutriTracker(date: string): Promise<RemoteNutritionTotals> {
+  try {
+    const r = await fetch(`/api/nutritracker?type=nutrition&date=${date}`)
+    if (!r.ok) return EMPTY_NUTRITION
+    const data = await r.json()
+    return {
+      date: data.date ?? date,
+      calories: data.calories ?? 0,
+      proteinG: data.proteinG ?? 0,
+      carbsG: data.carbsG ?? 0,
+      fatG: data.fatG ?? 0,
+      sugarG: data.sugarG ?? 0,
+      entryCount: data.entryCount ?? 0,
+    }
+  } catch {
+    return EMPTY_NUTRITION
+  }
+}
+
 export interface RemoteActivity {
   id: string
   date: string

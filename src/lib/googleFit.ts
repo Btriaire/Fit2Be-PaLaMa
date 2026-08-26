@@ -31,6 +31,11 @@ export async function getTodayGoogleFit(): Promise<GoogleFitDay | null> {
   return (await db.get('googleFitDaily', todayStr())) ?? null
 }
 
+export async function getGoogleFitForDate(dateStr: string): Promise<GoogleFitDay | null> {
+  const db = await getDb()
+  return (await db.get('googleFitDaily', dateStr)) ?? null
+}
+
 export async function getGoogleFitDays(days = 7): Promise<GoogleFitDay[]> {
   const db = await getDb()
   const all = await db.getAll('googleFitDaily')
