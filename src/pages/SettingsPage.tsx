@@ -1,13 +1,20 @@
 import { useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { ChevronLeft, Download, Upload, RefreshCw } from 'lucide-react'
-import { getSettings, saveSettings } from '../lib/settings'
+import { getSettings, saveSettings, type Sex } from '../lib/settings'
 import { getDb } from '../lib/db'
 import { importNutriTrackerActivityHistory } from '../lib/nutriTrackerImport'
 
 export default function SettingsPage() {
   const navigate = useNavigate()
   const initial = getSettings()
+  const [firstName, setFirstName] = useState(initial.firstName)
+  const [lastName, setLastName] = useState(initial.lastName)
+  const [heightCm, setHeightCm] = useState(String(initial.heightCm))
+  const [ageYears, setAgeYears] = useState(String(initial.ageYears))
+  const [sex, setSex] = useState<Sex>(initial.sex)
+  const [bodyWeightKg, setBodyWeightKg] = useState(initial.bodyWeightKg)
+  const [profileSavedFlash, setProfileSavedFlash] = useState(false)
   const [dailyCalorieTarget, setDailyCalorieTarget] = useState(String(initial.dailyCalorieTarget))
   const [restTimerDefaultSec, setRestTimerDefaultSec] = useState(String(initial.restTimerDefaultSec))
   const [restingHeartRateBpm, setRestingHeartRateBpm] = useState(String(initial.restingHeartRateBpm))
@@ -16,6 +23,19 @@ export default function SettingsPage() {
   const [importFlash, setImportFlash] = useState<string | null>(null)
   const [ntImporting, setNtImporting] = useState(false)
   const [ntImportFlash, setNtImportFlash] = useState<string | null>(null)
+
+  function submitProfile() {
+    const saved = saveSettings({
+      firstName: firstName.trim(),
+      lastName: lastName.trim(),
+      heightCm: parseFloat(heightCm) || initial.heightCm,
+      ageYears: parseInt(ageYears, 10) || initial.ageYears,
+      sex,
+    })
+    setBodyWeightKg(saved.bodyWeightKg)
+    setProfileSavedFlash(true)
+    setTimeout(() => setProfileSavedFlash(false), 1500)
+  }
 
   async function importFromNutriTracker() {
     setNtImporting(true)
@@ -95,10 +115,44 @@ export default function SettingsPage() {
         <h1 className="text-xl font-semibold tracking-tight">Réglages</h1>
       </header>
 
-      <p className="mb-3 px-1 text-xs text-zinc-500">
-        Ton profil démographique (poids, taille, âge, sexe) se règle depuis l'onglet NutriTracker — il sert au calcul
-        des calories brûlées.
-      </p>
+      <section className="glass mb-4 space-y-3 rounded-2xl p-4">
+        <h2 className="mb-1 text-sm font-medium text-zinc-400">Profil</h2>
+        <div className="grid grid-cols-2 gap-2">
+          <TextField label="Prénom" value={firstName} onChange={setFirstName} onBlur={submitProfile} />
+          <TextField label="Nom" value={lastName} onChange={setLastName} onBlur={submitProfile} />
+        </div>
+        <div className="grid grid-cols-2 gap-2">
+          <Field label="Taille" value={heightCm} onChange={setHeightCm} suffix="cm" onBlur={submitProfile} />
+          <Field label="Âge" value={ageYears} onChange={setAgeYears} suffix="ans" onBlur={submitProfile} />
+        </div>
+        <div>
+          <label className="mb-1 block text-xs text-zinc-500">Sexe</label>
+          <div className="flex gap-1.5">
+            {(['homme', 'femme'] as Sex[]).map((s) => (
+              <button
+                key={s}
+                onClick={() => {
+                  setSex(s)
+                  saveSettings({ sex: s })
+                }}
+                className={`flex-1 rounded-lg py-2.5 text-xs font-medium capitalize ${
+                  sex === s ? 'bg-teal-500 text-zinc-950' : 'bg-zinc-900 text-zinc-400'
+                }`}
+              >
+                {s}
+              </button>
+            ))}
+          </div>
+        </div>
+        <div className="rounded-lg bg-zinc-900 px-3 py-2.5">
+          <div className="flex items-center justify-between">
+            <span className="text-xs text-zinc-500">Poids</span>
+            <span className="text-sm font-semibold">{bodyWeightKg} kg</span>
+          </div>
+          <p className="mt-0.5 text-[10px] text-zinc-600">Mis à jour automatiquement par NutriTracker (pesées synchronisées)</p>
+        </div>
+        {profileSavedFlash && <p className="text-center text-xs text-teal-400">Profil enregistré ✓</p>}
+      </section>
 
       <section className="glass mb-4 space-y-4 rounded-2xl p-4">
         <Field label="Objectif calorique quotidien" value={dailyCalorieTarget} onChange={setDailyCalorieTarget} suffix="kcal" />
@@ -162,11 +216,13 @@ function Field({
   value,
   onChange,
   suffix,
+  onBlur,
 }: {
   label: string
   value: string
   onChange: (v: string) => void
   suffix: string
+  onBlur?: () => void
 }) {
   return (
     <div>
@@ -176,10 +232,35 @@ function Field({
           inputMode="decimal"
           value={value}
           onChange={(e) => onChange(e.target.value)}
+          onBlur={onBlur}
           className="flex-1 bg-transparent text-sm outline-none"
         />
         <span className="text-xs text-zinc-500">{suffix}</span>
       </div>
+    </div>
+  )
+}
+
+function TextField({
+  label,
+  value,
+  onChange,
+  onBlur,
+}: {
+  label: string
+  value: string
+  onChange: (v: string) => void
+  onBlur?: () => void
+}) {
+  return (
+    <div>
+      <label className="mb-1 block text-xs text-zinc-500">{label}</label>
+      <input
+        value={value}
+        onChange={(e) => onChange(e.target.value)}
+        onBlur={onBlur}
+        className="w-full rounded-lg bg-zinc-900 px-3 py-2.5 text-sm outline-none"
+      />
     </div>
   )
 }

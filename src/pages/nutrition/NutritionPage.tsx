@@ -1,8 +1,9 @@
 import { useEffect, useMemo, useState } from 'react'
-import { Apple, ChevronDown, ChevronLeft, ChevronRight, Flame, Mic, Plus, Scale, Square, Trash2, User, X } from 'lucide-react'
+import { Link } from 'react-router-dom'
+import { Apple, ChevronLeft, ChevronRight, Flame, Mic, Plus, Scale, Square, Trash2, User, X } from 'lucide-react'
 import { CartesianGrid, Line, LineChart, ResponsiveContainer, Tooltip, XAxis, YAxis } from 'recharts'
 import { getDb, newId } from '../../lib/db'
-import { getSettings, saveSettings, type Sex } from '../../lib/settings'
+import { getSettings } from '../../lib/settings'
 import { isSameDay, formatTime, formatDate, formatFullDate, todayStr, addDays } from '../../lib/date'
 import { getAllWorkouts, estimateWorkoutCalories } from '../../lib/workouts'
 import { getWeightLogs, logWeight, adoptWeightFromSync } from '../../lib/weight'
@@ -17,7 +18,6 @@ export default function NutritionPage() {
   const [activities, setActivities] = useState<ActivityLog[]>([])
   const [selectedDate, setSelectedDate] = useState(todayStr())
   const [formOpen, setFormOpen] = useState(false)
-  const [profileOpen, setProfileOpen] = useState(false)
   const [settings, setSettings] = useState(getSettings())
 
   async function refresh() {
@@ -130,28 +130,15 @@ export default function NutritionPage() {
         </button>
       </div>
 
-      <button
-        onClick={() => setProfileOpen((v) => !v)}
-        className="glass mb-4 flex w-full items-center justify-between rounded-2xl p-4"
-      >
+      <Link to="/settings" className="glass mb-4 flex w-full items-center justify-between rounded-2xl p-4 active:bg-zinc-900/80">
         <div className="flex items-center gap-2">
           <User size={16} className="text-teal-400" />
           <span className="text-sm font-medium">
-            Profil — {settings.bodyWeightKg}kg · {settings.heightCm}cm · {settings.ageYears} ans · {settings.sex}
+            {settings.firstName || 'Profil'} — {settings.bodyWeightKg}kg · {settings.heightCm}cm · {settings.ageYears} ans
           </span>
         </div>
-        <ChevronDown size={16} className={`text-zinc-500 transition-transform ${profileOpen ? 'rotate-180' : ''}`} />
-      </button>
-
-      {profileOpen && (
-        <ProfileForm
-          settings={settings}
-          onChange={(next) => {
-            const saved = saveSettings(next)
-            setSettings(saved)
-          }}
-        />
-      )}
+        <ChevronRight size={16} className="text-zinc-500" />
+      </Link>
 
       <WeightTracker logs={weightLogs} currentWeight={settings.bodyWeightKg} onLog={addWeight} />
 
@@ -243,58 +230,6 @@ export default function NutritionPage() {
   )
 }
 
-function ProfileForm({
-  settings,
-  onChange,
-}: {
-  settings: ReturnType<typeof getSettings>
-  onChange: (next: { heightCm?: number; ageYears?: number; sex?: Sex }) => void
-}) {
-  const [height, setHeight] = useState(String(settings.heightCm))
-  const [age, setAge] = useState(String(settings.ageYears))
-  const [sex, setSex] = useState<Sex>(settings.sex)
-
-  function save() {
-    onChange({
-      heightCm: parseFloat(height) || settings.heightCm,
-      ageYears: parseInt(age, 10) || settings.ageYears,
-      sex,
-    })
-  }
-
-  return (
-    <div className="glass mb-4 space-y-3 rounded-2xl p-4">
-      <p className="text-xs text-zinc-500">
-        Ces données démographiques permettent de calculer précisément les calories brûlées pour toutes tes séances
-        (gym + activités quotidiennes). Le poids se met à jour via tes pesées ci-dessous.
-      </p>
-      <div className="grid grid-cols-2 gap-2">
-        <LabeledInput label="Taille (cm)" value={height} onChange={setHeight} onBlur={save} />
-        <LabeledInput label="Âge (ans)" value={age} onChange={setAge} onBlur={save} />
-        <div className="col-span-2">
-          <label className="mb-1 block text-xs text-zinc-500">Sexe</label>
-          <div className="flex gap-1.5">
-            {(['homme', 'femme'] as Sex[]).map((s) => (
-              <button
-                key={s}
-                onClick={() => {
-                  setSex(s)
-                  onChange({ sex: s })
-                }}
-                className={`flex-1 rounded-lg py-2.5 text-xs font-medium capitalize ${
-                  sex === s ? 'bg-teal-500 text-zinc-950' : 'bg-zinc-900 text-zinc-400'
-                }`}
-              >
-                {s}
-              </button>
-            ))}
-          </div>
-        </div>
-      </div>
-    </div>
-  )
-}
-
 function WeightTracker({
   logs,
   currentWeight,
@@ -372,31 +307,6 @@ function WeightTracker({
         </button>
       </div>
       {logs.length === 0 && <p className="mt-2 text-xs text-zinc-600">Aucune pesée enregistrée pour l'instant.</p>}
-    </div>
-  )
-}
-
-function LabeledInput({
-  label,
-  value,
-  onChange,
-  onBlur,
-}: {
-  label: string
-  value: string
-  onChange: (v: string) => void
-  onBlur: () => void
-}) {
-  return (
-    <div>
-      <label className="mb-1 block text-xs text-zinc-500">{label}</label>
-      <input
-        inputMode="decimal"
-        value={value}
-        onChange={(e) => onChange(e.target.value)}
-        onBlur={onBlur}
-        className="w-full rounded-lg bg-zinc-900 px-3 py-2.5 text-center text-sm outline-none focus:ring-1 focus:ring-teal-500"
-      />
     </div>
   )
 }

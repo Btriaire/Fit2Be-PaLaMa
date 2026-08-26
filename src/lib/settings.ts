@@ -3,6 +3,8 @@ const KEY = 'vibefit_settings_v1'
 export type Sex = 'homme' | 'femme'
 
 export interface Settings {
+  firstName: string
+  lastName: string
   bodyWeightKg: number
   heightCm: number
   ageYears: number
@@ -17,6 +19,8 @@ export interface Settings {
 }
 
 const DEFAULTS: Settings = {
+  firstName: '',
+  lastName: '',
   bodyWeightKg: 75,
   heightCm: 175,
   ageYears: 30,
