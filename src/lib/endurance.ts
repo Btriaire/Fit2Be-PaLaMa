@@ -99,6 +99,39 @@ export async function deleteEnduranceSession(id: string) {
   await db.delete('endurance', id)
 }
 
+/** Réassigne le type d'activité d'une sortie déjà enregistrée (ex: une
+ * machine mal identifiée par le scan photo). Les calories mesurées (FC réelle
+ * ou machine) restent inchangées — seule l'estimation MET générique, quand
+ * c'était la seule donnée disponible, est recalculée pour le nouveau type. */
+export async function updateEnduranceActivityType(
+  id: string,
+  activityType: EnduranceActivityType,
+  settings: Settings,
+): Promise<EnduranceSession | null> {
+  const db = await getDb()
+  const session = await db.get('endurance', id)
+  if (!session) return null
+
+  const meta = ENDURANCE_ACTIVITY_META[activityType]
+  const hadMeasuredCalories = !!session.avgHeartRate || !!session.machineStats
+  const caloriesBurned = hadMeasuredCalories
+    ? session.caloriesBurned
+    : computeCaloriesForUser(meta.met, session.durationMin, settings)
+
+  const updated: EnduranceSession = { ...session, activityType, caloriesBurned }
+  await db.put('endurance', updated)
+
+  void pushActivityToNutriTracker({
+    name: meta.label,
+    activityType: meta.googleFitType,
+    durationMin: updated.durationMin,
+    caloriesBurned,
+    date: new Date(updated.startedAt).toISOString().slice(0, 10),
+  })
+
+  return updated
+}
+
 export interface EnduranceHistoryPoint {
   date: number
   distanceKm?: number

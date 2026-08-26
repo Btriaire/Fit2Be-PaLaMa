@@ -1,7 +1,14 @@
 import { useEffect, useState } from 'react'
 import { useNavigate, useParams } from 'react-router-dom'
-import { ChevronLeft, Timer, Route, HeartPulse, Flame, Zap, Gauge, Mountain, Trash2, TrendingUp, Activity } from 'lucide-react'
-import { getEnduranceSession, deleteEnduranceSession, computePaceMinPerKm, formatPace, ENDURANCE_ACTIVITY_META } from '../../lib/endurance'
+import { ChevronLeft, Timer, Route, HeartPulse, Flame, Zap, Gauge, Mountain, Trash2, TrendingUp, Activity, Pencil, Check } from 'lucide-react'
+import {
+  getEnduranceSession,
+  deleteEnduranceSession,
+  updateEnduranceActivityType,
+  computePaceMinPerKm,
+  formatPace,
+  ENDURANCE_ACTIVITY_META,
+} from '../../lib/endurance'
 import { getSettings } from '../../lib/settings'
 import { HR_ZONE_META, computeMaxHr } from '../../lib/heartRate'
 import { enduranceSessionLoad } from '../../lib/recovery'
@@ -9,7 +16,7 @@ import { sessionEfficiency } from '../../lib/progression'
 import { formatDate, formatTime } from '../../lib/date'
 import RouteMap from '../../components/RouteMap'
 import ActivityHero from '../../components/ActivityHero'
-import type { EnduranceSession } from '../../types'
+import type { EnduranceActivityType, EnduranceSession } from '../../types'
 
 /** Une métrique individuelle, taguée avec la ou les catégories d'index
  * qu'elle alimente — c'est ce tag qui répond au "pourquoi c'est là". */
@@ -40,6 +47,7 @@ export default function EnduranceSessionDetail() {
   const { sessionId } = useParams<{ sessionId: string }>()
   const navigate = useNavigate()
   const [session, setSession] = useState<EnduranceSession | null | undefined>(undefined)
+  const [editingType, setEditingType] = useState(false)
   const settings = getSettings()
 
   useEffect(() => {
@@ -51,6 +59,13 @@ export default function EnduranceSessionDetail() {
     if (!session || !confirm('Supprimer cette sortie ?')) return
     await deleteEnduranceSession(session.id)
     navigate('/endurance')
+  }
+
+  async function changeActivityType(activityType: EnduranceActivityType) {
+    if (!session) return
+    const updated = await updateEnduranceActivityType(session.id, activityType, settings)
+    if (updated) setSession(updated)
+    setEditingType(false)
   }
 
   if (session === undefined) {
@@ -81,15 +96,41 @@ export default function EnduranceSessionDetail() {
             <Trash2 size={18} />
           </button>
         </div>
-        <div className="absolute inset-x-0 bottom-0 px-4 pb-3">
-          <h1 className="text-xl font-semibold text-white drop-shadow">{meta.label}</h1>
-          <p className="text-xs text-zinc-300 drop-shadow">
-            {formatDate(session.startedAt)} · {formatTime(session.startedAt)}
-          </p>
+        <div className="absolute inset-x-0 bottom-0 flex items-end justify-between px-4 pb-3">
+          <div>
+            <h1 className="text-xl font-semibold text-white drop-shadow">{meta.label}</h1>
+            <p className="text-xs text-zinc-300 drop-shadow">
+              {formatDate(session.startedAt)} · {formatTime(session.startedAt)}
+            </p>
+          </div>
+          <button
+            onClick={() => setEditingType((v) => !v)}
+            className="rounded-full bg-zinc-950/40 p-2 text-white active:bg-zinc-900"
+            aria-label="Changer le type d'activité"
+          >
+            <Pencil size={16} />
+          </button>
         </div>
       </div>
 
       <div className="px-4 pt-4">
+        {editingType && (
+          <div className="mb-4 grid grid-cols-2 gap-1.5">
+            {(Object.keys(ENDURANCE_ACTIVITY_META) as EnduranceActivityType[]).map((key) => (
+              <button
+                key={key}
+                onClick={() => changeActivityType(key)}
+                className={`flex items-center justify-between rounded-lg px-2.5 py-2.5 text-left text-xs font-medium ${
+                  key === session.activityType ? 'bg-teal-500 text-zinc-950' : 'bg-zinc-900 text-zinc-300'
+                }`}
+              >
+                {ENDURANCE_ACTIVITY_META[key].label}
+                {key === session.activityType && <Check size={14} />}
+              </button>
+            ))}
+          </div>
+        )}
+
         <div className="mb-4 grid grid-cols-2 gap-2">
           <Metric icon={<Timer size={13} />} label="Durée" value={`${session.durationMin} min`} />
           {session.distanceKm != null && <Metric icon={<Route size={13} />} label="Distance" value={`${session.distanceKm} km`} />}
