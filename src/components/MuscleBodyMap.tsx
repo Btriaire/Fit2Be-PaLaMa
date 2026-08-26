@@ -1,7 +1,7 @@
 // Silhouette avant/arrière originale (pas une image tierce) pour sélectionner
 // visuellement un groupe musculaire — mêmes libellés que MUSCLE_GROUPS.
-// Corps construit à partir de formes géométriques simples (tête/cou/torse/
-// bras/jambes connectés), pas de tracés à main levée déconnectés.
+// Contour tracé en courbes (bezier) pour une vraie figure humanoïde
+// (épaules, taille, hanches, galbe des membres), pas des rectangles bruts.
 
 interface Props {
   selected: string | null
@@ -10,97 +10,96 @@ interface Props {
 
 interface Zone {
   group: string
-  shape: 'rect' | 'circle' | 'path'
-  // rect
-  x?: number
-  y?: number
-  w?: number
-  h?: number
-  rx?: number
-  // circle
+  shape: 'ellipse' | 'path'
+  // ellipse
   cx?: number
   cy?: number
-  r?: number
+  rx?: number
+  ry?: number
   // path
   d?: string
 }
 
 const HIGHLIGHT = '#e2361c'
 const ZONE_DEFAULT = '#52525b'
+const SKIN_FILL = '#18181b'
+const SKIN_STROKE = '#3f3f46'
 
-// Silhouette : tête, cou, torse (épaules→taille→hanches), bras et jambes
-// reliés au tronc, mains/pieds arrondis. Identique avant/arrière (juste une
-// silhouette), seules les zones surlignées changent.
-const HEAD = { cx: 60, cy: 15, r: 10 }
-const NECK = { x: 54, y: 23, w: 12, h: 9, rx: 3 }
-const TORSO = 'M36,32 L84,32 L76,62 L80,95 L40,95 L44,62 Z'
-const ARM_L = 'M30,36 L38,40 L34,78 L32,118 L24,118 L26,78 Z'
-const ARM_R = 'M90,36 L82,40 L86,78 L88,118 L96,118 L94,78 Z'
-const HAND_L = { cx: 28, cy: 124, r: 6 }
-const HAND_R = { cx: 92, cy: 124, r: 6 }
-const LEG_L = 'M41,95 L58,95 L54,145 L52,192 L43,192 L40,145 Z'
-const LEG_R = 'M79,95 L62,95 L66,145 L68,192 L77,192 L80,145 Z'
-const FOOT_L = { cx: 46, cy: 200, rx: 9, ry: 5 }
-const FOOT_R = { cx: 74, cy: 200, rx: 9, ry: 5 }
+// Silhouette : tête, cou, torse (épaules → taille → hanches), bras et
+// jambes galbés (bezier), mains/pieds arrondis. Identique avant/arrière,
+// seules les zones surlignées par-dessus changent.
+const TORSO =
+  'M26,32 C22,37 22,41 25,45 C29,52 33,55 39,60 C34,67 29,72 32,78 C33,84 37,89 42,92 ' +
+  'L58,92 C63,89 67,84 68,78 C71,72 66,67 61,60 C67,55 71,52 75,45 C78,41 78,37 74,32 ' +
+  'C65,28 35,28 26,32 Z'
+
+const ARM_L =
+  'M24,36 C16,38 14,44 15,52 C16,62 18,70 17,80 C16,90 15,100 15,112 C15,120 16,126 17,131 ' +
+  'L25,131 C25,126 24,120 25,112 C26,100 27,90 28,80 C29,70 30,62 30,52 C30,44 29,38 33,36 Z'
+const ARM_R = 'M76,36 C84,38 86,44 85,52 C84,62 82,70 83,80 C84,90 85,100 85,112 C85,120 84,126 83,131 ' +
+  'L75,131 C75,126 76,120 75,112 C74,100 73,90 72,80 C71,70 70,62 70,52 C70,44 71,38 67,36 Z'
+
+const LEG_L =
+  'M33,92 C28,100 28,104 30,110 C31,120 33,130 34,140 C32,148 30,155 31,160 C32,172 35,185 37,195 ' +
+  'L42,195 C41,185 39,172 40,160 C41,155 43,148 44,140 C45,130 46,120 47,110 C48,104 48,100 49,92 Z'
+const LEG_R =
+  'M67,92 C72,100 72,104 70,110 C69,120 67,130 66,140 C68,148 70,155 69,160 C68,172 65,185 63,195 ' +
+  'L58,195 C59,185 61,172 60,160 C59,155 57,148 56,140 C55,130 54,120 53,110 C52,104 52,100 51,92 Z'
+
+const FOOT_L = 'M30,195 C27,198 27,203 31,206 L44,203 C46,201 45,197 42,195 Z'
+const FOOT_R = 'M70,195 C73,198 73,203 69,206 L56,203 C54,201 55,197 58,195 Z'
 
 const FRONT_ZONES: Zone[] = [
-  { group: 'Trapèzes', shape: 'path', d: 'M60,30 L82,38 L73,50 L60,44 L47,50 L38,38 Z' },
-  { group: 'Épaules', shape: 'circle', cx: 33, cy: 39, r: 7 },
-  { group: 'Épaules', shape: 'circle', cx: 87, cy: 39, r: 7 },
-  { group: 'Pectoraux', shape: 'rect', x: 42, y: 40, w: 36, h: 17, rx: 6 },
-  { group: 'Biceps', shape: 'rect', x: 26, y: 44, w: 9, h: 26, rx: 4 },
-  { group: 'Biceps', shape: 'rect', x: 85, y: 44, w: 9, h: 26, rx: 4 },
-  { group: 'Abdominaux', shape: 'rect', x: 46, y: 59, w: 28, h: 32, rx: 6 },
-  { group: 'Avant-bras', shape: 'rect', x: 23, y: 82, w: 9, h: 30, rx: 4 },
-  { group: 'Avant-bras', shape: 'rect', x: 88, y: 82, w: 9, h: 30, rx: 4 },
-  { group: 'Adducteurs', shape: 'rect', x: 52, y: 98, w: 8, h: 42, rx: 4 },
-  { group: 'Adducteurs', shape: 'rect', x: 60, y: 98, w: 8, h: 42, rx: 4 },
-  { group: 'Quadriceps', shape: 'rect', x: 41, y: 98, w: 13, h: 44, rx: 6 },
-  { group: 'Quadriceps', shape: 'rect', x: 66, y: 98, w: 13, h: 44, rx: 6 },
-  { group: 'Mollets', shape: 'rect', x: 44, y: 150, w: 10, h: 38, rx: 5 },
-  { group: 'Mollets', shape: 'rect', x: 66, y: 150, w: 10, h: 38, rx: 5 },
+  { group: 'Trapèzes', shape: 'path', d: 'M50,24 L72,33 L63,44 L50,39 L37,44 L28,33 Z' },
+  { group: 'Épaules', shape: 'ellipse', cx: 25, cy: 37, rx: 8, ry: 8 },
+  { group: 'Épaules', shape: 'ellipse', cx: 75, cy: 37, rx: 8, ry: 8 },
+  { group: 'Pectoraux', shape: 'ellipse', cx: 50, cy: 46, rx: 20, ry: 10 },
+  { group: 'Biceps', shape: 'ellipse', cx: 18, cy: 64, rx: 7, ry: 16 },
+  { group: 'Biceps', shape: 'ellipse', cx: 82, cy: 64, rx: 7, ry: 16 },
+  { group: 'Abdominaux', shape: 'ellipse', cx: 50, cy: 70, rx: 13, ry: 20 },
+  { group: 'Avant-bras', shape: 'ellipse', cx: 17, cy: 112, rx: 6, ry: 18 },
+  { group: 'Avant-bras', shape: 'ellipse', cx: 83, cy: 112, rx: 6, ry: 18 },
+  { group: 'Adducteurs', shape: 'ellipse', cx: 46, cy: 118, rx: 4, ry: 24 },
+  { group: 'Adducteurs', shape: 'ellipse', cx: 54, cy: 118, rx: 4, ry: 24 },
+  { group: 'Quadriceps', shape: 'ellipse', cx: 33, cy: 118, rx: 7, ry: 26 },
+  { group: 'Quadriceps', shape: 'ellipse', cx: 67, cy: 118, rx: 7, ry: 26 },
+  { group: 'Mollets', shape: 'ellipse', cx: 35, cy: 170, rx: 6, ry: 22 },
+  { group: 'Mollets', shape: 'ellipse', cx: 65, cy: 170, rx: 6, ry: 22 },
 ]
 
 const BACK_ZONES: Zone[] = [
-  { group: 'Nuque', shape: 'rect', x: 54, y: 21, w: 12, h: 10, rx: 4 },
-  { group: 'Trapèzes', shape: 'path', d: 'M60,30 L84,40 L74,58 L60,50 L46,58 L36,40 Z' },
-  { group: 'Dos', shape: 'rect', x: 40, y: 52, w: 40, h: 25, rx: 8 },
-  { group: 'Milieu du dos', shape: 'rect', x: 40, y: 52, w: 40, h: 25, rx: 8 },
-  { group: 'Bas du dos', shape: 'rect', x: 46, y: 77, w: 28, h: 15, rx: 6 },
-  { group: 'Triceps', shape: 'rect', x: 26, y: 44, w: 9, h: 26, rx: 4 },
-  { group: 'Triceps', shape: 'rect', x: 85, y: 44, w: 9, h: 26, rx: 4 },
-  { group: 'Avant-bras', shape: 'rect', x: 23, y: 82, w: 9, h: 30, rx: 4 },
-  { group: 'Avant-bras', shape: 'rect', x: 88, y: 82, w: 9, h: 30, rx: 4 },
-  { group: 'Fessiers', shape: 'rect', x: 40, y: 92, w: 40, h: 20, rx: 10 },
-  { group: 'Abducteurs', shape: 'rect', x: 36, y: 100, w: 8, h: 38, rx: 4 },
-  { group: 'Abducteurs', shape: 'rect', x: 76, y: 100, w: 8, h: 38, rx: 4 },
-  { group: 'Ischio-jambiers', shape: 'rect', x: 46, y: 112, w: 12, h: 36, rx: 6 },
-  { group: 'Ischio-jambiers', shape: 'rect', x: 62, y: 112, w: 12, h: 36, rx: 6 },
-  { group: 'Mollets', shape: 'rect', x: 44, y: 150, w: 10, h: 38, rx: 5 },
-  { group: 'Mollets', shape: 'rect', x: 66, y: 150, w: 10, h: 38, rx: 5 },
+  { group: 'Nuque', shape: 'ellipse', cx: 50, cy: 27, rx: 7, ry: 6 },
+  { group: 'Trapèzes', shape: 'path', d: 'M50,24 L74,36 L62,52 L50,46 L38,52 L26,36 Z' },
+  { group: 'Dos', shape: 'ellipse', cx: 50, cy: 52, rx: 22, ry: 14 },
+  { group: 'Milieu du dos', shape: 'ellipse', cx: 50, cy: 52, rx: 22, ry: 14 },
+  { group: 'Bas du dos', shape: 'ellipse', cx: 50, cy: 80, rx: 14, ry: 10 },
+  { group: 'Triceps', shape: 'ellipse', cx: 18, cy: 64, rx: 7, ry: 16 },
+  { group: 'Triceps', shape: 'ellipse', cx: 82, cy: 64, rx: 7, ry: 16 },
+  { group: 'Avant-bras', shape: 'ellipse', cx: 17, cy: 112, rx: 6, ry: 18 },
+  { group: 'Avant-bras', shape: 'ellipse', cx: 83, cy: 112, rx: 6, ry: 18 },
+  { group: 'Fessiers', shape: 'ellipse', cx: 50, cy: 95, rx: 20, ry: 10 },
+  { group: 'Abducteurs', shape: 'ellipse', cx: 31, cy: 110, rx: 6, ry: 20 },
+  { group: 'Abducteurs', shape: 'ellipse', cx: 69, cy: 110, rx: 6, ry: 20 },
+  { group: 'Ischio-jambiers', shape: 'ellipse', cx: 39, cy: 128, rx: 7, ry: 24 },
+  { group: 'Ischio-jambiers', shape: 'ellipse', cx: 61, cy: 128, rx: 7, ry: 24 },
+  { group: 'Mollets', shape: 'ellipse', cx: 35, cy: 170, rx: 6, ry: 22 },
+  { group: 'Mollets', shape: 'ellipse', cx: 65, cy: 170, rx: 6, ry: 22 },
 ]
 
 function ZoneShape({ zone, active, onSelect }: { zone: Zone; active: boolean; onSelect: () => void }) {
   const common = {
     fill: active ? HIGHLIGHT : ZONE_DEFAULT,
-    fillOpacity: active ? 0.95 : 0.65,
+    fillOpacity: active ? 0.9 : 0.55,
     stroke: active ? HIGHLIGHT : 'transparent',
     strokeWidth: 0.8,
     className: 'cursor-pointer transition-colors duration-150',
     onClick: onSelect,
   }
-  if (zone.shape === 'circle') {
+  if (zone.shape === 'ellipse') {
     return (
-      <circle cx={zone.cx} cy={zone.cy} r={zone.r} {...common}>
+      <ellipse cx={zone.cx} cy={zone.cy} rx={zone.rx} ry={zone.ry} {...common}>
         <title>{zone.group}</title>
-      </circle>
-    )
-  }
-  if (zone.shape === 'rect') {
-    return (
-      <rect x={zone.x} y={zone.y} width={zone.w} height={zone.h} rx={zone.rx} {...common}>
-        <title>{zone.group}</title>
-      </rect>
+      </ellipse>
     )
   }
   return (
@@ -112,19 +111,19 @@ function ZoneShape({ zone, active, onSelect }: { zone: Zone; active: boolean; on
 
 function BodySvg({ zones, selected, onSelect }: { zones: Zone[]; selected: string | null; onSelect: (g: string | null) => void }) {
   return (
-    <svg viewBox="0 0 120 210" className="h-full w-full overflow-visible">
+    <svg viewBox="0 0 100 210" className="h-full w-full overflow-visible">
       {/* Silhouette de base */}
-      <circle cx={HEAD.cx} cy={HEAD.cy} r={HEAD.r} fill="#18181b" stroke="#3f3f46" strokeWidth="0.6" />
-      <rect x={NECK.x} y={NECK.y} width={NECK.w} height={NECK.h} rx={NECK.rx} fill="#18181b" stroke="#3f3f46" strokeWidth="0.6" />
-      <path d={TORSO} fill="#18181b" stroke="#3f3f46" strokeWidth="0.6" strokeLinejoin="round" />
-      <path d={ARM_L} fill="#18181b" stroke="#3f3f46" strokeWidth="0.6" strokeLinejoin="round" />
-      <path d={ARM_R} fill="#18181b" stroke="#3f3f46" strokeWidth="0.6" strokeLinejoin="round" />
-      <circle cx={HAND_L.cx} cy={HAND_L.cy} r={HAND_L.r} fill="#18181b" stroke="#3f3f46" strokeWidth="0.6" />
-      <circle cx={HAND_R.cx} cy={HAND_R.cy} r={HAND_R.r} fill="#18181b" stroke="#3f3f46" strokeWidth="0.6" />
-      <path d={LEG_L} fill="#18181b" stroke="#3f3f46" strokeWidth="0.6" strokeLinejoin="round" />
-      <path d={LEG_R} fill="#18181b" stroke="#3f3f46" strokeWidth="0.6" strokeLinejoin="round" />
-      <ellipse cx={FOOT_L.cx} cy={FOOT_L.cy} rx={FOOT_L.rx} ry={FOOT_L.ry} fill="#18181b" stroke="#3f3f46" strokeWidth="0.6" />
-      <ellipse cx={FOOT_R.cx} cy={FOOT_R.cy} rx={FOOT_R.rx} ry={FOOT_R.ry} fill="#18181b" stroke="#3f3f46" strokeWidth="0.6" />
+      <ellipse cx={50} cy={16} rx={10} ry={12} fill={SKIN_FILL} stroke={SKIN_STROKE} strokeWidth="0.6" />
+      <path d="M43,24 L57,24 L54,32 L46,32 Z" fill={SKIN_FILL} stroke={SKIN_STROKE} strokeWidth="0.6" strokeLinejoin="round" />
+      <path d={TORSO} fill={SKIN_FILL} stroke={SKIN_STROKE} strokeWidth="0.6" strokeLinejoin="round" />
+      <path d={ARM_L} fill={SKIN_FILL} stroke={SKIN_STROKE} strokeWidth="0.6" strokeLinejoin="round" />
+      <path d={ARM_R} fill={SKIN_FILL} stroke={SKIN_STROKE} strokeWidth="0.6" strokeLinejoin="round" />
+      <ellipse cx={21} cy={136} rx={6} ry={7} fill={SKIN_FILL} stroke={SKIN_STROKE} strokeWidth="0.6" />
+      <ellipse cx={79} cy={136} rx={6} ry={7} fill={SKIN_FILL} stroke={SKIN_STROKE} strokeWidth="0.6" />
+      <path d={LEG_L} fill={SKIN_FILL} stroke={SKIN_STROKE} strokeWidth="0.6" strokeLinejoin="round" />
+      <path d={LEG_R} fill={SKIN_FILL} stroke={SKIN_STROKE} strokeWidth="0.6" strokeLinejoin="round" />
+      <path d={FOOT_L} fill={SKIN_FILL} stroke={SKIN_STROKE} strokeWidth="0.6" strokeLinejoin="round" />
+      <path d={FOOT_R} fill={SKIN_FILL} stroke={SKIN_STROKE} strokeWidth="0.6" strokeLinejoin="round" />
 
       {/* Zones musculaires cliquables */}
       {zones.map((z, i) => (
@@ -138,13 +137,13 @@ export default function MuscleBodyMap({ selected, onSelect }: Props) {
   return (
     <div className="mb-3 flex items-center justify-center gap-8 rounded-xl bg-zinc-900/60 py-4">
       <div className="w-24">
-        <div className="h-40">
+        <div className="h-44">
           <BodySvg zones={FRONT_ZONES} selected={selected} onSelect={onSelect} />
         </div>
         <p className="mt-1.5 text-center text-[10px] uppercase tracking-wide text-zinc-600">Avant</p>
       </div>
       <div className="w-24">
-        <div className="h-40">
+        <div className="h-44">
           <BodySvg zones={BACK_ZONES} selected={selected} onSelect={onSelect} />
         </div>
         <p className="mt-1.5 text-center text-[10px] uppercase tracking-wide text-zinc-600">Arrière</p>

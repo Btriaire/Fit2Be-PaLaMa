@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react'
 import { useNavigate, useParams } from 'react-router-dom'
-import { Check, ChevronLeft, Flame, Plus, Search, X } from 'lucide-react'
+import { Check, ChevronLeft, Copy, Flame, Plus, Search, X } from 'lucide-react'
 import clsx from 'clsx'
 import {
   getWorkout,
@@ -130,7 +130,15 @@ function ExerciseBlock({
   const [warmup, setWarmup] = useState(false)
 
   useEffect(() => {
-    getLastPerformance(we.exerciseId).then(setLast)
+    getLastPerformance(we.exerciseId).then((lp) => {
+      setLast(lp)
+      // Pré-remplit avec les réglages de la dernière fois, tant que rien
+      // n'a encore été saisi ni loggé sur cet exercice dans cette séance.
+      if (lp && we.sets.length === 0) {
+        setWeight((w) => w || String(lp.weightKg))
+        setReps((r) => r || String(lp.reps))
+      }
+    })
   }, [we.exerciseId, we.sets.length])
 
   function submit() {
@@ -144,12 +152,18 @@ function ExerciseBlock({
     setWarmup(false)
   }
 
+  function duplicateLastSet() {
+    const prev = we.sets[we.sets.length - 1]
+    if (!prev) return
+    onAddSet({ weightKg: prev.weightKg, reps: prev.reps, rpe: prev.rpe, isWarmup: false })
+  }
+
   return (
     <div className="glass rounded-2xl p-3.5">
       <div className="mb-2 flex items-baseline justify-between">
         <div className="flex items-center gap-2.5">
           {exercise?.images?.[0] && (
-            <img src={exercise.images[0]} alt="" loading="lazy" className="h-16 w-16 shrink-0 self-center rounded-xl bg-zinc-900 object-cover" />
+            <img src={exercise.images[0]} alt="" loading="lazy" className="h-20 w-20 shrink-0 self-center rounded-xl bg-zinc-900 object-cover" />
           )}
           <div>
             <h3 className="font-semibold">{exercise?.name ?? we.exerciseId}</h3>
@@ -188,6 +202,15 @@ function ExerciseBlock({
             </li>
           ))}
         </ul>
+      )}
+
+      {we.sets.length > 0 && (
+        <button
+          onClick={duplicateLastSet}
+          className="mb-2 flex w-full items-center justify-center gap-1.5 rounded-lg bg-zinc-900 py-2 text-xs font-medium text-zinc-400 active:bg-zinc-800"
+        >
+          <Copy size={13} /> Même série ({we.sets[we.sets.length - 1].weightKg}kg × {we.sets[we.sets.length - 1].reps})
+        </button>
       )}
 
       <div className="flex items-center gap-1.5">
@@ -307,9 +330,9 @@ function ExercisePicker({
                 className="flex w-full items-center gap-2.5 rounded-lg px-3 py-2.5 text-left active:bg-zinc-900"
               >
                 {e.images?.[0] ? (
-                  <img src={e.images[0]} alt="" loading="lazy" className="h-16 w-16 shrink-0 rounded-xl bg-zinc-900 object-cover" />
+                  <img src={e.images[0]} alt="" loading="lazy" className="h-20 w-20 shrink-0 rounded-xl bg-zinc-900 object-cover" />
                 ) : (
-                  <div className="h-16 w-16 shrink-0 rounded-xl bg-zinc-900" />
+                  <div className="h-20 w-20 shrink-0 rounded-xl bg-zinc-900" />
                 )}
                 <div className="min-w-0 flex-1">
                   <p className="truncate text-sm font-medium">{e.name}</p>

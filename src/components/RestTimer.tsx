@@ -7,7 +7,7 @@ interface Props {
   onDone?: () => void
 }
 
-const RADIUS = 54
+const RADIUS = 66
 const CIRCUMFERENCE = 2 * Math.PI * RADIUS
 
 export default function RestTimer({ durationSec, runToken, onDone }: Props) {
@@ -62,17 +62,17 @@ export default function RestTimer({ durationSec, runToken, onDone }: Props) {
   }
 
   return (
-    <div className="pointer-events-none fixed inset-x-0 bottom-24 z-40 flex justify-center">
+    <div className="pointer-events-none fixed inset-x-0 bottom-32 z-40 flex justify-center">
       <div className="pointer-events-auto relative">
-        <svg width="132" height="132" viewBox="0 0 132 132" className="-rotate-90 drop-shadow-[0_8px_24px_rgba(0,0,0,0.5)]">
-          <circle cx="66" cy="66" r={RADIUS} fill="rgba(9,9,11,0.92)" stroke="#27272a" strokeWidth="6" />
+        <svg width="160" height="160" viewBox="0 0 160 160" className="-rotate-90 drop-shadow-[0_8px_24px_rgba(0,0,0,0.5)]">
+          <circle cx="80" cy="80" r={RADIUS} fill="rgba(9,9,11,0.92)" stroke="#27272a" strokeWidth="7" />
           <circle
-            cx="66"
-            cy="66"
+            cx="80"
+            cy="80"
             r={RADIUS}
             fill="none"
             stroke="#e2361c"
-            strokeWidth="6"
+            strokeWidth="7"
             strokeLinecap="round"
             strokeDasharray={CIRCUMFERENCE}
             strokeDashoffset={offset}
@@ -80,31 +80,31 @@ export default function RestTimer({ durationSec, runToken, onDone }: Props) {
           />
         </svg>
         <div className="absolute inset-0 flex flex-col items-center justify-center">
-          <span className="font-mono text-2xl font-bold tabular-nums text-orange-300">{label}</span>
-          <span className="text-[10px] uppercase tracking-wide text-zinc-500">repos</span>
+          <span className="font-mono text-4xl font-bold tabular-nums text-orange-300">{label}</span>
+          <span className="text-xs uppercase tracking-wide text-zinc-500">repos</span>
         </div>
 
-        <div className="absolute -bottom-4 left-1/2 flex -translate-x-1/2 items-center gap-2.5">
+        <div className="absolute -bottom-5 left-1/2 flex -translate-x-1/2 items-center gap-3">
           <button
             onClick={() => adjust(-15)}
-            className="flex h-9 w-9 items-center justify-center rounded-full bg-zinc-800 text-zinc-200 shadow-lg active:bg-zinc-700"
+            className="flex h-11 w-11 items-center justify-center rounded-full bg-zinc-800 text-zinc-200 shadow-lg active:bg-zinc-700"
             aria-label="-15s"
           >
-            <Minus size={16} />
+            <Minus size={18} />
           </button>
           <button
             onClick={() => setActive(false)}
-            className="flex h-10 w-10 items-center justify-center rounded-full bg-red-500 text-white shadow-lg active:bg-red-400"
+            className="flex h-12 w-12 items-center justify-center rounded-full bg-red-500 text-white shadow-lg active:bg-red-400"
             aria-label="Arrêter le repos"
           >
-            <Square size={14} fill="currentColor" />
+            <Square size={16} fill="currentColor" />
           </button>
           <button
             onClick={() => adjust(15)}
-            className="flex h-9 w-9 items-center justify-center rounded-full bg-orange-500 text-zinc-950 shadow-lg active:bg-orange-400"
+            className="flex h-11 w-11 items-center justify-center rounded-full bg-orange-500 text-zinc-950 shadow-lg active:bg-orange-400"
             aria-label="+15s"
           >
-            <Plus size={16} />
+            <Plus size={18} />
           </button>
         </div>
       </div>
