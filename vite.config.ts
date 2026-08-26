@@ -12,8 +12,8 @@ export default defineConfig({
       registerType: 'autoUpdate',
       includeAssets: ['favicon.svg'],
       manifest: {
-        name: 'VibeFit — Gym, Sport & Longévité',
-        short_name: 'VibeFit',
+        name: 'Fit2Be-PaLaMa — Gym, Sport & Longévité',
+        short_name: 'Fit2Be-PaLaMa',
         description: 'Carnet de gym, activités quotidiennes, récupération et nutrition, 100% local.',
         theme_color: '#09090b',
         background_color: '#09090b',

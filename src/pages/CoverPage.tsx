@@ -23,7 +23,7 @@ export default function CoverPage({ onEnter }: { onEnter: () => void }) {
           <Dumbbell size={36} className="text-zinc-950" strokeWidth={2.4} />
         </div>
 
-        <h1 className="mb-2 text-4xl font-extrabold tracking-tight text-zinc-50">VibeFit</h1>
+        <h1 className="mb-2 text-4xl font-extrabold tracking-tight text-zinc-50">Fit2Be-PaLaMa</h1>
         <p className="mb-10 max-w-xs text-sm leading-relaxed text-zinc-400">
           Ton carnet de gym, tes activités du quotidien, ta récupération et ta nutrition — tout en un,
           <span className="text-zinc-300"> 100% local sur ton téléphone</span>.
