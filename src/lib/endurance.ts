@@ -3,7 +3,7 @@ import { computeCaloriesForUser } from './met'
 import { computeHrZone } from './heartRate'
 import { pushActivityToNutriTracker } from './nutriTrackerSync'
 import type { Settings } from './settings'
-import type { EnduranceActivityType, EnduranceSession } from '../types'
+import type { EnduranceActivityType, EnduranceSession, RoutePoint } from '../types'
 
 // googleFitType : code d'activité Google Fit repris par NutriTracker Palama
 // (app/api/activity/route.ts) pour dénormaliser un nom d'activité côté sync.
@@ -44,6 +44,7 @@ export async function logEnduranceSession(
     distanceKm?: number
     avgHeartRate?: number
     startedAt?: number
+    route?: RoutePoint[]
   },
   settings: Settings,
 ): Promise<EnduranceSession> {
@@ -59,6 +60,7 @@ export async function logEnduranceSession(
     avgHeartRate: input.avgHeartRate,
     hrZone,
     caloriesBurned,
+    ...(input.route && input.route.length > 0 ? { route: input.route } : {}),
   }
   const db = await getDb()
   await db.put('endurance', session)
@@ -77,4 +79,40 @@ export async function logEnduranceSession(
 export async function deleteEnduranceSession(id: string) {
   const db = await getDb()
   await db.delete('endurance', id)
+}
+
+export interface EnduranceHistoryPoint {
+  date: number
+  distanceKm?: number
+  paceMinPerKm: number | null
+  durationMin: number
+  avgHeartRate?: number
+}
+
+/** Historique chronologique des sorties pour un type d'activité donné. */
+export async function getEnduranceHistory(activityType: EnduranceActivityType): Promise<EnduranceHistoryPoint[]> {
+  const sessions = await getEnduranceSessions()
+  return sessions
+    .filter((s) => s.activityType === activityType)
+    .reverse()
+    .map((s) => ({
+      date: s.startedAt,
+      distanceKm: s.distanceKm,
+      paceMinPerKm: s.distanceKm ? computePaceMinPerKm(s.durationMin, s.distanceKm) : null,
+      durationMin: s.durationMin,
+      avgHeartRate: s.avgHeartRate,
+    }))
+}
+
+/** Types d'activité déjà pratiqués au moins une fois, avec leur dernière date. */
+export async function getLoggedActivityTypes(): Promise<Array<{ activityType: EnduranceActivityType; lastDate: number }>> {
+  const sessions = await getEnduranceSessions()
+  const map = new Map<EnduranceActivityType, number>()
+  for (const s of sessions) {
+    const prev = map.get(s.activityType) ?? 0
+    if (s.startedAt > prev) map.set(s.activityType, s.startedAt)
+  }
+  return Array.from(map.entries())
+    .map(([activityType, lastDate]) => ({ activityType, lastDate }))
+    .sort((a, b) => b.lastDate - a.lastDate)
 }

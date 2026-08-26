@@ -2,7 +2,15 @@ import { useEffect, useState } from 'react'
 import { useNavigate, useParams } from 'react-router-dom'
 import { Check, ChevronLeft, Flame, Plus, Search, X } from 'lucide-react'
 import clsx from 'clsx'
-import { getWorkout, saveWorkout, getLastPerformance, getBestPerformance, detectPr, type LastPerformance } from '../../lib/workouts'
+import {
+  getWorkout,
+  saveWorkout,
+  getLastPerformance,
+  getBestPerformance,
+  detectPr,
+  estimateExerciseDurationMin,
+  type LastPerformance,
+} from '../../lib/workouts'
 import { newId } from '../../lib/db'
 import { ALL_EXERCISES, MUSCLE_GROUPS } from '../../lib/exercises'
 import { getSettings } from '../../lib/settings'
@@ -78,7 +86,12 @@ export default function WorkoutRunner() {
 
       <div className="space-y-4 px-4 py-4">
         {workout.exercises.map((we) => (
-          <ExerciseBlock key={we.exerciseId} we={we} onAddSet={(s) => addSet(we.exerciseId, s)} />
+          <ExerciseBlock
+            key={we.exerciseId}
+            we={we}
+            onAddSet={(s) => addSet(we.exerciseId, s)}
+            restTimerDefaultSec={settings.restTimerDefaultSec}
+          />
         ))}
 
         <button
@@ -99,11 +112,14 @@ export default function WorkoutRunner() {
 function ExerciseBlock({
   we,
   onAddSet,
+  restTimerDefaultSec,
 }: {
   we: WorkoutExercise
   onAddSet: (set: Omit<SetEntry, 'id' | 'exerciseId' | 'completedAt' | 'isPr'>) => void
+  restTimerDefaultSec: number
 }) {
   const exercise = ALL_EXERCISES.find((e) => e.id === we.exerciseId)
+  const estimatedMin = estimateExerciseDurationMin(restTimerDefaultSec)
   const [last, setLast] = useState<LastPerformance | null>(null)
   const [weight, setWeight] = useState('')
   const [reps, setReps] = useState('')
@@ -128,7 +144,10 @@ function ExerciseBlock({
   return (
     <div className="glass rounded-2xl p-3.5">
       <div className="mb-2 flex items-baseline justify-between">
-        <h3 className="font-semibold">{exercise?.name ?? we.exerciseId}</h3>
+        <div>
+          <h3 className="font-semibold">{exercise?.name ?? we.exerciseId}</h3>
+          <p className="text-[11px] text-zinc-600">~{estimatedMin} min estimées</p>
+        </div>
         {last && (
           <p className="text-xs text-zinc-500">
             Dernière fois : {last.weightKg}kg × {last.reps}
@@ -218,6 +237,7 @@ function ExercisePicker({
   const [q, setQ] = useState('')
   const [muscleFilter, setMuscleFilter] = useState<string | null>(null)
   const DISPLAY_LIMIT = 60
+  const estimatedMin = estimateExerciseDurationMin(getSettings().restTimerDefaultSec)
 
   const filtered = ALL_EXERCISES.filter(
     (e) =>
@@ -230,7 +250,7 @@ function ExercisePicker({
   return (
     <div className="fixed inset-0 z-50 flex items-end justify-center bg-black/60" onClick={onClose}>
       <div
-        className="max-h-[75vh] w-full max-w-md overflow-y-auto rounded-t-2xl bg-zinc-950 border-t border-zinc-800 p-4"
+        className="mesh-backdrop max-h-[75vh] w-full max-w-md overflow-y-auto rounded-t-2xl bg-zinc-950 border-t border-zinc-800 p-4"
         onClick={(e) => e.stopPropagation()}
       >
         <div className="mb-3 flex items-center justify-between">
@@ -279,7 +299,7 @@ function ExercisePicker({
               >
                 <span className="text-sm font-medium">{e.name}</span>
                 <span className="text-xs text-zinc-500">
-                  {e.muscleGroup} · {e.equipment}
+                  {e.muscleGroup} · {e.equipment} · ~{estimatedMin}min
                 </span>
               </button>
             </li>

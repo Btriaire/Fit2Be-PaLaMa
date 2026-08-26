@@ -1,16 +1,23 @@
 import { useEffect, useMemo, useState } from 'react'
-import { Activity, HeartPulse, Plus, Route, Timer, X } from 'lucide-react'
+import { useNavigate } from 'react-router-dom'
+import { Activity, HeartPulse, MapPin, Pause, Plus, Route, TrendingUp, Timer, X } from 'lucide-react'
 import {
   ENDURANCE_ACTIVITY_META,
   computePaceMinPerKm,
   formatPace,
   getEnduranceSessions,
   logEnduranceSession,
+  getLoggedActivityTypes,
 } from '../../lib/endurance'
 import { getSettings } from '../../lib/settings'
 import { HR_ZONE_META } from '../../lib/heartRate'
 import { formatDate, formatTime, isToday } from '../../lib/date'
-import type { EnduranceActivityType, EnduranceSession } from '../../types'
+import { useGeoTracking } from '../../lib/useGeoTracking'
+import RouteMap from '../../components/RouteMap'
+import type { EnduranceActivityType, EnduranceSession, RoutePoint } from '../../types'
+
+// Activités où un suivi GPS a du sens (extérieur, mouvement continu).
+const GPS_CAPABLE: EnduranceActivityType[] = ['course', 'velo', 'marche']
 
 function startOfWeek(): number {
   const d = new Date()
@@ -21,12 +28,15 @@ function startOfWeek(): number {
 }
 
 export default function EndurancePage() {
+  const navigate = useNavigate()
   const [sessions, setSessions] = useState<EnduranceSession[]>([])
+  const [loggedTypes, setLoggedTypes] = useState<Array<{ activityType: EnduranceActivityType; lastDate: number }>>([])
   const [formOpen, setFormOpen] = useState(false)
   const settings = getSettings()
 
   async function refresh() {
     setSessions(await getEnduranceSessions())
+    setLoggedTypes(await getLoggedActivityTypes())
   }
 
   useEffect(() => {
@@ -44,6 +54,7 @@ export default function EndurancePage() {
     durationMin: number
     distanceKm?: number
     avgHeartRate?: number
+    route?: RoutePoint[]
   }) {
     await logEnduranceSession(input, settings)
     setFormOpen(false)
@@ -80,6 +91,24 @@ export default function EndurancePage() {
       >
         <Plus size={16} /> Enregistrer une sortie
       </button>
+
+      {loggedTypes.length > 0 && (
+        <section className="mb-6">
+          <h2 className="mb-2 text-sm font-medium text-zinc-400">Progression</h2>
+          <div className="flex gap-2 overflow-x-auto pb-1">
+            {loggedTypes.map(({ activityType }) => (
+              <button
+                key={activityType}
+                onClick={() => navigate(`/endurance/history/${activityType}`)}
+                className="glass flex shrink-0 items-center gap-1.5 rounded-xl px-3 py-2 text-xs font-medium active:scale-95 transition-transform"
+              >
+                <TrendingUp size={13} className="text-teal-400" />
+                {ENDURANCE_ACTIVITY_META[activityType].label}
+              </button>
+            ))}
+          </div>
+        </section>
+      )}
 
       <section>
         <h2 className="mb-2 text-sm font-medium text-zinc-400">Historique</h2>
@@ -119,6 +148,11 @@ export default function EndurancePage() {
                   )}
                   <span className="ml-auto font-semibold text-orange-400">{s.caloriesBurned} kcal</span>
                 </div>
+                {s.route && s.route.length > 1 && (
+                  <div className="mt-2">
+                    <RouteMap route={s.route} className="h-28 w-full" />
+                  </div>
+                )}
               </li>
             )
           })}
@@ -134,7 +168,13 @@ function EnduranceForm({
   onSubmit,
   onClose,
 }: {
-  onSubmit: (input: { activityType: EnduranceActivityType; durationMin: number; distanceKm?: number; avgHeartRate?: number }) => void
+  onSubmit: (input: {
+    activityType: EnduranceActivityType
+    durationMin: number
+    distanceKm?: number
+    avgHeartRate?: number
+    route?: RoutePoint[]
+  }) => void
   onClose: () => void
 }) {
   const [activityType, setActivityType] = useState<EnduranceActivityType>('course')
@@ -142,6 +182,9 @@ function EnduranceForm({
   const [distance, setDistance] = useState('')
   const [avgHr, setAvgHr] = useState('')
   const meta = ENDURANCE_ACTIVITY_META[activityType]
+  const gps = useGeoTracking()
+  const gpsCapable = GPS_CAPABLE.includes(activityType)
+  const [savedRoute, setSavedRoute] = useState<RoutePoint[] | null>(null)
 
   function submit() {
     const dur = parseInt(duration, 10)
@@ -151,13 +194,65 @@ function EnduranceForm({
       durationMin: dur,
       distanceKm: distance ? parseFloat(distance) : undefined,
       avgHeartRate: avgHr ? parseInt(avgHr, 10) : undefined,
+      route: savedRoute ?? undefined,
     })
+  }
+
+  function stopTracking() {
+    const final = gps.stop()
+    setDuration(String(Math.max(1, Math.round(final.elapsedSec / 60))))
+    setDistance(final.distanceKm.toFixed(2))
+    setSavedRoute(final.route)
+  }
+
+  if (gps.tracking) {
+    const mm = Math.floor(gps.elapsedSec / 60)
+    const ss = gps.elapsedSec % 60
+    return (
+      <div className="fixed inset-0 z-50 flex flex-col bg-zinc-950">
+        <div className="flex items-center justify-between px-4 pt-[calc(env(safe-area-inset-top)+12px)] pb-3">
+          <div className="flex items-center gap-1.5 text-teal-400">
+            <MapPin size={16} className="animate-pulse" />
+            <span className="text-xs font-medium uppercase tracking-wide">Suivi en direct · {meta.label}</span>
+          </div>
+          <button onClick={onClose} className="rounded-full p-1.5 text-zinc-500 active:bg-zinc-900">
+            <X size={18} />
+          </button>
+        </div>
+
+        {gps.error && <p className="mx-4 mb-2 rounded-lg bg-red-500/10 px-3 py-2 text-xs text-red-400">{gps.error}</p>}
+
+        <div className="px-4">
+          <RouteMap route={gps.route} live className="h-64 w-full" />
+        </div>
+
+        <div className="mt-4 grid grid-cols-2 gap-2 px-4">
+          <div className="glass rounded-2xl p-4 text-center">
+            <p className="text-xs text-zinc-500">Distance</p>
+            <p className="text-2xl font-bold text-teal-400">{gps.distanceKm.toFixed(2)} km</p>
+          </div>
+          <div className="glass rounded-2xl p-4 text-center">
+            <p className="text-xs text-zinc-500">Durée</p>
+            <p className="text-2xl font-bold text-teal-400">
+              {mm}:{String(ss).padStart(2, '0')}
+            </p>
+          </div>
+        </div>
+
+        <button
+          onClick={stopTracking}
+          className="mx-4 mt-6 flex items-center justify-center gap-2 rounded-2xl bg-red-500 py-4 text-sm font-semibold text-white active:bg-red-400"
+        >
+          <Pause size={16} fill="currentColor" /> Terminer la sortie
+        </button>
+      </div>
+    )
   }
 
   return (
     <div className="fixed inset-0 z-50 flex items-end justify-center bg-black/60" onClick={onClose}>
       <div
-        className="max-h-[85vh] w-full max-w-md overflow-y-auto rounded-t-2xl bg-zinc-950 border-t border-zinc-800 p-4"
+        className="mesh-backdrop max-h-[85vh] w-full max-w-md overflow-y-auto rounded-t-2xl bg-zinc-950 border-t border-zinc-800 p-4"
         onClick={(e) => e.stopPropagation()}
       >
         <div className="mb-3 flex items-center justify-between">
@@ -180,6 +275,24 @@ function EnduranceForm({
             </button>
           ))}
         </div>
+
+        {gpsCapable && (
+          <button
+            onClick={() => {
+              setSavedRoute(null)
+              gps.start()
+            }}
+            className="mb-4 flex w-full items-center justify-center gap-1.5 rounded-xl border border-teal-500/40 bg-teal-500/10 py-3 text-sm font-semibold text-teal-400 active:bg-teal-500/20"
+          >
+            <MapPin size={16} /> Suivre en direct (GPS)
+          </button>
+        )}
+
+        {savedRoute && (
+          <div className="mb-3">
+            <RouteMap route={savedRoute} className="h-32 w-full" />
+          </div>
+        )}
 
         <label className="mb-1 block text-xs text-zinc-500">Durée (minutes)</label>
         <input

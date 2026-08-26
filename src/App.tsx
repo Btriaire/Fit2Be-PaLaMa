@@ -11,6 +11,7 @@ import ActivitiesPage from './pages/activities/ActivitiesPage'
 import RecoveryPage from './pages/recovery/RecoveryPage'
 import NutritionPage from './pages/nutrition/NutritionPage'
 import EndurancePage from './pages/endurance/EndurancePage'
+import EnduranceHistory from './pages/endurance/EnduranceHistory'
 import StatsPage from './pages/StatsPage'
 import AddPage from './pages/AddPage'
 
@@ -42,6 +43,7 @@ function App() {
           <Route path="/recovery" element={<RecoveryPage />} />
           <Route path="/nutrition" element={<NutritionPage />} />
           <Route path="/endurance" element={<EndurancePage />} />
+          <Route path="/endurance/history/:activityType" element={<EnduranceHistory />} />
           <Route path="/stats" element={<StatsPage />} />
           <Route path="/add" element={<AddPage />} />
           <Route path="/settings" element={<SettingsPage />} />

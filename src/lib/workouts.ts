@@ -10,6 +10,13 @@ export interface LastPerformance {
   date: number
 }
 
+/** Durée approximative pour un exercice (N séries de travail + temps de repos), en minutes. */
+export function estimateExerciseDurationMin(restTimerDefaultSec: number, typicalSets = 3): number {
+  const setExecutionSec = 35
+  const totalSec = typicalSets * setExecutionSec + (typicalSets - 1) * restTimerDefaultSec
+  return Math.max(1, Math.round(totalSec / 60))
+}
+
 export interface BestPerformance {
   maxWeightKg: number
   maxVolume: number // weight x reps, best single set

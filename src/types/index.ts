@@ -54,6 +54,12 @@ export type EnduranceActivityType = 'course' | 'velo' | 'natation' | 'rameur' | 
 
 export type HrZone = 1 | 2 | 3 | 4 | 5
 
+export interface RoutePoint {
+  lat: number
+  lng: number
+  ts: number
+}
+
 export interface EnduranceSession {
   id: string
   activityType: EnduranceActivityType
@@ -64,6 +70,7 @@ export interface EnduranceSession {
   hrZone?: HrZone
   caloriesBurned: number
   notes?: string
+  route?: RoutePoint[]
 }
 
 // ---- Récupération & Santé ----

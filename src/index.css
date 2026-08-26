@@ -45,6 +45,28 @@ body {
   border: 1px solid rgb(63 63 70 / 0.6);
 }
 
+/* Fond dégradé abstrait flouté, utilisé derrière les sheets (formulaires) pour
+   un effet "atmosphère" premium sans dépendre d'une photo (droits d'usage). */
+.mesh-backdrop {
+  position: relative;
+  overflow: hidden;
+}
+.mesh-backdrop::before {
+  content: '';
+  position: absolute;
+  inset: -20%;
+  z-index: 0;
+  background:
+    radial-gradient(38% 32% at 12% 8%, rgb(249 115 22 / 0.35), transparent 70%),
+    radial-gradient(42% 36% at 88% 12%, rgb(99 102 241 / 0.32), transparent 70%),
+    radial-gradient(46% 40% at 50% 95%, rgb(45 212 191 / 0.28), transparent 70%);
+  filter: blur(40px) saturate(130%);
+}
+.mesh-backdrop > * {
+  position: relative;
+  z-index: 1;
+}
+
 @keyframes pulse-ring {
   0% { box-shadow: 0 0 0 0 rgb(249 115 22 / 0.4); }
   100% { box-shadow: 0 0 0 12px rgb(249 115 22 / 0); }
