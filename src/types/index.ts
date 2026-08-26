@@ -46,6 +46,9 @@ export interface ActivityLog {
   caloriesBurned: number
   loggedAt: number
   notes?: string
+  /** id de l'entrée côté NutriTracker si importée de là-bas — sert à ne
+   * jamais réimporter deux fois la même activité. */
+  externalId?: string
 }
 
 // ---- Endurance ----
@@ -85,6 +88,9 @@ export interface EnduranceSession {
   notes?: string
   route?: RoutePoint[]
   machineStats?: MachineStats
+  /** id de l'entrée côté NutriTracker si importée de là-bas — sert à ne
+   * jamais réimporter deux fois la même activité. */
+  externalId?: string
 }
 
 // ---- Récupération & Santé ----

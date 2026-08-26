@@ -1,8 +1,9 @@
 import { useState } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { ChevronLeft, Download, Upload } from 'lucide-react'
+import { ChevronLeft, Download, Upload, RefreshCw } from 'lucide-react'
 import { getSettings, saveSettings } from '../lib/settings'
 import { getDb } from '../lib/db'
+import { importNutriTrackerActivityHistory } from '../lib/nutriTrackerImport'
 
 export default function SettingsPage() {
   const navigate = useNavigate()
@@ -13,6 +14,22 @@ export default function SettingsPage() {
   const [sleepTargetMin, setSleepTargetMin] = useState(String(initial.sleepTargetMin))
   const [savedFlash, setSavedFlash] = useState(false)
   const [importFlash, setImportFlash] = useState<string | null>(null)
+  const [ntImporting, setNtImporting] = useState(false)
+  const [ntImportFlash, setNtImportFlash] = useState<string | null>(null)
+
+  async function importFromNutriTracker() {
+    setNtImporting(true)
+    setNtImportFlash(null)
+    try {
+      const count = await importNutriTrackerActivityHistory(30, getSettings())
+      setNtImportFlash(count > 0 ? `${count} activité(s) importée(s)` : 'Rien de nouveau à importer')
+    } catch {
+      setNtImportFlash('Échec — vérifie ta connexion et réessaie')
+    } finally {
+      setNtImporting(false)
+      setTimeout(() => setNtImportFlash(null), 4000)
+    }
+  }
 
   function submit() {
     saveSettings({
@@ -94,6 +111,22 @@ export default function SettingsPage() {
         >
           {savedFlash ? 'Enregistré ✓' : 'Enregistrer'}
         </button>
+      </section>
+
+      <section className="glass mb-4 space-y-2 rounded-2xl p-4">
+        <h2 className="mb-1 text-sm font-medium text-zinc-400">NutriTracker Palama</h2>
+        <button
+          onClick={importFromNutriTracker}
+          disabled={ntImporting}
+          className="flex w-full items-center justify-center gap-1.5 rounded-xl bg-zinc-900 py-3 text-sm font-medium active:bg-zinc-800 disabled:opacity-60"
+        >
+          <RefreshCw size={16} className={ntImporting ? 'animate-spin' : ''} />
+          {ntImporting ? 'Import en cours…' : "Récupérer l'historique d'activité (30j)"}
+        </button>
+        {ntImportFlash && <p className="pt-1 text-center text-xs text-zinc-400">{ntImportFlash}</p>}
+        <p className="pt-1 text-center text-[11px] text-zinc-600">
+          Importe les activités loggées directement dans NutriTracker (hors celles déjà poussées par cette app).
+        </p>
       </section>
 
       <section className="glass mb-4 space-y-2 rounded-2xl p-4">

@@ -91,3 +91,26 @@ export async function pullGoogleFitFromNutriTracker(days = 7): Promise<GoogleFit
     return []
   }
 }
+
+export interface RemoteActivity {
+  id: string
+  date: string
+  name: string
+  activityType: number
+  durationMin: number
+  caloriesBurned: number | null
+  source: string
+}
+
+/** Historique des activités loggées côté NutriTracker (dans son UI, pas
+ * celles que VibeFit lui a déjà poussées — le serveur les exclut). */
+export async function pullActivityHistoryFromNutriTracker(days = 30): Promise<RemoteActivity[]> {
+  try {
+    const r = await fetch(`/api/nutritracker?type=activities&days=${days}`)
+    if (!r.ok) return []
+    const data = await r.json()
+    return Array.isArray(data.activities) ? data.activities : []
+  } catch {
+    return []
+  }
+}
