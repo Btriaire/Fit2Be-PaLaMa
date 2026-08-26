@@ -1,17 +1,23 @@
 import { getDb, newId } from './db'
 import { computeCaloriesForUser } from './met'
 import { computeHrZone } from './heartRate'
+import { pushActivityToNutriTracker } from './nutriTrackerSync'
 import type { Settings } from './settings'
 import type { EnduranceActivityType, EnduranceSession } from '../types'
 
-export const ENDURANCE_ACTIVITY_META: Record<EnduranceActivityType, { label: string; met: number; hasDistance: boolean }> = {
-  course: { label: 'Course à pied', met: 9.8, hasDistance: true },
-  velo: { label: 'Vélo (route)', met: 8, hasDistance: true },
-  natation: { label: 'Natation', met: 7, hasDistance: true },
-  rameur: { label: 'Rameur', met: 7, hasDistance: false },
-  'velo-appart': { label: "Vélo d'appartement", met: 6.8, hasDistance: false },
-  tapis: { label: 'Tapis de course', met: 8.3, hasDistance: true },
-  marche: { label: 'Marche', met: 4.3, hasDistance: true },
+// googleFitType : code d'activité Google Fit repris par NutriTracker Palama
+// (app/api/activity/route.ts) pour dénormaliser un nom d'activité côté sync.
+export const ENDURANCE_ACTIVITY_META: Record<
+  EnduranceActivityType,
+  { label: string; met: number; hasDistance: boolean; googleFitType: number }
+> = {
+  course: { label: 'Course à pied', met: 9.8, hasDistance: true, googleFitType: 1 },
+  velo: { label: 'Vélo (route)', met: 8, hasDistance: true, googleFitType: 7 },
+  natation: { label: 'Natation', met: 7, hasDistance: true, googleFitType: 93 },
+  rameur: { label: 'Rameur', met: 7, hasDistance: false, googleFitType: 37 },
+  'velo-appart': { label: "Vélo d'appartement", met: 6.8, hasDistance: false, googleFitType: 8 },
+  tapis: { label: 'Tapis de course', met: 8.3, hasDistance: true, googleFitType: 3 },
+  marche: { label: 'Marche', met: 4.3, hasDistance: true, googleFitType: 46 },
 }
 
 export function computePaceMinPerKm(durationMin: number, distanceKm: number): number | null {
@@ -56,6 +62,15 @@ export async function logEnduranceSession(
   }
   const db = await getDb()
   await db.put('endurance', session)
+
+  void pushActivityToNutriTracker({
+    name: meta.label,
+    activityType: meta.googleFitType,
+    durationMin: input.durationMin,
+    caloriesBurned,
+    date: new Date(session.startedAt).toISOString().slice(0, 10),
+  })
+
   return session
 }
 

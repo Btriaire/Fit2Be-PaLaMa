@@ -27,6 +27,7 @@ export async function pushFoodToNutriTracker(entry: {
   proteinG?: number
   carbsG?: number
   fatG?: number
+  sugarG?: number
   date?: string
 }) {
   try {
@@ -34,6 +35,24 @@ export async function pushFoodToNutriTracker(entry: {
       method: 'POST',
       headers: { 'content-type': 'application/json' },
       body: JSON.stringify({ type: 'food', ...entry }),
+    })
+  } catch {
+    // same — best effort
+  }
+}
+
+export async function pushActivityToNutriTracker(activity: {
+  name: string
+  activityType: number
+  durationMin: number
+  caloriesBurned?: number
+  date?: string
+}) {
+  try {
+    await fetch('/api/nutritracker', {
+      method: 'POST',
+      headers: { 'content-type': 'application/json' },
+      body: JSON.stringify({ type: 'activity', ...activity }),
     })
   } catch {
     // same — best effort

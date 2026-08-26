@@ -1,19 +1,20 @@
 import { useEffect, useMemo, useState } from 'react'
-import { Apple, ChevronDown, Flame, Mic, Plus, Scale, Square, User, X } from 'lucide-react'
+import { Apple, ChevronDown, ChevronLeft, ChevronRight, Flame, Mic, Plus, Scale, Square, User, X } from 'lucide-react'
 import { CartesianGrid, Line, LineChart, ResponsiveContainer, Tooltip, XAxis, YAxis } from 'recharts'
 import { getDb, newId } from '../../lib/db'
 import { getSettings, saveSettings, type Sex } from '../../lib/settings'
-import { isToday, formatTime, formatDate } from '../../lib/date'
+import { isSameDay, formatTime, formatDate, formatFullDate, todayStr, addDays } from '../../lib/date'
 import { getAllWorkouts, estimateWorkoutCalories } from '../../lib/workouts'
 import { getWeightLogs, logWeight, adoptWeightFromSync } from '../../lib/weight'
 import { pushFoodToNutriTracker, pullLatestWeightFromNutriTracker } from '../../lib/nutriTrackerSync'
-import type { NutritionEntry, WeightLog, Workout } from '../../types'
+import type { ActivityLog, NutritionEntry, WeightLog, Workout } from '../../types'
 
 export default function NutritionPage() {
   const [entries, setEntries] = useState<NutritionEntry[]>([])
   const [workouts, setWorkouts] = useState<Workout[]>([])
   const [weightLogs, setWeightLogs] = useState<WeightLog[]>([])
-  const [activityCalories, setActivityCalories] = useState(0)
+  const [activities, setActivities] = useState<ActivityLog[]>([])
+  const [selectedDate, setSelectedDate] = useState(todayStr())
   const [formOpen, setFormOpen] = useState(false)
   const [profileOpen, setProfileOpen] = useState(false)
   const [settings, setSettings] = useState(getSettings())
@@ -22,8 +23,7 @@ export default function NutritionPage() {
     const db = await getDb()
     const all = await db.getAllFromIndex('nutrition', 'byLoggedAt')
     setEntries(all.reverse())
-    const activities = await db.getAll('activities')
-    setActivityCalories(activities.filter((a) => isToday(a.loggedAt)).reduce((s, a) => s + a.caloriesBurned, 0))
+    setActivities(await db.getAll('activities'))
     setWorkouts(await getAllWorkouts())
     setWeightLogs(await getWeightLogs())
     setSettings(getSettings())
@@ -42,18 +42,22 @@ export default function NutritionPage() {
     refresh()
   }, [])
 
-  const todayEntries = useMemo(() => entries.filter((e) => isToday(e.loggedAt)), [entries])
-  const consumed = todayEntries.reduce((s, e) => s + e.calories, 0)
-  const protein = todayEntries.reduce((s, e) => s + (e.proteinG ?? 0), 0)
-  const carbs = todayEntries.reduce((s, e) => s + (e.carbsG ?? 0), 0)
-  const fat = todayEntries.reduce((s, e) => s + (e.fatG ?? 0), 0)
+  const dayEntries = useMemo(() => entries.filter((e) => isSameDay(e.loggedAt, selectedDate)), [entries, selectedDate])
+  const consumed = dayEntries.reduce((s, e) => s + e.calories, 0)
+  const protein = dayEntries.reduce((s, e) => s + (e.proteinG ?? 0), 0)
+  const carbs = dayEntries.reduce((s, e) => s + (e.carbsG ?? 0), 0)
+  const fat = dayEntries.reduce((s, e) => s + (e.fatG ?? 0), 0)
 
   const gymCalories = useMemo(
     () =>
       workouts
-        .filter((w) => w.finishedAt && isToday(w.startedAt))
+        .filter((w) => w.finishedAt && isSameDay(w.startedAt, selectedDate))
         .reduce((s, w) => s + estimateWorkoutCalories(w, settings), 0),
-    [workouts, settings],
+    [workouts, settings, selectedDate],
+  )
+  const activityCalories = useMemo(
+    () => activities.filter((a) => isSameDay(a.loggedAt, selectedDate)).reduce((s, a) => s + a.caloriesBurned, 0),
+    [activities, selectedDate],
   )
   const totalBurned = gymCalories + activityCalories
   const adjustedTarget = settings.dailyCalorieTarget + totalBurned
@@ -62,7 +66,8 @@ export default function NutritionPage() {
 
   async function addEntry(entry: Omit<NutritionEntry, 'id' | 'loggedAt'>) {
     const db = await getDb()
-    const e: NutritionEntry = { ...entry, id: newId(), loggedAt: Date.now() }
+    const loggedAt = selectedDate === todayStr() ? Date.now() : new Date(`${selectedDate}T12:00:00`).getTime()
+    const e: NutritionEntry = { ...entry, id: newId(), loggedAt }
     await db.put('nutrition', e)
     setFormOpen(false)
     refresh()
@@ -72,6 +77,7 @@ export default function NutritionPage() {
       proteinG: entry.proteinG,
       carbsG: entry.carbsG,
       fatG: entry.fatG,
+      sugarG: entry.sugarG,
     })
   }
 
@@ -86,6 +92,30 @@ export default function NutritionPage() {
         <Apple className="text-teal-400" size={26} />
         <h1 className="text-xl font-semibold tracking-tight">NutriTracker</h1>
       </header>
+
+      <div className="glass mb-4 flex items-center justify-between rounded-2xl p-2">
+        <button
+          onClick={() => setSelectedDate((d) => addDays(d, -1))}
+          className="rounded-full p-2 text-zinc-400 active:bg-zinc-900"
+          aria-label="Jour précédent"
+        >
+          <ChevronLeft size={18} />
+        </button>
+        <button
+          onClick={() => setSelectedDate(todayStr())}
+          className="flex-1 text-center text-sm font-medium capitalize"
+        >
+          {formatFullDate(selectedDate)}
+        </button>
+        <button
+          onClick={() => setSelectedDate((d) => addDays(d, 1))}
+          disabled={selectedDate >= todayStr()}
+          className="rounded-full p-2 text-zinc-400 active:bg-zinc-900 disabled:opacity-30"
+          aria-label="Jour suivant"
+        >
+          <ChevronRight size={18} />
+        </button>
+      </div>
 
       <button
         onClick={() => setProfileOpen((v) => !v)}
@@ -131,7 +161,7 @@ export default function NutritionPage() {
         <div className="glass mb-4 rounded-2xl p-4">
           <div className="mb-2 flex items-center gap-1.5">
             <Flame size={14} className="text-orange-400" />
-            <p className="text-sm font-medium text-zinc-300">Calories brûlées aujourd'hui</p>
+            <p className="text-sm font-medium text-zinc-300">Calories brûlées ce jour-là</p>
           </div>
           <p className="mb-2 text-2xl font-bold text-orange-400">{totalBurned} kcal</p>
           <div className="flex gap-4 text-xs text-zinc-500">
@@ -158,18 +188,23 @@ export default function NutritionPage() {
       </button>
 
       <section>
-        <h2 className="mb-2 text-sm font-medium text-zinc-400">Journal</h2>
-        {entries.length === 0 && <p className="text-sm text-zinc-500">Rien pour l'instant.</p>}
+        <div className="mb-2 flex items-baseline justify-between">
+          <h2 className="text-sm font-medium text-zinc-400">Journal</h2>
+          <p className="text-xs text-zinc-600">
+            {dayEntries.length} repas · {consumed} kcal
+          </p>
+        </div>
+        {dayEntries.length === 0 && <p className="text-sm text-zinc-500">Rien enregistré ce jour-là.</p>}
         <ul className="space-y-2">
-          {entries.map((e) => (
+          {dayEntries.map((e) => (
             <li key={e.id} className="glass flex items-center justify-between rounded-xl p-3">
               <div>
                 <p className="text-sm font-medium">{e.label}</p>
                 <p className="text-xs text-zinc-500">
                   {formatTime(e.loggedAt)}
-                  {(e.proteinG || e.carbsG || e.fatG) && (
+                  {(e.carbsG || e.sugarG) && (
                     <span className="ml-1.5 text-zinc-600">
-                      · P{e.proteinG ?? 0}g G{e.carbsG ?? 0}g L{e.fatG ?? 0}g
+                      · Glucides {e.carbsG ?? 0}g · Sucres {e.sugarG ?? 0}g
                     </span>
                   )}
                 </p>
@@ -372,6 +407,7 @@ function NutritionForm({
   const [proteinG, setProteinG] = useState('')
   const [carbsG, setCarbsG] = useState('')
   const [fatG, setFatG] = useState('')
+  const [sugarG, setSugarG] = useState('')
   const [listening, setListening] = useState(false)
   const speechSupported = getSpeechRecognitionCtor() !== null
 
@@ -405,6 +441,7 @@ function NutritionForm({
       proteinG: proteinG ? parseFloat(proteinG) : undefined,
       carbsG: carbsG ? parseFloat(carbsG) : undefined,
       fatG: fatG ? parseFloat(fatG) : undefined,
+      sugarG: sugarG ? parseFloat(sugarG) : undefined,
       rawInput: label,
     })
   }
@@ -452,12 +489,19 @@ function NutritionForm({
         />
 
         <label className="mb-1 block text-xs text-zinc-500">Macros (optionnel, en grammes)</label>
-        <div className="mb-4 grid grid-cols-3 gap-1.5">
+        <div className="mb-4 grid grid-cols-2 gap-1.5">
           <input
             inputMode="decimal"
             placeholder="Protéines"
             value={proteinG}
             onChange={(e) => setProteinG(e.target.value)}
+            className="rounded-lg bg-zinc-900 px-2 py-2.5 text-center text-sm outline-none focus:ring-1 focus:ring-teal-500"
+          />
+          <input
+            inputMode="decimal"
+            placeholder="Lipides"
+            value={fatG}
+            onChange={(e) => setFatG(e.target.value)}
             className="rounded-lg bg-zinc-900 px-2 py-2.5 text-center text-sm outline-none focus:ring-1 focus:ring-teal-500"
           />
           <input
@@ -469,9 +513,9 @@ function NutritionForm({
           />
           <input
             inputMode="decimal"
-            placeholder="Lipides"
-            value={fatG}
-            onChange={(e) => setFatG(e.target.value)}
+            placeholder="Sucres"
+            value={sugarG}
+            onChange={(e) => setSugarG(e.target.value)}
             className="rounded-lg bg-zinc-900 px-2 py-2.5 text-center text-sm outline-none focus:ring-1 focus:ring-teal-500"
           />
         </div>

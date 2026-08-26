@@ -90,6 +90,7 @@ export interface NutritionEntry {
   proteinG?: number
   carbsG?: number
   fatG?: number
+  sugarG?: number
   rawInput?: string
 }
 
