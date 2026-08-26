@@ -5,6 +5,7 @@ import { getDb, newId } from '../../lib/db'
 import { MET_ACTIVITIES, CATEGORY_META, computeCaloriesForUser } from '../../lib/met'
 import { getSettings } from '../../lib/settings'
 import { isToday, formatTime } from '../../lib/date'
+import ActivityHero from '../../components/ActivityHero'
 import type { ActivityLog } from '../../types'
 
 interface NavState {
@@ -48,12 +49,16 @@ export default function ActivitiesPage() {
   }
 
   return (
-    <div className="px-4 pt-6">
-      <header className="mb-6 flex items-center gap-2">
-        <Footprints className="text-teal-400" size={26} />
-        <h1 className="text-xl font-semibold tracking-tight">Activités & Quotidien</h1>
-      </header>
+    <div>
+      <div className="relative">
+        <ActivityHero heroKey="marche" className="h-40" />
+        <div className="absolute inset-x-0 top-0 flex items-center gap-2 px-4 pt-[calc(env(safe-area-inset-top)+16px)]">
+          <Footprints className="text-teal-400" size={24} />
+          <h1 className="text-xl font-semibold tracking-tight text-white drop-shadow">Activités & Quotidien</h1>
+        </div>
+      </div>
 
+      <div className="px-4 pt-4">
       <div className="mb-6 grid grid-cols-2 gap-2">
         <div className="glass rounded-2xl p-3.5">
           <p className="text-xs text-zinc-500">Calories aujourd'hui</p>
@@ -108,6 +113,7 @@ export default function ActivitiesPage() {
       {formOpen && (
         <ActivityForm onSubmit={addLog} onClose={() => setFormOpen(false)} filterIds={navState.filterIds} />
       )}
+      </div>
     </div>
   )
 }

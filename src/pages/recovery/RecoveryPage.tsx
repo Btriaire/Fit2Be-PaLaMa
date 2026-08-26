@@ -3,6 +3,7 @@ import { HeartPulse, Dumbbell, Footprints, Moon } from 'lucide-react'
 import { getDb, newId } from '../../lib/db'
 import { todayStr, formatDate, isToday } from '../../lib/date'
 import { getAllWorkouts } from '../../lib/workouts'
+import ActivityHero from '../../components/ActivityHero'
 import type { RecoveryCheckin } from '../../types'
 
 const SCALE_LABELS: Record<number, string> = { 1: 'Très faible', 2: 'Faible', 3: 'Moyen', 4: 'Bon', 5: 'Excellent' }
@@ -71,11 +72,16 @@ export default function RecoveryPage() {
   const scoreColor = score >= 70 ? 'text-indigo-300' : score >= 40 ? 'text-orange-400' : 'text-red-400'
 
   return (
-    <div className="px-4 pt-6">
-      <header className="mb-6 flex items-center gap-2">
-        <HeartPulse className="text-indigo-400" size={26} />
-        <h1 className="text-xl font-semibold tracking-tight">Récupération</h1>
-      </header>
+    <div>
+      <div className="relative">
+        <ActivityHero heroKey="yoga" className="h-40" />
+        <div className="absolute inset-x-0 top-0 flex items-center gap-2 px-4 pt-[calc(env(safe-area-inset-top)+16px)]">
+          <HeartPulse className="text-indigo-400" size={24} />
+          <h1 className="text-xl font-semibold tracking-tight text-white drop-shadow">Récupération</h1>
+        </div>
+      </div>
+
+      <div className="px-4 pt-4">
 
       <div className="glass mb-4 rounded-2xl p-5 text-center">
         <p className="text-xs uppercase tracking-wide text-zinc-500">Body Battery</p>
@@ -121,6 +127,7 @@ export default function RecoveryPage() {
           ))}
         </ul>
       </section>
+      </div>
     </div>
   )
 }

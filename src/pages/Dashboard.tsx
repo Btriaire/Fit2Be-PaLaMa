@@ -5,6 +5,7 @@ import { getDb } from '../lib/db'
 import { getAllWorkouts, estimateWorkoutCalories } from '../lib/workouts'
 import { isToday, todayStr } from '../lib/date'
 import { getSettings } from '../lib/settings'
+import ActivityHero, { type HeroKey } from '../components/ActivityHero'
 import type { ActivityLog, EnduranceSession, NutritionEntry, RecoveryCheckin, Workout } from '../types'
 
 export default function Dashboard() {
@@ -35,21 +36,26 @@ export default function Dashboard() {
   const balance = todayNutritionCalories - todayBurnedCalories
 
   return (
-    <div className="px-4 pt-6">
-      <header className="mb-6 flex items-start justify-between">
-        <div>
-          <p className="text-sm text-zinc-500">Aujourd'hui</p>
-          <h1 className="text-2xl font-bold tracking-tight">Ton activité</h1>
+    <div>
+      <div className="relative">
+        <ActivityHero heroKey="course" className="h-48" />
+        <div className="absolute inset-x-0 top-0 flex items-start justify-between px-4 pt-[calc(env(safe-area-inset-top)+16px)]">
+          <div>
+            <p className="text-sm text-zinc-300 drop-shadow">Aujourd'hui</p>
+            <h1 className="text-2xl font-bold tracking-tight text-white drop-shadow">Ton activité</h1>
+          </div>
+          <div className="flex items-center gap-1">
+            <Link to="/stats" className="rounded-full bg-zinc-950/40 p-2 text-white active:bg-zinc-900">
+              <BarChart3 size={20} />
+            </Link>
+            <Link to="/settings" className="rounded-full bg-zinc-950/40 p-2 text-white active:bg-zinc-900">
+              <Settings size={20} />
+            </Link>
+          </div>
         </div>
-        <div className="flex items-center gap-1">
-          <Link to="/stats" className="rounded-full p-2 text-zinc-500 active:bg-zinc-900">
-            <BarChart3 size={20} />
-          </Link>
-          <Link to="/settings" className="rounded-full p-2 text-zinc-500 active:bg-zinc-900">
-            <Settings size={20} />
-          </Link>
-        </div>
-      </header>
+      </div>
+
+      <div className="px-4 pt-4">
 
       <div className="mb-6 grid grid-cols-2 gap-2">
         <StatTile label="Séances gym" value={`${todayWorkouts.length}`} color="text-orange-400" />
@@ -68,34 +74,40 @@ export default function Dashboard() {
       <div className="space-y-2.5">
         <ModuleCard
           to="/gym"
+          heroKey="gym"
           icon={<Dumbbell className="text-orange-400" size={20} />}
           title="Gym & Fitness"
           subtitle="Lancer une séance, voir l'historique"
         />
         <ModuleCard
           to="/activities"
+          heroKey="marche"
           icon={<Footprints className="text-teal-400" size={20} />}
           title="Activités & Quotidien"
           subtitle="Sport outdoor, loisir, tâches"
         />
         <ModuleCard
           to="/endurance"
+          heroKey="velo"
           icon={<Activity className="text-teal-400" size={20} />}
           title="Endurance"
           subtitle="Course, vélo, natation, zones FC"
         />
         <ModuleCard
           to="/recovery"
+          heroKey="yoga"
           icon={<HeartPulse className="text-indigo-400" size={20} />}
           title="Récupération"
           subtitle="Check-in Body Battery"
         />
         <ModuleCard
           to="/nutrition"
+          heroKey="food"
           icon={<Apple className="text-teal-400" size={20} />}
           title="NutriTracker"
           subtitle={`Objectif ${settings.dailyCalorieTarget} kcal/jour`}
         />
+      </div>
       </div>
     </div>
   )
@@ -110,10 +122,25 @@ function StatTile({ label, value, color }: { label: string; value: string; color
   )
 }
 
-function ModuleCard({ to, icon, title, subtitle }: { to: string; icon: React.ReactNode; title: string; subtitle: string }) {
+function ModuleCard({
+  to,
+  heroKey,
+  icon,
+  title,
+  subtitle,
+}: {
+  to: string
+  heroKey: HeroKey
+  icon: React.ReactNode
+  title: string
+  subtitle: string
+}) {
   return (
-    <Link to={to} className="glass flex items-center gap-3 rounded-2xl p-4 active:bg-zinc-900/80">
-      <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-zinc-900">{icon}</div>
+    <Link to={to} className="glass flex items-center gap-3 rounded-2xl p-2.5 pr-4 active:bg-zinc-900/80">
+      <div className="relative h-14 w-14 shrink-0 overflow-hidden rounded-xl">
+        <ActivityHero heroKey={heroKey} className="h-14 w-14" />
+        <div className="absolute inset-0 flex items-center justify-center">{icon}</div>
+      </div>
       <div className="flex-1">
         <p className="font-semibold">{title}</p>
         <p className="text-xs text-zinc-500">{subtitle}</p>

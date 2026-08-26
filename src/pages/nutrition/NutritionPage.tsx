@@ -7,6 +7,7 @@ import { isSameDay, formatTime, formatDate, formatFullDate, todayStr, addDays } 
 import { getAllWorkouts, estimateWorkoutCalories } from '../../lib/workouts'
 import { getWeightLogs, logWeight, adoptWeightFromSync } from '../../lib/weight'
 import { pushFoodToNutriTracker, pullLatestWeightFromNutriTracker } from '../../lib/nutriTrackerSync'
+import ActivityHero from '../../components/ActivityHero'
 import type { ActivityLog, NutritionEntry, WeightLog, Workout } from '../../types'
 
 export default function NutritionPage() {
@@ -94,11 +95,16 @@ export default function NutritionPage() {
   }
 
   return (
-    <div className="px-4 pt-6">
-      <header className="mb-6 flex items-center gap-2">
-        <Apple className="text-teal-400" size={26} />
-        <h1 className="text-xl font-semibold tracking-tight">NutriTracker</h1>
-      </header>
+    <div>
+      <div className="relative">
+        <ActivityHero heroKey="food" className="h-40" />
+        <div className="absolute inset-x-0 top-0 flex items-center gap-2 px-4 pt-[calc(env(safe-area-inset-top)+16px)]">
+          <Apple className="text-teal-400" size={24} />
+          <h1 className="text-xl font-semibold tracking-tight text-white drop-shadow">NutriTracker</h1>
+        </div>
+      </div>
+
+      <div className="px-4 pt-4">
 
       <div className="glass mb-4 flex items-center justify-between rounded-2xl p-2">
         <button
@@ -232,6 +238,7 @@ export default function NutritionPage() {
       </section>
 
       {formOpen && <NutritionForm onSubmit={addEntry} onClose={() => setFormOpen(false)} />}
+      </div>
     </div>
   )
 }

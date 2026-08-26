@@ -5,6 +5,7 @@ import { getAllWorkouts, saveWorkout, deleteWorkout, getLoggedExerciseIds } from
 import { newId } from '../../lib/db'
 import { formatDate, formatTime } from '../../lib/date'
 import { ALL_EXERCISES } from '../../lib/exercises'
+import ActivityHero from '../../components/ActivityHero'
 import type { Workout } from '../../types'
 
 const QUICK_NAMES = ['Push Day', 'Pull Day', 'Leg Day', 'Full Body', 'Haut du corps', 'Bas du corps']
@@ -43,11 +44,16 @@ export default function GymHome() {
   }
 
   return (
-    <div className="px-4 pt-6">
-      <header className="mb-6 flex items-center gap-2">
-        <Dumbbell className="text-orange-400" size={26} />
-        <h1 className="text-xl font-semibold tracking-tight">Gym & Fitness</h1>
-      </header>
+    <div>
+      <div className="relative">
+        <ActivityHero heroKey="gym" className="h-40" />
+        <div className="absolute inset-x-0 top-0 flex items-center gap-2 px-4 pt-[calc(env(safe-area-inset-top)+16px)]">
+          <Dumbbell className="text-orange-400" size={24} />
+          <h1 className="text-xl font-semibold tracking-tight text-white drop-shadow">Gym & Fitness</h1>
+        </div>
+      </div>
+
+      <div className="px-4 pt-4">
 
       {inProgress && (
         <button
@@ -152,6 +158,7 @@ export default function GymHome() {
             })}
         </ul>
       </section>
+      </div>
     </div>
   )
 }

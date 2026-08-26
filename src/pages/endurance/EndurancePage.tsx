@@ -15,7 +15,7 @@ import { HR_ZONE_META } from '../../lib/heartRate'
 import { formatDate, formatTime, isToday } from '../../lib/date'
 import { useGeoTracking } from '../../lib/useGeoTracking'
 import RouteMap from '../../components/RouteMap'
-import ActivityHero, { hasActivityHero } from '../../components/ActivityHero'
+import ActivityHero, { hasHeroImage } from '../../components/ActivityHero'
 import type { EnduranceActivityType, EnduranceSession, RoutePoint } from '../../types'
 
 // Activités où un suivi GPS a du sens (extérieur, mouvement continu).
@@ -69,13 +69,19 @@ export default function EndurancePage() {
     refresh()
   }
 
-  return (
-    <div className="px-4 pt-6">
-      <header className="mb-6 flex items-center gap-2">
-        <Activity className="text-teal-400" size={26} />
-        <h1 className="text-xl font-semibold tracking-tight">Endurance</h1>
-      </header>
+  const heroKey = loggedTypes[0]?.activityType ?? 'course'
 
+  return (
+    <div>
+      <div className="relative">
+        <ActivityHero heroKey={heroKey} className="h-40" />
+        <div className="absolute inset-x-0 top-0 flex items-center gap-2 px-4 pt-[calc(env(safe-area-inset-top)+16px)]">
+          <Activity className="text-teal-400" size={24} />
+          <h1 className="text-xl font-semibold tracking-tight text-white drop-shadow">Endurance</h1>
+        </div>
+      </div>
+
+      <div className="px-4 pt-4">
       <div className="mb-6 grid grid-cols-2 gap-2">
         <div className="glass rounded-2xl p-3.5">
           <p className="text-xs text-zinc-500">Distance (semaine)</p>
@@ -177,6 +183,7 @@ export default function EndurancePage() {
       </section>
 
       {formOpen && <EnduranceForm onSubmit={addSession} onClose={() => setFormOpen(false)} />}
+      </div>
     </div>
   )
 }
@@ -228,10 +235,10 @@ function EnduranceForm({
     return (
       <div className="fixed inset-0 z-50 flex flex-col overflow-y-auto bg-zinc-950">
         <div className="relative">
-          {hasActivityHero(activityType) && <ActivityHero activityType={activityType} className="h-44" />}
+          {hasHeroImage(activityType) && <ActivityHero heroKey={activityType} className="h-44" />}
           <div
             className={`flex items-center justify-between px-4 pb-3 pt-[calc(env(safe-area-inset-top)+12px)] ${
-              hasActivityHero(activityType) ? 'absolute inset-x-0 top-0' : ''
+              hasHeroImage(activityType) ? 'absolute inset-x-0 top-0' : ''
             }`}
           >
             <div className="flex items-center gap-1.5 text-teal-300">
@@ -277,13 +284,13 @@ function EnduranceForm({
     <div className="fixed inset-0 z-50 flex items-end justify-center bg-black/60" onClick={onClose}>
       <div
         className={`max-h-[85vh] w-full max-w-md overflow-y-auto rounded-t-2xl border-t border-zinc-800 bg-zinc-950 ${
-          hasActivityHero(activityType) ? '' : 'mesh-backdrop'
+          hasHeroImage(activityType) ? '' : 'mesh-backdrop'
         }`}
         onClick={(e) => e.stopPropagation()}
       >
-        {hasActivityHero(activityType) ? (
+        {hasHeroImage(activityType) ? (
           <div className="relative">
-            <ActivityHero activityType={activityType} className="h-32 rounded-t-2xl" />
+            <ActivityHero heroKey={activityType} className="h-32 rounded-t-2xl" />
             <div className="absolute inset-x-0 top-0 flex items-center justify-between p-4">
               <h2 className="font-semibold text-white drop-shadow">Nouvelle sortie</h2>
               <button onClick={onClose} className="rounded-full bg-zinc-950/40 p-1 text-white active:bg-zinc-900">
