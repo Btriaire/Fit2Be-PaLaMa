@@ -1,22 +1,44 @@
-import { useEffect, useState } from 'react'
-import { Link } from 'react-router-dom'
-import { Dumbbell, Footprints, HeartPulse, Apple, ChevronRight, Settings, Activity, BarChart3, Plus, Moon } from 'lucide-react'
+import { useEffect, useRef, useState } from 'react'
+import { Link, useNavigate } from 'react-router-dom'
+import { Dumbbell, Footprints, HeartPulse, Apple, Camera, ChevronRight, Settings, Activity, BarChart3, Loader2, Plus, Moon } from 'lucide-react'
 import { getDb } from '../lib/db'
 import { getAllWorkouts, estimateWorkoutCalories } from '../lib/workouts'
 import { isToday, todayStr } from '../lib/date'
 import { getSettings } from '../lib/settings'
 import { syncGoogleFit, getTodayGoogleFit } from '../lib/googleFit'
+import { scanMachineResult } from '../lib/machineScan'
 import ActivityHero, { type HeroKey } from '../components/ActivityHero'
 import type { ActivityLog, EnduranceSession, GoogleFitDay, NutritionEntry, RecoveryCheckin, Workout } from '../types'
 
 export default function Dashboard() {
+  const navigate = useNavigate()
   const [workouts, setWorkouts] = useState<Workout[]>([])
   const [activities, setActivities] = useState<ActivityLog[]>([])
   const [endurance, setEndurance] = useState<EnduranceSession[]>([])
   const [recovery, setRecovery] = useState<RecoveryCheckin | null>(null)
   const [nutrition, setNutrition] = useState<NutritionEntry[]>([])
   const [googleFit, setGoogleFit] = useState<GoogleFitDay | null>(null)
+  const [scanning, setScanning] = useState(false)
+  const [scanError, setScanError] = useState<string | null>(null)
+  const scanInputRef = useRef<HTMLInputElement>(null)
   const settings = getSettings()
+
+  async function handleScanFile(e: React.ChangeEvent<HTMLInputElement>) {
+    const file = e.target.files?.[0]
+    e.target.value = ''
+    if (!file) return
+    setScanning(true)
+    setScanError(null)
+    try {
+      const result = await scanMachineResult(file)
+      navigate('/endurance', { state: { openForm: true, scanResult: result } })
+    } catch (err) {
+      const detail = err instanceof Error ? err.message : ''
+      setScanError(`Impossible de lire cette photo${detail ? ` (${detail})` : ''}.`)
+    } finally {
+      setScanning(false)
+    }
+  }
 
   useEffect(() => {
     getAllWorkouts().then(setWorkouts)
@@ -49,6 +71,15 @@ export default function Dashboard() {
             <h1 className="text-2xl font-bold tracking-tight text-white drop-shadow">Ton activité</h1>
           </div>
           <div className="flex items-center gap-1">
+            <input ref={scanInputRef} type="file" accept="image/*" className="hidden" onChange={handleScanFile} />
+            <button
+              onClick={() => scanInputRef.current?.click()}
+              disabled={scanning}
+              className="rounded-full bg-zinc-950/40 p-2 text-white active:bg-zinc-900 disabled:opacity-60"
+              aria-label="Scanner un résultat machine"
+            >
+              {scanning ? <Loader2 size={20} className="animate-spin" /> : <Camera size={20} />}
+            </button>
             <Link to="/stats" className="rounded-full bg-zinc-950/40 p-2 text-white active:bg-zinc-900">
               <BarChart3 size={20} />
             </Link>
@@ -60,6 +91,8 @@ export default function Dashboard() {
       </div>
 
       <div className="px-4 pt-4">
+
+      {scanError && <p className="mb-4 text-center text-xs text-red-400">{scanError}</p>}
 
       <div className="mb-6 grid grid-cols-2 gap-2">
         <StatTile label="Séances gym" value={`${todayWorkouts.length}`} color="text-orange-400" />

@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
-import { useNavigate } from 'react-router-dom'
+import { useLocation, useNavigate } from 'react-router-dom'
 import { Activity, Camera, HeartPulse, Loader2, MapPin, Pause, Plus, Route, Trash2, TrendingUp, Timer, X } from 'lucide-react'
 import {
   ENDURANCE_ACTIVITY_META,
@@ -14,10 +14,15 @@ import { getSettings } from '../../lib/settings'
 import { HR_ZONE_META } from '../../lib/heartRate'
 import { formatDate, formatTime, isToday } from '../../lib/date'
 import { useGeoTracking } from '../../lib/useGeoTracking'
-import { scanMachineResult, machineTypeToActivityType } from '../../lib/machineScan'
+import { scanMachineResult, machineTypeToActivityType, type ParsedMachineResult } from '../../lib/machineScan'
 import RouteMap from '../../components/RouteMap'
 import ActivityHero, { hasHeroImage } from '../../components/ActivityHero'
 import type { EnduranceActivityType, EnduranceSession, RoutePoint } from '../../types'
+
+interface NavState {
+  openForm?: boolean
+  scanResult?: ParsedMachineResult
+}
 
 // Activités où un suivi GPS a du sens (extérieur, mouvement continu).
 const GPS_CAPABLE: EnduranceActivityType[] = ['course', 'velo', 'marche']
@@ -32,9 +37,11 @@ function startOfWeek(): number {
 
 export default function EndurancePage() {
   const navigate = useNavigate()
+  const location = useLocation()
+  const navState = (location.state as NavState) ?? {}
   const [sessions, setSessions] = useState<EnduranceSession[]>([])
   const [loggedTypes, setLoggedTypes] = useState<Array<{ activityType: EnduranceActivityType; lastDate: number }>>([])
-  const [formOpen, setFormOpen] = useState(false)
+  const [formOpen, setFormOpen] = useState(navState.openForm ?? false)
   const settings = getSettings()
 
   async function refresh() {
@@ -184,7 +191,9 @@ export default function EndurancePage() {
         </ul>
       </section>
 
-      {formOpen && <EnduranceForm onSubmit={addSession} onClose={() => setFormOpen(false)} />}
+      {formOpen && (
+        <EnduranceForm onSubmit={addSession} onClose={() => setFormOpen(false)} initialScan={navState.scanResult} />
+      )}
       </div>
     </div>
   )
@@ -193,6 +202,7 @@ export default function EndurancePage() {
 function EnduranceForm({
   onSubmit,
   onClose,
+  initialScan,
 }: {
   onSubmit: (input: {
     activityType: EnduranceActivityType
@@ -203,19 +213,30 @@ function EnduranceForm({
     caloriesBurned?: number
   }) => void
   onClose: () => void
+  initialScan?: ParsedMachineResult
 }) {
-  const [activityType, setActivityType] = useState<EnduranceActivityType>('course')
-  const [duration, setDuration] = useState('30')
-  const [distance, setDistance] = useState('')
-  const [avgHr, setAvgHr] = useState('')
+  const [activityType, setActivityType] = useState<EnduranceActivityType>(
+    initialScan ? machineTypeToActivityType(initialScan.machineType) : 'course',
+  )
+  const [duration, setDuration] = useState(initialScan?.durationMin ? String(initialScan.durationMin) : '30')
+  const [distance, setDistance] = useState(initialScan?.distanceKm ? String(initialScan.distanceKm) : '')
+  const [avgHr, setAvgHr] = useState(initialScan?.avgHeartRate ? String(initialScan.avgHeartRate) : '')
   const meta = ENDURANCE_ACTIVITY_META[activityType]
   const gps = useGeoTracking()
   const gpsCapable = GPS_CAPABLE.includes(activityType)
   const [savedRoute, setSavedRoute] = useState<RoutePoint[] | null>(null)
-  const [scanCalories, setScanCalories] = useState<number | null>(null)
+  const [scanCalories, setScanCalories] = useState<number | null>(initialScan?.calories ?? null)
   const [scanning, setScanning] = useState(false)
   const [scanError, setScanError] = useState<string | null>(null)
   const fileInputRef = useRef<HTMLInputElement>(null)
+
+  function applyScanResult(result: ParsedMachineResult) {
+    setActivityType(machineTypeToActivityType(result.machineType))
+    if (result.durationMin) setDuration(String(result.durationMin))
+    if (result.distanceKm) setDistance(String(result.distanceKm))
+    if (result.avgHeartRate) setAvgHr(String(result.avgHeartRate))
+    setScanCalories(result.calories ?? null)
+  }
 
   async function handleScanFile(e: React.ChangeEvent<HTMLInputElement>) {
     const file = e.target.files?.[0]
@@ -224,12 +245,7 @@ function EnduranceForm({
     setScanning(true)
     setScanError(null)
     try {
-      const result = await scanMachineResult(file)
-      setActivityType(machineTypeToActivityType(result.machineType))
-      if (result.durationMin) setDuration(String(result.durationMin))
-      if (result.distanceKm) setDistance(String(result.distanceKm))
-      if (result.avgHeartRate) setAvgHr(String(result.avgHeartRate))
-      setScanCalories(result.calories ?? null)
+      applyScanResult(await scanMachineResult(file))
     } catch (err) {
       const detail = err instanceof Error ? err.message : ''
       setScanError(`Impossible de lire cette photo${detail ? ` (${detail})` : ''} — remplis les champs manuellement.`)
