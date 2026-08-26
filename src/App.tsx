@@ -1,5 +1,7 @@
+import { useState } from 'react'
 import { Route, Routes } from 'react-router-dom'
 import BottomNav from './components/BottomNav'
+import CoverPage from './pages/CoverPage'
 import Dashboard from './pages/Dashboard'
 import SettingsPage from './pages/SettingsPage'
 import GymHome from './pages/gym/GymHome'
@@ -9,7 +11,22 @@ import ActivitiesPage from './pages/activities/ActivitiesPage'
 import RecoveryPage from './pages/recovery/RecoveryPage'
 import NutritionPage from './pages/nutrition/NutritionPage'
 
+const ENTERED_KEY = 'vibefit_entered'
+
 function App() {
+  const [entered, setEntered] = useState(() => localStorage.getItem(ENTERED_KEY) === '1')
+
+  if (!entered) {
+    return (
+      <CoverPage
+        onEnter={() => {
+          localStorage.setItem(ENTERED_KEY, '1')
+          setEntered(true)
+        }}
+      />
+    )
+  }
+
   return (
     <div className="min-h-screen bg-zinc-950 text-zinc-100">
       <main className="mx-auto max-w-md pb-24">
