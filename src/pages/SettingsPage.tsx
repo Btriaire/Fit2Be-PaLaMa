@@ -1,9 +1,10 @@
 import { useState } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { ChevronLeft, Download, Upload, RefreshCw } from 'lucide-react'
+import { ChevronLeft, Download, Upload, RefreshCw, Sparkles } from 'lucide-react'
 import { getSettings, saveSettings, type Sex } from '../lib/settings'
 import { getDb } from '../lib/db'
 import { importNutriTrackerActivityHistory } from '../lib/nutriTrackerImport'
+import { consolidateData, totalDuplicates, type ConsolidationResult } from '../lib/dataConsolidation'
 
 export default function SettingsPage() {
   const navigate = useNavigate()
@@ -23,6 +24,10 @@ export default function SettingsPage() {
   const [importFlash, setImportFlash] = useState<string | null>(null)
   const [ntImporting, setNtImporting] = useState(false)
   const [ntImportFlash, setNtImportFlash] = useState<string | null>(null)
+  const [dupScanning, setDupScanning] = useState(false)
+  const [dupScan, setDupScan] = useState<ConsolidationResult | null>(null)
+  const [dupApplying, setDupApplying] = useState(false)
+  const [dupFlash, setDupFlash] = useState<string | null>(null)
 
   function submitProfile() {
     const saved = saveSettings({
@@ -49,6 +54,27 @@ export default function SettingsPage() {
       setNtImporting(false)
       setTimeout(() => setNtImportFlash(null), 4000)
     }
+  }
+
+  async function scanDuplicates() {
+    setDupScanning(true)
+    setDupFlash(null)
+    const result = await consolidateData(false)
+    setDupScan(result)
+    setDupScanning(false)
+  }
+
+  async function applyDuplicates() {
+    setDupApplying(true)
+    const result = await consolidateData(true)
+    setDupFlash(
+      totalDuplicates(result) > 0
+        ? `${totalDuplicates(result)} doublon(s) supprimé(s)`
+        : 'Rien à supprimer',
+    )
+    setDupScan(null)
+    setDupApplying(false)
+    setTimeout(() => setDupFlash(null), 4000)
   }
 
   function submit() {
@@ -206,6 +232,45 @@ export default function SettingsPage() {
         </label>
         {importFlash && <p className="pt-1 text-center text-xs text-zinc-400">{importFlash}</p>}
         <p className="pt-1 text-center text-xs text-zinc-600">100% local — rien n'est envoyé sur internet.</p>
+      </section>
+
+      <section className="glass mb-4 space-y-2 rounded-2xl p-4">
+        <h2 className="mb-1 text-sm font-medium text-zinc-400">Vérifier et consolider</h2>
+        <button
+          onClick={scanDuplicates}
+          disabled={dupScanning}
+          className="flex w-full items-center justify-center gap-1.5 rounded-xl bg-zinc-900 py-3 text-sm font-medium active:bg-zinc-800 disabled:opacity-60"
+        >
+          <Sparkles size={16} className={dupScanning ? 'animate-pulse' : ''} />
+          {dupScanning ? 'Analyse en cours…' : 'Rechercher les doublons'}
+        </button>
+        <p className="pt-1 text-center text-[11px] text-zinc-600">
+          Détecte les séries, activités ou repas identiques logués à la même minute (souvent un double-tap sur "Enregistrer").
+        </p>
+
+        {dupScan && (
+          <div className="rounded-lg bg-zinc-900 px-3 py-2.5 text-xs text-zinc-300">
+            {totalDuplicates(dupScan) === 0 ? (
+              <p className="text-center text-zinc-500">Aucun doublon trouvé ✓</p>
+            ) : (
+              <>
+                <ul className="mb-2 space-y-0.5">
+                  {dupScan.setsRemoved > 0 && <li>{dupScan.setsRemoved} série(s) de musculation en double</li>}
+                  {dupScan.activitiesRemoved > 0 && <li>{dupScan.activitiesRemoved} activité(s) en double</li>}
+                  {dupScan.nutritionRemoved > 0 && <li>{dupScan.nutritionRemoved} repas en double</li>}
+                </ul>
+                <button
+                  onClick={applyDuplicates}
+                  disabled={dupApplying}
+                  className="w-full rounded-lg bg-red-500 py-2 text-xs font-semibold text-zinc-950 active:bg-red-400 disabled:opacity-60"
+                >
+                  {dupApplying ? 'Suppression…' : `Supprimer ${totalDuplicates(dupScan)} doublon(s)`}
+                </button>
+              </>
+            )}
+          </div>
+        )}
+        {dupFlash && <p className="pt-1 text-center text-xs text-teal-400">{dupFlash}</p>}
       </section>
     </div>
   )

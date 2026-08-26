@@ -30,6 +30,10 @@ export interface WorkoutExercise {
   targetReps?: string
   /** Chef musculaire ciblé + repère technique, affiché sous l'exercice. */
   note?: string
+  /** Rythme cardiaque associé à cet exercice, mesuré via la caméra ou repris de Google Fit. */
+  heartRateBpm?: number
+  heartRateMeasuredAt?: number
+  heartRateSource?: 'camera' | 'googlefit'
 }
 
 export interface Workout {

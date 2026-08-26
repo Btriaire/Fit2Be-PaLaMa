@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react'
 import { useNavigate, useParams } from 'react-router-dom'
-import { Check, ChevronLeft, Copy, Flame, Plus, Search, X } from 'lucide-react'
+import { Check, ChevronLeft, Copy, Flame, HeartPulse, Plus, Search, X } from 'lucide-react'
 import clsx from 'clsx'
 import {
   getWorkout,
@@ -15,9 +15,11 @@ import {
 import { newId } from '../../lib/db'
 import { ALL_EXERCISES, MUSCLE_GROUPS } from '../../lib/exercises'
 import { getSettings } from '../../lib/settings'
+import { getTodayGoogleFit, syncGoogleFit } from '../../lib/googleFit'
 import RestTimer from '../../components/RestTimer'
 import MuscleBodyMap from '../../components/MuscleBodyMap'
-import type { SetEntry, Workout, WorkoutExercise } from '../../types'
+import HeartRateMeter from '../../components/HeartRateMeter'
+import type { GoogleFitDay, SetEntry, Workout, WorkoutExercise } from '../../types'
 
 export default function WorkoutRunner() {
   const { workoutId } = useParams<{ workoutId: string }>()
@@ -25,6 +27,7 @@ export default function WorkoutRunner() {
   const [workout, setWorkout] = useState<Workout | null>(null)
   const [pickerOpen, setPickerOpen] = useState(false)
   const [restToken, setRestToken] = useState(0)
+  const [googleFitToday, setGoogleFitToday] = useState<GoogleFitDay | null>(null)
   const settings = getSettings()
 
   useEffect(() => {
@@ -32,9 +35,24 @@ export default function WorkoutRunner() {
     getWorkout(workoutId).then((w) => setWorkout(w ?? null))
   }, [workoutId])
 
+  useEffect(() => {
+    getTodayGoogleFit().then(setGoogleFitToday)
+    syncGoogleFit().then(() => getTodayGoogleFit().then(setGoogleFitToday))
+  }, [])
+
   async function persist(next: Workout) {
     setWorkout(next)
     await saveWorkout(next)
+  }
+
+  function setExerciseHeartRate(exerciseId: string, bpm: number, source: 'camera' | 'googlefit') {
+    if (!workout) return
+    persist({
+      ...workout,
+      exercises: workout.exercises.map((we) =>
+        we.exerciseId === exerciseId ? { ...we, heartRateBpm: bpm, heartRateMeasuredAt: Date.now(), heartRateSource: source } : we,
+      ),
+    })
   }
 
   function addExercise(exerciseId: string) {
@@ -93,6 +111,8 @@ export default function WorkoutRunner() {
             key={we.exerciseId}
             we={we}
             onAddSet={(s) => addSet(we.exerciseId, s)}
+            onHeartRate={(bpm, source) => setExerciseHeartRate(we.exerciseId, bpm, source)}
+            googleFitHeartRateAvg={googleFitToday?.heartRateAvg ?? null}
             restTimerDefaultSec={settings.restTimerDefaultSec}
           />
         ))}
@@ -115,10 +135,14 @@ export default function WorkoutRunner() {
 function ExerciseBlock({
   we,
   onAddSet,
+  onHeartRate,
+  googleFitHeartRateAvg,
   restTimerDefaultSec,
 }: {
   we: WorkoutExercise
   onAddSet: (set: Omit<SetEntry, 'id' | 'exerciseId' | 'completedAt' | 'isPr'>) => void
+  onHeartRate: (bpm: number, source: 'camera' | 'googlefit') => void
+  googleFitHeartRateAvg: number | null
   restTimerDefaultSec: number
 }) {
   const exercise = ALL_EXERCISES.find((e) => e.id === we.exerciseId)
@@ -128,6 +152,13 @@ function ExerciseBlock({
   const [reps, setReps] = useState('')
   const [rpe, setRpe] = useState('')
   const [warmup, setWarmup] = useState(false)
+  const [meterOpen, setMeterOpen] = useState(false)
+
+  const displayHeartRate = we.heartRateBpm
+    ? { bpm: we.heartRateBpm, source: we.heartRateSource ?? 'camera' }
+    : googleFitHeartRateAvg
+      ? { bpm: googleFitHeartRateAvg, source: 'googlefit' as const }
+      : null
 
   useEffect(() => {
     getLastPerformance(we.exerciseId).then((lp) => {
@@ -177,13 +208,48 @@ function ExerciseBlock({
             </p>
           </div>
         </div>
-        {last && (
-          <p className="text-xs text-zinc-500">
-            Dernière fois : {last.weightKg}kg × {last.reps}
-          </p>
-        )}
+        <div className="flex shrink-0 flex-col items-end gap-1">
+          {last && (
+            <p className="text-xs text-zinc-500">
+              Dernière fois : {last.weightKg}kg × {last.reps}
+            </p>
+          )}
+          <button
+            onClick={() => setMeterOpen(true)}
+            className="flex items-center gap-1 rounded-full bg-zinc-900 px-2 py-1 text-[11px] font-medium text-red-400 active:bg-zinc-800"
+          >
+            <HeartPulse size={12} /> Mesurer
+          </button>
+        </div>
       </div>
       {we.note && <p className="mb-2.5 text-xs leading-snug text-zinc-500">{we.note}</p>}
+
+      {displayHeartRate && (
+        <div className="mb-2.5 flex items-center gap-3 rounded-xl bg-zinc-900/70 px-3 py-2.5">
+          <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-red-500/15 text-red-500">
+            <HeartPulse size={18} />
+          </span>
+          <div className="min-w-0 flex-1">
+            <p className="flex items-baseline gap-1">
+              <span className="text-xl font-bold tabular-nums text-white">{displayHeartRate.bpm}</span>
+              <span className="text-xs text-zinc-500">bpm</span>
+            </p>
+            <p className="text-[11px] text-zinc-500">
+              Rythme cardiaque · {displayHeartRate.source === 'camera' ? 'mesuré à la caméra' : 'moy. Google Fit aujourd\'hui'}
+            </p>
+          </div>
+        </div>
+      )}
+
+      {meterOpen && (
+        <HeartRateMeter
+          onClose={() => setMeterOpen(false)}
+          onMeasured={(bpm) => {
+            onHeartRate(bpm, 'camera')
+            setMeterOpen(false)
+          }}
+        />
+      )}
 
       {we.sets.length > 0 && (
         <ul className="mb-2 space-y-1">
