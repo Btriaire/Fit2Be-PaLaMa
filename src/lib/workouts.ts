@@ -1,7 +1,12 @@
 import { getDb } from './db'
 import { computeCaloriesForUser, GYM_WORKOUT_MET } from './met'
+import { pushActivityToNutriTracker } from './nutriTrackerSync'
 import type { Settings } from './settings'
 import type { SetEntry, Workout } from '../types'
+
+// Code d'activité Google Fit "Musculation" repris par NutriTracker Palama
+// (app/lib/google-fit.ts:ACTIVITY_LABELS) pour le flux d'activités.
+const GYM_GOOGLE_FIT_TYPE = 60
 
 export interface LastPerformance {
   weightKg: number
@@ -81,17 +86,48 @@ export async function getAllWorkouts(): Promise<Workout[]> {
   return all.reverse()
 }
 
-/** Calories brûlées estimées pour une séance de gym, selon le profil démographique. */
+/** Moyenne du RPE saisi sur les séries de travail (hors échauffement) de la séance. */
+function averageRpe(workout: Workout): number | null {
+  const rpes = workout.exercises.flatMap((e) => e.sets.filter((s) => !s.isWarmup && s.rpe != null).map((s) => s.rpe!))
+  if (rpes.length === 0) return null
+  return rpes.reduce((a, b) => a + b, 0) / rpes.length
+}
+
+/**
+ * Calories brûlées estimées pour une séance de gym. Le MET fixe (5.5) sert de
+ * base "effort modéré non qualifié" ; dès qu'un RPE a été saisi sur au moins
+ * une série, le MET est ajusté à l'intensité réelle (RPE 5 ≈ MET de base,
+ * RPE 8 ≈ +1.5, RPE 3 ≈ -1) plutôt que de rester figé peu importe l'effort.
+ */
 export function estimateWorkoutCalories(workout: Workout, settings: Settings): number {
   if (!workout.finishedAt) return 0
   const durationMin = (workout.finishedAt - workout.startedAt) / 60000
   if (durationMin <= 0) return 0
-  return computeCaloriesForUser(GYM_WORKOUT_MET, durationMin, settings)
+  const avgRpe = averageRpe(workout)
+  const met = avgRpe != null ? Math.max(3, Math.min(9, GYM_WORKOUT_MET + (avgRpe - 5) * 0.5)) : GYM_WORKOUT_MET
+  return computeCaloriesForUser(met, durationMin, settings)
 }
 
 export async function deleteWorkout(id: string) {
   const db = await getDb()
   await db.delete('workouts', id)
+}
+
+/** Termine une séance : fixe finishedAt, sauvegarde, et pousse vers
+ * NutriTracker Palama (best-effort, comme les autres modules). */
+export async function finishWorkout(workout: Workout, settings: Settings): Promise<Workout> {
+  const finished: Workout = { ...workout, finishedAt: Date.now() }
+  await saveWorkout(finished)
+  const caloriesBurned = estimateWorkoutCalories(finished, settings)
+  const durationMin = Math.max(1, Math.round((finished.finishedAt! - finished.startedAt) / 60000))
+  void pushActivityToNutriTracker({
+    name: finished.name,
+    activityType: GYM_GOOGLE_FIT_TYPE,
+    durationMin,
+    caloriesBurned,
+    date: new Date(finished.startedAt).toISOString().slice(0, 10),
+  })
+  return finished
 }
 
 export interface ExerciseHistoryPoint {

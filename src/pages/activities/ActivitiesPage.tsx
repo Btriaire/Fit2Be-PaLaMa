@@ -5,6 +5,7 @@ import { getDb, newId } from '../../lib/db'
 import { MET_ACTIVITIES, CATEGORY_META, computeCaloriesForUser } from '../../lib/met'
 import { getSettings } from '../../lib/settings'
 import { isToday, formatTime } from '../../lib/date'
+import { pushActivityToNutriTracker } from '../../lib/nutriTrackerSync'
 import ActivityHero from '../../components/ActivityHero'
 import type { ActivityLog } from '../../types'
 
@@ -39,6 +40,15 @@ export default function ActivitiesPage() {
     await db.put('activities', log)
     setFormOpen(false)
     refresh()
+
+    const googleFitType = MET_ACTIVITIES.find((a) => a.label === entry.label)?.googleFitType ?? 97
+    void pushActivityToNutriTracker({
+      name: entry.label,
+      activityType: googleFitType,
+      durationMin: entry.durationMin,
+      caloriesBurned: entry.caloriesBurned,
+      date: new Date(log.loggedAt).toISOString().slice(0, 10),
+    })
   }
 
   async function removeLog(id: string) {

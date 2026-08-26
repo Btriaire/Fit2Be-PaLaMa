@@ -1,22 +1,24 @@
 import { getDb, newId } from './db'
-import { computeCaloriesForUser } from './met'
+import { computeCaloriesForUser, computeCaloriesFromHr } from './met'
 import { computeHrZone } from './heartRate'
 import { pushActivityToNutriTracker } from './nutriTrackerSync'
 import type { Settings } from './settings'
 import type { EnduranceActivityType, EnduranceSession, MachineStats, RoutePoint } from '../types'
 
 // googleFitType : code d'activité Google Fit repris par NutriTracker Palama
-// (app/api/activity/route.ts) pour dénormaliser un nom d'activité côté sync.
+// (app/lib/google-fit.ts:ACTIVITY_LABELS) pour le libellé/icône de son flux
+// d'activités — vérifié contre cette table le 26/08/2026 (course était à
+// tort mappé sur 1="Aérobic" et tapis sur 3="Course", corrigés ici).
 export const ENDURANCE_ACTIVITY_META: Record<
   EnduranceActivityType,
   { label: string; met: number; hasDistance: boolean; googleFitType: number }
 > = {
-  course: { label: 'Course à pied', met: 9.8, hasDistance: true, googleFitType: 1 },
+  course: { label: 'Course à pied', met: 9.8, hasDistance: true, googleFitType: 41 },
   velo: { label: 'Vélo (route)', met: 8, hasDistance: true, googleFitType: 7 },
   natation: { label: 'Natation', met: 7, hasDistance: true, googleFitType: 93 },
   rameur: { label: 'Rameur', met: 7, hasDistance: false, googleFitType: 37 },
   'velo-appart': { label: "Vélo d'appartement", met: 6.8, hasDistance: false, googleFitType: 8 },
-  tapis: { label: 'Tapis de course', met: 8.3, hasDistance: true, googleFitType: 3 },
+  tapis: { label: 'Tapis de course', met: 8.3, hasDistance: true, googleFitType: 67 },
   marche: { label: 'Marche', met: 4.3, hasDistance: true, googleFitType: 46 },
 }
 
@@ -53,7 +55,13 @@ export async function logEnduranceSession(
   settings: Settings,
 ): Promise<EnduranceSession> {
   const meta = ENDURANCE_ACTIVITY_META[input.activityType]
-  const caloriesBurned = input.caloriesBurned ?? computeCaloriesForUser(meta.met, input.durationMin, settings)
+  // Priorité de précision : calories réelles de la machine > formule FC
+  // (Keytel, reflète l'effort physiologique réel) > MET générique du type
+  // d'activité (dernier recours, aucune mesure individuelle disponible).
+  const caloriesBurned =
+    input.caloriesBurned ??
+    (input.avgHeartRate ? computeCaloriesFromHr(input.avgHeartRate, input.durationMin, settings) : null) ??
+    computeCaloriesForUser(meta.met, input.durationMin, settings)
   const hrZone = input.avgHeartRate ? computeHrZone(input.avgHeartRate, settings.ageYears) : undefined
   const session: EnduranceSession = {
     id: newId(),

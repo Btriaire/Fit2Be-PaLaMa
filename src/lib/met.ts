@@ -6,36 +6,40 @@ export interface MetActivity {
   label: string
   category: ActivityCategory
   met: number
+  // Code d'activité Google Fit repris par NutriTracker Palama pour l'icône/le
+  // libellé de son flux d'activités (app/lib/google-fit.ts:ACTIVITY_LABELS) —
+  // 97 = fallback générique quand aucun code Google Fit ne correspond.
+  googleFitType: number
 }
 
 // Coefficients MET (Compendium of Physical Activities, valeurs usuelles arrondies)
 export const MET_ACTIVITIES: MetActivity[] = [
   // Sport outdoor
-  { id: 'running-10kmh', label: 'Course à pied (10 km/h)', category: 'outdoor', met: 10 },
-  { id: 'running-8kmh', label: 'Course à pied (8 km/h)', category: 'outdoor', met: 8.3 },
-  { id: 'cycling-moderate', label: 'Vélo (modéré)', category: 'outdoor', met: 8 },
-  { id: 'swimming', label: 'Natation', category: 'outdoor', met: 7 },
-  { id: 'hiking', label: 'Randonnée', category: 'outdoor', met: 6 },
-  { id: 'walking-brisk', label: 'Marche rapide', category: 'outdoor', met: 4.3 },
-  { id: 'football', label: 'Football', category: 'outdoor', met: 8 },
-  { id: 'tennis', label: 'Tennis', category: 'outdoor', met: 7.3 },
-  { id: 'basketball', label: 'Basketball', category: 'outdoor', met: 6.5 },
+  { id: 'running-10kmh', label: 'Course à pied (10 km/h)', category: 'outdoor', met: 10, googleFitType: 41 },
+  { id: 'running-8kmh', label: 'Course à pied (8 km/h)', category: 'outdoor', met: 8.3, googleFitType: 41 },
+  { id: 'cycling-moderate', label: 'Vélo (modéré)', category: 'outdoor', met: 8, googleFitType: 7 },
+  { id: 'swimming', label: 'Natation', category: 'outdoor', met: 7, googleFitType: 93 },
+  { id: 'hiking', label: 'Randonnée', category: 'outdoor', met: 6, googleFitType: 19 },
+  { id: 'walking-brisk', label: 'Marche rapide', category: 'outdoor', met: 4.3, googleFitType: 75 },
+  { id: 'football', label: 'Football', category: 'outdoor', met: 8, googleFitType: 45 },
+  { id: 'tennis', label: 'Tennis', category: 'outdoor', met: 7.3, googleFitType: 72 },
+  { id: 'basketball', label: 'Basketball', category: 'outdoor', met: 6.5, googleFitType: 84 },
   // Loisir
-  { id: 'yoga', label: 'Yoga', category: 'loisir', met: 2.5 },
-  { id: 'dancing', label: 'Danse', category: 'loisir', met: 4.8 },
-  { id: 'climbing-indoor', label: 'Escalade en salle', category: 'loisir', met: 7.5 },
-  { id: 'golf', label: 'Golf', category: 'loisir', met: 4.3 },
-  { id: 'playing-with-kids', label: 'Jouer avec les enfants', category: 'loisir', met: 3 },
-  { id: 'stretching', label: 'Étirements', category: 'loisir', met: 2.3 },
-  { id: 'pilates', label: 'Pilates', category: 'loisir', met: 3 },
+  { id: 'yoga', label: 'Yoga', category: 'loisir', met: 2.5, googleFitType: 82 },
+  { id: 'dancing', label: 'Danse', category: 'loisir', met: 4.8, googleFitType: 83 },
+  { id: 'climbing-indoor', label: 'Escalade en salle', category: 'loisir', met: 7.5, googleFitType: 48 },
+  { id: 'golf', label: 'Golf', category: 'loisir', met: 4.3, googleFitType: 97 },
+  { id: 'playing-with-kids', label: 'Jouer avec les enfants', category: 'loisir', met: 3, googleFitType: 97 },
+  { id: 'stretching', label: 'Étirements', category: 'loisir', met: 2.3, googleFitType: 61 },
+  { id: 'pilates', label: 'Pilates', category: 'loisir', met: 3, googleFitType: 108 },
   // Quotidien / obligatoire
-  { id: 'gardening', label: 'Jardinage', category: 'quotidien', met: 4 },
-  { id: 'house-cleaning', label: 'Ménage', category: 'quotidien', met: 3.3 },
-  { id: 'grocery-shopping', label: 'Courses (magasins)', category: 'quotidien', met: 2.3 },
-  { id: 'stairs', label: 'Montée d\'escaliers', category: 'quotidien', met: 8.8 },
-  { id: 'carrying-groceries', label: 'Porter les courses', category: 'quotidien', met: 4 },
-  { id: 'diy', label: 'Bricolage', category: 'quotidien', met: 4.5 },
-  { id: 'car-washing', label: 'Laver la voiture', category: 'quotidien', met: 3.5 },
+  { id: 'gardening', label: 'Jardinage', category: 'quotidien', met: 4, googleFitType: 97 },
+  { id: 'house-cleaning', label: 'Ménage', category: 'quotidien', met: 3.3, googleFitType: 97 },
+  { id: 'grocery-shopping', label: 'Courses (magasins)', category: 'quotidien', met: 2.3, googleFitType: 97 },
+  { id: 'stairs', label: 'Montée d\'escaliers', category: 'quotidien', met: 8.8, googleFitType: 55 },
+  { id: 'carrying-groceries', label: 'Porter les courses', category: 'quotidien', met: 4, googleFitType: 97 },
+  { id: 'diy', label: 'Bricolage', category: 'quotidien', met: 4.5, googleFitType: 97 },
+  { id: 'car-washing', label: 'Laver la voiture', category: 'quotidien', met: 3.5, googleFitType: 97 },
 ]
 
 // Formule standard : kcal = MET x poids(kg) x durée(h)
@@ -57,6 +61,24 @@ export function computeCaloriesForUser(met: number, durationMin: number, setting
 export function computeBmr(settings: Settings) {
   const base = 10 * settings.bodyWeightKg + 6.25 * settings.heightCm - 5 * settings.ageYears
   return Math.round(settings.sex === 'homme' ? base + 5 : base - 161)
+}
+
+/**
+ * Calcul des calories à partir de la FC moyenne réelle (formule de régression
+ * de Keytel et al., 2005) — plus précis qu'un MET générique par type
+ * d'activité puisqu'il reflète l'intensité effectivement fournie par le corps
+ * plutôt qu'une moyenne théorique pour "cette activité". Valide pour un
+ * effort soutenu (FC nettement au-dessus du repos) ; en-dessous, la
+ * régression n'est plus fiable et on retombe sur l'estimation MET classique.
+ */
+export function computeCaloriesFromHr(avgHeartRate: number, durationMin: number, settings: Settings): number | null {
+  if (avgHeartRate < 90) return null
+  const { bodyWeightKg: weight, ageYears: age, sex } = settings
+  const kcalPerMin =
+    sex === 'homme'
+      ? (-55.0969 + 0.6309 * avgHeartRate + 0.1988 * weight + 0.2017 * age) / 4.184
+      : (-20.4022 + 0.4472 * avgHeartRate - 0.1263 * weight + 0.074 * age) / 4.184
+  return Math.max(0, Math.round(kcalPerMin * durationMin))
 }
 
 // MET usuel pour une séance de musculation (charges libres/machines, effort modéré à soutenu)

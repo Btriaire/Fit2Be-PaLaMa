@@ -5,6 +5,7 @@ import clsx from 'clsx'
 import {
   getWorkout,
   saveWorkout,
+  finishWorkout as finishWorkoutAndSync,
   getLastPerformance,
   getBestPerformance,
   detectPr,
@@ -59,7 +60,8 @@ export default function WorkoutRunner() {
 
   async function finishWorkout() {
     if (!workout) return
-    await persist({ ...workout, finishedAt: Date.now() })
+    const finished = await finishWorkoutAndSync(workout, settings)
+    setWorkout(finished)
     navigate('/gym')
   }
 
