@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react'
 import { Link } from 'react-router-dom'
-import { Dumbbell, Footprints, HeartPulse, Apple, ChevronRight, Settings, Activity, BarChart3 } from 'lucide-react'
+import { Dumbbell, Footprints, HeartPulse, Apple, ChevronRight, Settings, Activity, BarChart3, Plus } from 'lucide-react'
 import { getDb } from '../lib/db'
 import { getAllWorkouts, estimateWorkoutCalories } from '../lib/workouts'
 import { isToday, todayStr } from '../lib/date'
@@ -57,6 +57,13 @@ export default function Dashboard() {
         <StatTile label="Body Battery" value={recovery ? `${recovery.bodyBatteryScore}` : '—'} color="text-indigo-400" />
         <StatTile label="Balance kcal" value={`${balance >= 0 ? '+' : ''}${balance}`} color="text-teal-400" />
       </div>
+
+      <Link
+        to="/add"
+        className="mb-6 flex w-full items-center justify-center gap-1.5 rounded-2xl bg-gradient-to-r from-orange-500 to-teal-500 py-3.5 text-sm font-semibold text-zinc-950 active:scale-[0.98] transition-transform"
+      >
+        <Plus size={18} strokeWidth={2.5} /> Ajouter
+      </Link>
 
       <div className="space-y-2.5">
         <ModuleCard

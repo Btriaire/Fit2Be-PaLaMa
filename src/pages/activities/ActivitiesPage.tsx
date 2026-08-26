@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useState } from 'react'
+import { useLocation } from 'react-router-dom'
 import { Footprints, Plus, X } from 'lucide-react'
 import { getDb, newId } from '../../lib/db'
 import { MET_ACTIVITIES, CATEGORY_META, computeCaloriesForUser } from '../../lib/met'
@@ -6,9 +7,16 @@ import { getSettings } from '../../lib/settings'
 import { isToday, formatTime } from '../../lib/date'
 import type { ActivityLog } from '../../types'
 
+interface NavState {
+  openForm?: boolean
+  filterIds?: string[]
+}
+
 export default function ActivitiesPage() {
+  const location = useLocation()
+  const navState = (location.state as NavState) ?? {}
   const [logs, setLogs] = useState<ActivityLog[]>([])
-  const [formOpen, setFormOpen] = useState(false)
+  const [formOpen, setFormOpen] = useState(navState.openForm ?? false)
 
   async function refresh() {
     const db = await getDb()
@@ -81,7 +89,9 @@ export default function ActivitiesPage() {
         </ul>
       </section>
 
-      {formOpen && <ActivityForm onSubmit={addLog} onClose={() => setFormOpen(false)} />}
+      {formOpen && (
+        <ActivityForm onSubmit={addLog} onClose={() => setFormOpen(false)} filterIds={navState.filterIds} />
+      )}
     </div>
   )
 }
@@ -89,15 +99,18 @@ export default function ActivitiesPage() {
 function ActivityForm({
   onSubmit,
   onClose,
+  filterIds,
 }: {
   onSubmit: (entry: Omit<ActivityLog, 'id' | 'loggedAt'>) => void
   onClose: () => void
+  filterIds?: string[]
 }) {
-  const [activityId, setActivityId] = useState(MET_ACTIVITIES[0].id)
+  const options = filterIds ? MET_ACTIVITIES.filter((a) => filterIds.includes(a.id)) : MET_ACTIVITIES
+  const [activityId, setActivityId] = useState(options[0]?.id ?? MET_ACTIVITIES[0].id)
   const [duration, setDuration] = useState('30')
   const settings = getSettings()
 
-  const activity = MET_ACTIVITIES.find((a) => a.id === activityId)!
+  const activity = options.find((a) => a.id === activityId) ?? options[0]
 
   function submit() {
     const dur = parseInt(duration, 10)
@@ -125,7 +138,7 @@ function ActivityForm({
         </div>
 
         <div className="mb-3 grid grid-cols-2 gap-1.5">
-          {MET_ACTIVITIES.map((a) => (
+          {options.map((a) => (
             <button
               key={a.id}
               onClick={() => setActivityId(a.id)}

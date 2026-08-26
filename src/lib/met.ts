@@ -26,6 +26,8 @@ export const MET_ACTIVITIES: MetActivity[] = [
   { id: 'climbing-indoor', label: 'Escalade en salle', category: 'loisir', met: 7.5 },
   { id: 'golf', label: 'Golf', category: 'loisir', met: 4.3 },
   { id: 'playing-with-kids', label: 'Jouer avec les enfants', category: 'loisir', met: 3 },
+  { id: 'stretching', label: 'Étirements', category: 'loisir', met: 2.3 },
+  { id: 'pilates', label: 'Pilates', category: 'loisir', met: 3 },
   // Quotidien / obligatoire
   { id: 'gardening', label: 'Jardinage', category: 'quotidien', met: 4 },
   { id: 'house-cleaning', label: 'Ménage', category: 'quotidien', met: 3.3 },
