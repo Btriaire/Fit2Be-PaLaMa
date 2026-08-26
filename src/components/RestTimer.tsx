@@ -71,7 +71,7 @@ export default function RestTimer({ durationSec, runToken, onDone }: Props) {
             cy="66"
             r={RADIUS}
             fill="none"
-            stroke="#f97316"
+            stroke="#e2361c"
             strokeWidth="6"
             strokeLinecap="round"
             strokeDasharray={CIRCUMFERENCE}

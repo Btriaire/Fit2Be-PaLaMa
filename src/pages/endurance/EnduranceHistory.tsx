@@ -86,7 +86,7 @@ export default function EnduranceHistory() {
                       labelStyle={{ color: '#a1a1aa' }}
                       formatter={(v) => [formatPace(Number(v)), 'Allure']}
                     />
-                    <Line type="monotone" dataKey="allure" stroke="#2dd4bf" strokeWidth={2} dot={{ r: 3, fill: '#2dd4bf' }} />
+                    <Line type="monotone" dataKey="allure" stroke="#2f4bd6" strokeWidth={2} dot={{ r: 3, fill: '#2f4bd6' }} />
                   </LineChart>
                 </ResponsiveContainer>
               </div>

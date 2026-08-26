@@ -9,17 +9,28 @@ const MODULES = [
 
 export default function CoverPage({ onEnter }: { onEnter: () => void }) {
   return (
-    <div className="flex min-h-screen flex-col items-center justify-between overflow-hidden bg-zinc-950 px-6 py-10 text-center">
+    <div className="relative flex min-h-screen flex-col items-center justify-between overflow-hidden bg-zinc-950 px-6 py-10 text-center">
+      {/* Lueur écarlate irradiant derrière une silhouette sombre, brume bleu-violet en contrebas */}
       <div
-        className="pointer-events-none absolute inset-x-0 top-0 h-96 opacity-40"
+        className="pointer-events-none absolute inset-x-0 top-16 h-72"
         style={{
-          background:
-            'radial-gradient(60% 50% at 50% 0%, rgba(249,115,22,0.25), rgba(45,212,191,0.12) 55%, transparent 75%)',
+          background: 'radial-gradient(closest-side, rgba(226,54,28,0.65), rgba(226,54,28,0.22) 55%, transparent 78%)',
         }}
       />
-
+      <div
+        className="pointer-events-none absolute inset-x-0 top-56 h-64"
+        style={{
+          background: 'radial-gradient(60% 55% at 50% 40%, rgba(91,63,196,0.32), transparent 78%)',
+        }}
+      />
+      <div
+        className="pointer-events-none absolute inset-x-0 bottom-0 h-72"
+        style={{
+          background: 'radial-gradient(75% 70% at 50% 100%, rgba(47,75,214,0.32), transparent 70%)',
+        }}
+      />
       <div className="relative z-10 flex flex-1 flex-col items-center justify-center">
-        <div className="mb-6 flex h-20 w-20 items-center justify-center rounded-3xl bg-gradient-to-br from-orange-500 to-teal-500 shadow-[0_0_40px_rgba(249,115,22,0.35)]">
+        <div className="mb-6 flex h-20 w-20 items-center justify-center rounded-3xl bg-gradient-to-br from-orange-500 to-teal-500 shadow-[0_0_60px_rgba(226,54,28,0.55)]">
           <Dumbbell size={36} className="text-zinc-950" strokeWidth={2.4} />
         </div>
 
@@ -44,7 +55,7 @@ export default function CoverPage({ onEnter }: { onEnter: () => void }) {
       <div className="relative z-10 w-full max-w-xs">
         <button
           onClick={onEnter}
-          className="w-full rounded-2xl bg-gradient-to-r from-orange-500 to-orange-400 py-4 text-base font-semibold text-zinc-950 shadow-lg shadow-orange-500/20 active:scale-[0.98] transition-transform"
+          className="w-full rounded-2xl bg-gradient-to-r from-orange-500 to-orange-400 py-4 text-base font-semibold text-zinc-950 shadow-lg shadow-orange-500/30 active:scale-[0.98] transition-transform"
         >
           Commencer
         </button>

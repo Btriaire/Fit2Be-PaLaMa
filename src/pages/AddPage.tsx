@@ -20,8 +20,8 @@ const CATEGORIES: Category[] = [
     id: 'endurance',
     label: 'Endurance',
     sub: 'Cardio & course',
-    c1: '#2dd4bf',
-    c2: '#6366f1',
+    c1: '#2f4bd6',
+    c2: '#5b3fc4',
     icon: (color) => (
       <svg width="56" height="56" viewBox="0 0 56 56" fill="none">
         <circle cx="38" cy="12" r="5" fill={color} />
@@ -38,7 +38,7 @@ const CATEGORIES: Category[] = [
     id: 'musculation',
     label: 'Musculation',
     sub: 'Force & puissance',
-    c1: '#f97316',
+    c1: '#e2361c',
     c2: '#ef4444',
     icon: (color) => (
       <svg width="56" height="56" viewBox="0 0 56 56" fill="none">
@@ -54,7 +54,7 @@ const CATEGORIES: Category[] = [
     id: 'loisirs',
     label: 'Loisirs intense',
     sub: 'Sports & jeux',
-    c1: '#6366f1',
+    c1: '#5b3fc4',
     c2: '#ec4899',
     icon: (color) => (
       <svg width="56" height="56" viewBox="0 0 56 56" fill="none">
@@ -72,7 +72,7 @@ const CATEGORIES: Category[] = [
     id: 'detente',
     label: 'Détente',
     sub: 'Yoga & mobilité',
-    c1: '#2dd4bf',
+    c1: '#2f4bd6',
     c2: '#22d3ee',
     icon: (color) => (
       <svg width="56" height="56" viewBox="0 0 56 56" fill="none">

@@ -5,10 +5,22 @@
 
   --color-base: #09090b;
   --color-surface: #18181b;
-  /* Palette resserrée à 3 accents : turquoise, orange foncé lumineux, violet-bleu foncé */
-  --color-turquoise: #2dd4bf;
-  --color-orange: #f97316;
-  --color-indigo: #6366f1;
+  /* Palette resserrée à 3 accents, inspirée d'une lueur écarlate derrière une
+     silhouette sombre sur fond de brume bleu-violet nocturne. */
+  --color-turquoise: #2f4bd6;
+  --color-orange: #e2361c;
+  --color-indigo: #5b3fc4;
+
+  /* On réassigne les teintes Tailwind stock utilisées dans les composants
+     (teal / orange) pour que tout l'app hérite de la nouvelle palette sans
+     toucher chaque classe une par une. */
+  --color-teal-300: #7d93ea;
+  --color-teal-400: #4a63d8;
+  --color-teal-500: #2f4bd6;
+
+  --color-orange-300: #ff9466;
+  --color-orange-400: #ff5a30;
+  --color-orange-500: #e2361c;
 }
 
 :root {
@@ -57,9 +69,9 @@ body {
   inset: -20%;
   z-index: 0;
   background:
-    radial-gradient(38% 32% at 12% 8%, rgb(249 115 22 / 0.35), transparent 70%),
-    radial-gradient(42% 36% at 88% 12%, rgb(99 102 241 / 0.32), transparent 70%),
-    radial-gradient(46% 40% at 50% 95%, rgb(45 212 191 / 0.28), transparent 70%);
+    radial-gradient(40% 34% at 50% 10%, rgb(226 54 28 / 0.4), transparent 72%),
+    radial-gradient(42% 36% at 88% 14%, rgb(91 63 196 / 0.32), transparent 70%),
+    radial-gradient(46% 40% at 50% 100%, rgb(47 75 214 / 0.3), transparent 70%);
   filter: blur(40px) saturate(130%);
 }
 .mesh-backdrop > * {

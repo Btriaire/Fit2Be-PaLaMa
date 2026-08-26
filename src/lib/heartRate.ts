@@ -4,7 +4,7 @@ export const HR_ZONE_META: Record<HrZone, { label: string; color: string; range:
   1: { label: 'Récupération', color: '#38bdf8', range: '50-60%' },
   2: { label: 'Zone 2 (endurance)', color: '#22c55e', range: '60-70%' },
   3: { label: 'Aérobie', color: '#facc15', range: '70-80%' },
-  4: { label: 'Seuil', color: '#f97316', range: '80-90%' },
+  4: { label: 'Seuil', color: '#e2361c', range: '80-90%' },
   5: { label: 'Maximal', color: '#ef4444', range: '90-100%' },
 }
 

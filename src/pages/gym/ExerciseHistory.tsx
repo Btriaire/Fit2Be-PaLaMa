@@ -64,7 +64,7 @@ export default function ExerciseHistory() {
                     contentStyle={{ background: '#18181b', border: '1px solid #3f3f46', borderRadius: 8, fontSize: 12 }}
                     labelStyle={{ color: '#a1a1aa' }}
                   />
-                  <Line type="monotone" dataKey="maxWeightKg" name="Poids max (kg)" stroke="#f97316" strokeWidth={2} dot={{ r: 3, fill: '#f97316' }} />
+                  <Line type="monotone" dataKey="maxWeightKg" name="Poids max (kg)" stroke="#e2361c" strokeWidth={2} dot={{ r: 3, fill: '#e2361c' }} />
                 </LineChart>
               </ResponsiveContainer>
             </div>

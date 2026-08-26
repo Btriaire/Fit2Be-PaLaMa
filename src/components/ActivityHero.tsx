@@ -18,16 +18,16 @@ const HERO_IMAGES: Partial<Record<HeroKey, string>> = {
 }
 
 const ACCENT_TINT: Record<HeroKey, string> = {
-  course: 'rgb(249 115 22 / 0.28)', // orange — effort
-  velo: 'rgb(99 102 241 / 0.26)', // indigo
-  marche: 'rgb(45 212 191 / 0.26)', // turquoise
-  natation: 'rgb(45 212 191 / 0.26)',
-  rameur: 'rgb(45 212 191 / 0.26)',
-  'velo-appart': 'rgb(99 102 241 / 0.26)',
-  tapis: 'rgb(249 115 22 / 0.28)',
-  gym: 'rgb(249 115 22 / 0.3)',
-  yoga: 'rgb(99 102 241 / 0.28)',
-  food: 'rgb(45 212 191 / 0.26)',
+  course: 'rgb(226 54 28 / 0.3)', // rouge écarlate — effort
+  velo: 'rgb(91 63 196 / 0.28)', // violet-bleu foncé
+  marche: 'rgb(47 75 214 / 0.28)', // bleu foncé
+  natation: 'rgb(47 75 214 / 0.28)',
+  rameur: 'rgb(47 75 214 / 0.28)',
+  'velo-appart': 'rgb(91 63 196 / 0.28)',
+  tapis: 'rgb(226 54 28 / 0.3)',
+  gym: 'rgb(226 54 28 / 0.32)',
+  yoga: 'rgb(91 63 196 / 0.3)',
+  food: 'rgb(47 75 214 / 0.28)',
 }
 
 export function hasHeroImage(key: HeroKey): boolean {

@@ -26,7 +26,7 @@ type Period = 'day' | 'week' | 'month'
 const PERIOD_DAYS: Record<Period, number> = { day: 1, week: 7, month: 30 }
 const PERIOD_LABEL: Record<Period, string> = { day: 'Jour', week: 'Semaine', month: 'Mois' }
 
-const CHART_COLORS = { orange: '#f97316', turquoise: '#2dd4bf', indigo: '#6366f1' }
+const CHART_COLORS = { orange: '#e2361c', turquoise: '#2f4bd6', indigo: '#5b3fc4' }
 
 function dayKey(ts: number) {
   const d = new Date(ts)

@@ -10,7 +10,7 @@ interface Props {
   live?: boolean
 }
 
-export default function RouteMap({ route, color = '#2dd4bf', className = 'h-48 w-full', live = false }: Props) {
+export default function RouteMap({ route, color = '#2f4bd6', className = 'h-48 w-full', live = false }: Props) {
   const containerRef = useRef<HTMLDivElement | null>(null)
   const mapRef = useRef<L.Map | null>(null)
   const lineRef = useRef<L.Polyline | null>(null)
