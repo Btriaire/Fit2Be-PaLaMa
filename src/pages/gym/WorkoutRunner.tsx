@@ -19,6 +19,7 @@ import { getTodayGoogleFit, syncGoogleFit } from '../../lib/googleFit'
 import RestTimer from '../../components/RestTimer'
 import MuscleBodyMap from '../../components/MuscleBodyMap'
 import HeartRateMeter from '../../components/HeartRateMeter'
+import WorkoutMusicPlayer from '../../components/WorkoutMusicPlayer'
 import type { GoogleFitDay, SetEntry, Workout, WorkoutExercise } from '../../types'
 
 export default function WorkoutRunner() {
@@ -91,6 +92,7 @@ export default function WorkoutRunner() {
   return (
     <div>
       <RestTimer durationSec={settings.restTimerDefaultSec} runToken={restToken} />
+      <WorkoutMusicPlayer />
 
       <header className="flex items-center justify-between px-4 pt-4">
         <button onClick={() => navigate('/gym')} className="rounded-full p-1.5 active:bg-zinc-900">
