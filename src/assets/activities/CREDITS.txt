@@ -1,0 +1,28 @@
+Photos d'activités — sourcées sur Wikimedia Commons et Openverse (Flickr,
+licences Creative Commons autorisant usage commercial + modification),
+recadrées et compressées (320×320 JPEG). Liens vers la page source d'origine
+ci-dessous pour chaque fichier.
+
+running-10kmh.jpg    https://commons.wikimedia.org/wiki/File:Irina_Mikitenko_-_2012_Olympic_Womens_Marathon.jpg
+running-8kmh.jpg      https://commons.wikimedia.org/wiki/File:120915-F-KX404-139_(7996341270).jpg
+cycling-moderate.jpg  https://commons.wikimedia.org/wiki/File:13-06-27-breda-by-RalfR-017.jpg
+swimming.jpg          https://commons.wikimedia.org/wiki/File:-i---i-_(40328004144).jpg
+hiking.jpg            https://commons.wikimedia.org/wiki/File:%22A_bear_doesn%27t_care_if_you%27re_stocking_fish_eggs.%22_(32389869814).jpg
+walking-brisk.jpg     https://commons.wikimedia.org/wiki/File:D%C3%BClmen,_B%C3%B6rnste,_Waldweg_--_2024_--_6257.jpg
+football.jpg          https://commons.wikimedia.org/wiki/File:12_maj_2024.jpg
+tennis.jpg            https://commons.wikimedia.org/wiki/File:%22Singles_tennis_match%22.jpg
+basketball.jpg        https://commons.wikimedia.org/wiki/File:A_Basketball_Player.jpg
+yoga.jpg              https://commons.wikimedia.org/wiki/File:A_woman_doing_Yoga_-_A_statue_in_Prayagraj.jpg
+dancing.jpg           https://commons.wikimedia.org/wiki/File:A_dancing_couple_(48615037661).jpg
+climbing-indoor.jpg   https://commons.wikimedia.org/wiki/File:Climber_on_top_of_a_climbing_wall_in_Melbourne_VIC_Australia.jpg
+golf.jpg              https://commons.wikimedia.org/wiki/File:Cottesmore_Golf_and_Country_Club_-_Golfer_Taking_a_Swing_-_geograph.org.uk_-_27097.jpg
+playing-with-kids.jpg https://www.flickr.com/photos/73645804@N00/2944784503 (Flickr, via Openverse)
+stretching.jpg        https://commons.wikimedia.org/wiki/File:2023-02-16_Training_16_February_Floor_exercise_at_Luxembourg_Open_2023_(Martin_Rulsch)_395.jpg
+pilates.jpg           https://commons.wikimedia.org/wiki/File:Pilates_(9956369565).jpg
+gardening.jpg         Flickr, via Openverse (live.staticflickr.com/3594/3410075686)
+house-cleaning.jpg    Flickr, via Openverse (live.staticflickr.com/1187/4594830749)
+grocery-shopping.jpg  https://commons.wikimedia.org/wiki/File:1970sgrocerystore.jpg
+stairs.jpg            https://commons.wikimedia.org/wiki/File:Gabriel_walking_up_a_flight_of_stairs,_Hotel_das_Termas_de_Monte_Real,_Monte_Real,_Portugal_julesvernex2.jpg
+carrying-groceries.jpg Flickr, via Openverse (live.staticflickr.com/2005/2092883077)
+diy.jpg               Flickr, via Openverse (live.staticflickr.com/744/32345791706)
+car-washing.jpg       Flickr, via Openverse (live.staticflickr.com/7205/6963153485)

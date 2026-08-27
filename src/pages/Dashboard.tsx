@@ -80,7 +80,7 @@ export default function Dashboard() {
             >
               {scanning ? <Loader2 size={20} className="animate-spin" /> : <Camera size={20} />}
             </button>
-            <Link to="/stats" className="rounded-full bg-zinc-950/40 p-2 text-white active:bg-zinc-900">
+            <Link to="/progression" className="rounded-full bg-zinc-950/40 p-2 text-white active:bg-zinc-900">
               <BarChart3 size={20} />
             </Link>
             <Link to="/settings" className="rounded-full bg-zinc-950/40 p-2 text-white active:bg-zinc-900">
@@ -125,6 +125,11 @@ export default function Dashboard() {
         <Plus size={18} strokeWidth={2.5} /> Ajouter
       </Link>
 
+      <div className="mb-2.5 grid grid-cols-2 gap-2.5">
+        <BigModuleCard to="/gym" heroKey="gym" icon={<Dumbbell size={26} />} title="Fitness" color="text-orange-400" />
+        <BigModuleCard to="/endurance" heroKey="velo" icon={<Activity size={26} />} title="Endurance" color="text-teal-400" />
+      </div>
+
       <div className="space-y-2.5">
         <ModuleCard
           to="/progression"
@@ -134,25 +139,11 @@ export default function Dashboard() {
           subtitle="Index général, musculaire et cardiaque"
         />
         <ModuleCard
-          to="/gym"
-          heroKey="gym"
-          icon={<Dumbbell className="text-orange-400" size={20} />}
-          title="Gym & Fitness"
-          subtitle="Lancer une séance, voir l'historique"
-        />
-        <ModuleCard
           to="/activities"
           heroKey="marche"
           icon={<Footprints className="text-teal-400" size={20} />}
           title="Activités & Quotidien"
           subtitle="Sport outdoor, loisir, tâches"
-        />
-        <ModuleCard
-          to="/endurance"
-          heroKey="velo"
-          icon={<Activity className="text-teal-400" size={20} />}
-          title="Endurance"
-          subtitle="Course, vélo, natation, zones FC"
         />
         <ModuleCard
           to="/recovery"
@@ -183,6 +174,30 @@ function StatTile({ label, value, color, icon }: { label: string; value: string;
       </p>
       <p className={`mt-1 text-2xl font-bold ${color}`}>{value}</p>
     </div>
+  )
+}
+
+function BigModuleCard({
+  to,
+  heroKey,
+  icon,
+  title,
+  color,
+}: {
+  to: string
+  heroKey: HeroKey
+  icon: React.ReactNode
+  title: string
+  color: string
+}) {
+  return (
+    <Link to={to} className="glass relative block h-32 overflow-hidden rounded-2xl active:scale-[0.98] transition-transform">
+      <ActivityHero heroKey={heroKey} className="h-32" />
+      <div className="absolute inset-x-0 bottom-0 flex items-center gap-2 p-3">
+        <span className={color}>{icon}</span>
+        <p className="text-base font-bold text-white drop-shadow">{title}</p>
+      </div>
+    </Link>
   )
 }
 

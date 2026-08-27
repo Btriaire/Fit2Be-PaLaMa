@@ -16,6 +16,8 @@ export interface Settings {
   restingHeartRateBpm: number
   /** Objectif de sommeil (minutes) — sert au calcul de la dette de sommeil. */
   sleepTargetMin: number
+  /** Photo de profil, compressée en petite miniature (data URL). */
+  profilePhotoDataUrl?: string
 }
 
 const DEFAULTS: Settings = {

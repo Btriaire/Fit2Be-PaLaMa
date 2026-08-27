@@ -1,10 +1,11 @@
 import { useState } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { ChevronLeft, Download, Upload, RefreshCw, Sparkles } from 'lucide-react'
+import { ChevronLeft, Download, Upload, RefreshCw, Sparkles, User, Camera } from 'lucide-react'
 import { getSettings, saveSettings, type Sex } from '../lib/settings'
 import { getDb } from '../lib/db'
 import { importNutriTrackerActivityHistory } from '../lib/nutriTrackerImport'
 import { consolidateData, totalDuplicates, type ConsolidationResult } from '../lib/dataConsolidation'
+import { compressImageToDataUrl } from '../lib/image'
 
 export default function SettingsPage() {
   const navigate = useNavigate()
@@ -16,6 +17,7 @@ export default function SettingsPage() {
   const [sex, setSex] = useState<Sex>(initial.sex)
   const [bodyWeightKg, setBodyWeightKg] = useState(initial.bodyWeightKg)
   const [profileSavedFlash, setProfileSavedFlash] = useState(false)
+  const [profilePhoto, setProfilePhoto] = useState(initial.profilePhotoDataUrl)
   const [dailyCalorieTarget, setDailyCalorieTarget] = useState(String(initial.dailyCalorieTarget))
   const [restTimerDefaultSec, setRestTimerDefaultSec] = useState(String(initial.restTimerDefaultSec))
   const [restingHeartRateBpm, setRestingHeartRateBpm] = useState(String(initial.restingHeartRateBpm))
@@ -28,6 +30,19 @@ export default function SettingsPage() {
   const [dupScan, setDupScan] = useState<ConsolidationResult | null>(null)
   const [dupApplying, setDupApplying] = useState(false)
   const [dupFlash, setDupFlash] = useState<string | null>(null)
+
+  async function handlePhoto(e: React.ChangeEvent<HTMLInputElement>) {
+    const file = e.target.files?.[0]
+    e.target.value = ''
+    if (!file) return
+    try {
+      const dataUrl = await compressImageToDataUrl(file)
+      setProfilePhoto(dataUrl)
+      saveSettings({ profilePhotoDataUrl: dataUrl })
+    } catch {
+      // photo optionnelle — un échec de lecture/compression ne doit rien casser
+    }
+  }
 
   function submitProfile() {
     const saved = saveSettings({
@@ -143,6 +158,21 @@ export default function SettingsPage() {
 
       <section className="glass mb-4 space-y-3 rounded-2xl p-4">
         <h2 className="mb-1 text-sm font-medium text-zinc-400">Profil</h2>
+        <div className="flex justify-center">
+          <label className="relative h-20 w-20 cursor-pointer overflow-hidden rounded-full bg-zinc-900 text-zinc-600">
+            {profilePhoto ? (
+              <img src={profilePhoto} alt="" className="h-full w-full object-cover" />
+            ) : (
+              <span className="flex h-full w-full items-center justify-center">
+                <User size={28} />
+              </span>
+            )}
+            <span className="absolute inset-x-0 bottom-0 flex items-center justify-center bg-black/50 py-1">
+              <Camera size={12} className="text-white" />
+            </span>
+            <input type="file" accept="image/*" capture="user" className="hidden" onChange={handlePhoto} />
+          </label>
+        </div>
         <div className="grid grid-cols-2 gap-2">
           <TextField label="Prénom" value={firstName} onChange={setFirstName} onBlur={submitProfile} />
           <TextField label="Nom" value={lastName} onChange={setLastName} onBlur={submitProfile} />

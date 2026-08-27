@@ -7,9 +7,15 @@ import { getSettings } from '../../lib/settings'
 import { isToday, formatTime } from '../../lib/date'
 import { pushActivityToNutriTracker } from '../../lib/nutriTrackerSync'
 import { pushRecord, deleteRecord } from '../../lib/cloudSync'
+import { ACTIVITY_PHOTOS } from '../../lib/activityPhotos'
 import ActivityHero from '../../components/ActivityHero'
-import ActivityIcon from '../../components/ActivityIcon'
-import type { ActivityLog } from '../../types'
+import type { ActivityCategory, ActivityLog } from '../../types'
+
+const CATEGORY_SECTION_LABEL: Partial<Record<ActivityCategory, string>> = {
+  outdoor: 'Sport',
+  loisir: 'Loisirs',
+  quotidien: 'Quotidien',
+}
 
 interface NavState {
   openForm?: boolean
@@ -100,9 +106,11 @@ export default function ActivitiesPage() {
             return (
               <li key={l.id} className="glass flex items-center justify-between rounded-xl p-3">
                 <div className="flex items-center gap-2.5">
-                  <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-zinc-900 text-teal-400">
-                    <ActivityIcon activityId={activityId ?? ''} size={16} />
-                  </span>
+                  {activityId && ACTIVITY_PHOTOS[activityId] ? (
+                    <img src={ACTIVITY_PHOTOS[activityId]} alt="" className="h-10 w-10 shrink-0 rounded-lg object-cover" />
+                  ) : (
+                    <span className="h-10 w-10 shrink-0 rounded-lg bg-zinc-900" />
+                  )}
                   <div>
                     <p className="text-sm font-medium">{l.label}</p>
                     <p className="text-xs text-zinc-500">
@@ -150,6 +158,10 @@ function ActivityForm({
 
   const activity = options.find((a) => a.id === activityId) ?? options[0]
 
+  const sections = (['outdoor', 'loisir', 'quotidien'] as ActivityCategory[])
+    .map((cat) => ({ cat, items: options.filter((a) => a.category === cat) }))
+    .filter((s) => s.items.length > 0)
+
   function submit() {
     const dur = parseInt(duration, 10)
     if (!dur) return
@@ -165,49 +177,65 @@ function ActivityForm({
   return (
     <div className="fixed inset-0 z-50 flex items-end justify-center bg-black/60" onClick={onClose}>
       <div
-        className="mesh-backdrop max-h-[80vh] w-full max-w-md overflow-y-auto rounded-t-2xl bg-zinc-950 border-t border-zinc-800 p-4"
+        className="mesh-backdrop flex max-h-[85vh] w-full max-w-md flex-col rounded-t-2xl bg-zinc-950 border-t border-zinc-800"
         onClick={(e) => e.stopPropagation()}
       >
-        <div className="mb-3 flex items-center justify-between">
-          <h2 className="font-semibold">Nouvelle activité</h2>
-          <button onClick={onClose} className="rounded-full p-1 active:bg-zinc-900">
-            <X size={18} />
-          </button>
+        <div className="shrink-0 p-4 pb-0">
+          <div className="mb-3 flex items-center justify-between">
+            <h2 className="font-semibold">Nouvelle activité</h2>
+            <button onClick={onClose} className="rounded-full p-1 active:bg-zinc-900">
+              <X size={18} />
+            </button>
+          </div>
         </div>
 
-        <div className="mb-3 grid grid-cols-2 gap-1.5">
-          {options.map((a) => (
-            <button
-              key={a.id}
-              onClick={() => setActivityId(a.id)}
-              className={`flex items-center gap-1.5 rounded-lg px-2.5 py-2 text-left text-xs ${
-                a.id === activityId ? 'bg-teal-500 text-zinc-950 font-semibold' : 'bg-zinc-900 text-zinc-300'
-              }`}
-            >
-              <ActivityIcon activityId={a.id} size={15} className="shrink-0" />
-              {a.label}
-            </button>
+        <div className="flex-1 overflow-y-auto px-4">
+          {sections.map(({ cat, items }) => (
+            <div key={cat} className="mb-4">
+              <h3 className="mb-1.5 text-xs font-medium uppercase tracking-wide text-zinc-500">{CATEGORY_SECTION_LABEL[cat]}</h3>
+              <ul className="space-y-1.5">
+                {items.map((a) => (
+                  <li key={a.id}>
+                    <button
+                      onClick={() => setActivityId(a.id)}
+                      className={`glass flex w-full items-center gap-2.5 rounded-xl p-2.5 text-left ${
+                        a.id === activityId ? 'ring-2 ring-teal-500' : ''
+                      }`}
+                    >
+                      {ACTIVITY_PHOTOS[a.id] ? (
+                        <img src={ACTIVITY_PHOTOS[a.id]} alt="" className="h-16 w-16 shrink-0 rounded-lg object-cover" />
+                      ) : (
+                        <div className="h-16 w-16 shrink-0 rounded-lg bg-zinc-900" />
+                      )}
+                      <span className={`text-sm ${a.id === activityId ? 'font-semibold text-teal-400' : 'text-zinc-200'}`}>{a.label}</span>
+                    </button>
+                  </li>
+                ))}
+              </ul>
+            </div>
           ))}
         </div>
 
-        <label className="mb-1 block text-xs text-zinc-500">Durée (minutes)</label>
-        <input
-          inputMode="numeric"
-          value={duration}
-          onChange={(e) => setDuration(e.target.value)}
-          className="mb-4 w-full rounded-lg bg-zinc-900 px-3 py-2.5 text-center outline-none focus:ring-1 focus:ring-teal-500"
-        />
+        <div className="shrink-0 border-t border-zinc-800 p-4" style={{ paddingBottom: 'calc(env(safe-area-inset-bottom) + 16px)' }}>
+          <label className="mb-1 block text-xs text-zinc-500">Durée (minutes)</label>
+          <input
+            inputMode="numeric"
+            value={duration}
+            onChange={(e) => setDuration(e.target.value)}
+            className="mb-3 w-full rounded-lg bg-zinc-900 px-3 py-2.5 text-center outline-none focus:ring-1 focus:ring-teal-500"
+          />
 
-        <p className="mb-4 text-center text-sm text-zinc-500">
-          ≈ {computeCaloriesForUser(activity.met, parseInt(duration || '0', 10), settings)} kcal
-        </p>
+          <p className="mb-3 text-center text-sm text-zinc-500">
+            ≈ {computeCaloriesForUser(activity.met, parseInt(duration || '0', 10), settings)} kcal
+          </p>
 
-        <button
-          onClick={submit}
-          className="w-full rounded-xl bg-teal-500 py-3 text-sm font-semibold text-zinc-950 active:bg-teal-400"
-        >
-          Enregistrer
-        </button>
+          <button
+            onClick={submit}
+            className="w-full rounded-xl bg-teal-500 py-3 text-sm font-semibold text-zinc-950 active:bg-teal-400"
+          >
+            Enregistrer
+          </button>
+        </div>
       </div>
     </div>
   )

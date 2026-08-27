@@ -1,20 +1,5 @@
 import { useEffect, useMemo, useState } from 'react'
-import { useNavigate } from 'react-router-dom'
-import { BarChart3, ChevronLeft } from 'lucide-react'
-import {
-  Bar,
-  BarChart,
-  CartesianGrid,
-  Cell,
-  Line,
-  LineChart,
-  Pie,
-  PieChart,
-  ResponsiveContainer,
-  Tooltip,
-  XAxis,
-  YAxis,
-} from 'recharts'
+import { Bar, BarChart, CartesianGrid, Cell, Line, LineChart, Pie, PieChart, ResponsiveContainer, Tooltip, XAxis, YAxis } from 'recharts'
 import { getDb } from '../lib/db'
 import { getAllWorkouts, estimateWorkoutCalories } from '../lib/workouts'
 import { getSettings } from '../lib/settings'
@@ -40,8 +25,10 @@ function startOfRange(days: number) {
   return d.getTime()
 }
 
-export default function StatsPage() {
-  const navigate = useNavigate()
+/** Contenu de l'onglet Statistiques de la page Progression — anciennement
+ * sa propre page (/stats), fusionné pour n'avoir qu'un seul endroit pour la
+ * mesure de la progression. */
+export default function StatsTab() {
   const [period, setPeriod] = useState<Period>('week')
   const [workouts, setWorkouts] = useState<Workout[]>([])
   const [activities, setActivities] = useState<ActivityLog[]>([])
@@ -114,9 +101,7 @@ export default function StatsPage() {
   const totalSets = workouts
     .filter((w) => w.finishedAt && w.startedAt >= rangeStart)
     .reduce((s, w) => s + w.exercises.reduce((n, e) => n + e.sets.filter((s) => !s.isWarmup).length, 0), 0)
-  const totalDistance = endurance
-    .filter((e) => e.startedAt >= rangeStart)
-    .reduce((s, e) => s + (e.distanceKm ?? 0), 0)
+  const totalDistance = endurance.filter((e) => e.startedAt >= rangeStart).reduce((s, e) => s + (e.distanceKm ?? 0), 0)
   const avgBodyBattery = (() => {
     const inRange = recovery.filter((r) => new Date(r.date).getTime() >= rangeStart)
     if (inRange.length === 0) return null
@@ -141,15 +126,7 @@ export default function StatsPage() {
   const pieColors = [CHART_COLORS.orange, CHART_COLORS.turquoise, CHART_COLORS.indigo]
 
   return (
-    <div className="px-4 pt-6">
-      <header className="mb-4 flex items-center gap-2">
-        <button onClick={() => navigate(-1)} className="rounded-full p-1.5 active:bg-zinc-900">
-          <ChevronLeft size={22} />
-        </button>
-        <BarChart3 className="text-zinc-300" size={20} />
-        <h1 className="text-lg font-semibold tracking-tight">Statistiques</h1>
-      </header>
-
+    <div>
       <div className="mb-5 flex gap-1.5 rounded-xl bg-zinc-900 p-1">
         {(['day', 'week', 'month'] as Period[]).map((p) => (
           <button

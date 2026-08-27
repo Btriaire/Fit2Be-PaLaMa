@@ -42,6 +42,7 @@ import { computeAcwr, type Acwr, type AcwrRisk } from '../lib/recovery'
 import { getMuscleGroupVolume, getMuscleGroupFreshness, type MuscleGroupStat, type MuscleGroupFreshness } from '../lib/workouts'
 import { getSettings } from '../lib/settings'
 import { LineChart, Line, CartesianGrid, ResponsiveContainer, Tooltip, XAxis, YAxis, Legend } from 'recharts'
+import StatsTab from '../components/StatsTab'
 
 function TrendBadge({ trendPct }: { trendPct: number }) {
   if (Math.abs(trendPct) < 1) {
@@ -100,6 +101,7 @@ export default function ProgressionPage() {
   const [muscleFreshness, setMuscleFreshness] = useState<MuscleGroupFreshness[]>([])
   const [overview, setOverview] = useState<OverviewPoint[]>([])
   const [loading, setLoading] = useState(true)
+  const [tab, setTab] = useState<'overview' | 'stats'>('overview')
 
   useEffect(() => {
     Promise.all([
@@ -147,6 +149,25 @@ export default function ProgressionPage() {
         <h1 className="text-lg font-semibold tracking-tight">Progression</h1>
       </header>
 
+      <div className="mb-5 flex gap-1.5 rounded-xl bg-zinc-900 p-1">
+        <button
+          onClick={() => setTab('overview')}
+          className={`flex-1 rounded-lg py-2 text-sm font-medium transition-colors ${tab === 'overview' ? 'bg-zinc-100 text-zinc-950' : 'text-zinc-400'}`}
+        >
+          Vue d'ensemble
+        </button>
+        <button
+          onClick={() => setTab('stats')}
+          className={`flex-1 rounded-lg py-2 text-sm font-medium transition-colors ${tab === 'stats' ? 'bg-zinc-100 text-zinc-950' : 'text-zinc-400'}`}
+        >
+          Statistiques
+        </button>
+      </div>
+
+      {tab === 'stats' && <StatsTab />}
+
+      {tab === 'overview' && (
+        <>
       {loading && <p className="px-1 text-sm text-zinc-500">Calcul des index…</p>}
 
       {!loading && general && (
@@ -435,6 +456,8 @@ export default function ProgressionPage() {
               ))}
             </ul>
           </section>
+        </>
+      )}
         </>
       )}
     </div>
