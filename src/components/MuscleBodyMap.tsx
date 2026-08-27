@@ -1,12 +1,16 @@
 // Vraie planche anatomique (OpenStax Anatomy & Physiology, CC BY 4.0 — voir
 // src/assets/body/CREDITS.txt) au lieu d'une silhouette dessinée à la main :
 // l'utilisateur a rejeté deux fois les versions en formes vectorielles ("ça
-// ressemble à des ovales"). Les zones cliquables sont des points chauds
-// invisibles superposés en % de la position de l'image (pas de recalcul de
-// viewBox), qui s'allument en rouge à la sélection sans cacher le dessin.
+// ressemble à des ovales"). Chaque groupe musculaire a sa propre couleur,
+// affichée en permanence (pas seulement à la sélection) — cf. les
+// références qu'il a fournies (planche 3D "blocking" colorée par groupe) :
+// on ne pouvait pas réutiliser ce modèle précis (pas de licence libre), donc
+// même principe de code couleur appliqué en calque sur la vraie illustration
+// anatomique plutôt que sur un modèle 3D.
 
 import muscleFront from '../assets/body/muscle-front.png'
 import muscleBack from '../assets/body/muscle-back.png'
+import { colorForMuscleGroup } from '../lib/muscleColors'
 
 interface Props {
   selected: string | null
@@ -60,22 +64,22 @@ export const BACK_HOTSPOTS: Hotspot[] = [
   { group: 'Mollets', x: 60, y: 85, w: 11, h: 11 },
 ]
 
-const HIGHLIGHT = '#e2361c'
-
-function HotspotDot({ spot, active, onSelect }: { spot: Hotspot; active: boolean; onSelect: () => void }) {
+function HotspotDot({ spot, active, dimmed, onSelect }: { spot: Hotspot; active: boolean; dimmed: boolean; onSelect: () => void }) {
+  const color = colorForMuscleGroup(spot.group)
   return (
     <button
       type="button"
       onClick={onSelect}
       aria-label={spot.group}
-      className="absolute -translate-x-1/2 -translate-y-1/2 rounded-full transition-all duration-150"
+      className="absolute -translate-x-1/2 -translate-y-1/2 rounded-full mix-blend-multiply transition-all duration-150"
       style={{
         left: `${spot.x}%`,
         top: `${spot.y}%`,
         width: `${spot.w}%`,
         height: `${spot.h}%`,
-        backgroundColor: active ? `${HIGHLIGHT}55` : 'transparent',
-        boxShadow: active ? `0 0 0 2px ${HIGHLIGHT}, 0 0 14px 2px ${HIGHLIGHT}88` : 'none',
+        backgroundColor: color,
+        opacity: active ? 0.95 : dimmed ? 0.18 : 0.55,
+        boxShadow: active ? `0 0 0 2px ${color}, 0 0 14px 2px ${color}aa` : 'none',
       }}
     />
   )
@@ -103,6 +107,7 @@ function BodyPanel({
             key={i}
             spot={spot}
             active={selected === spot.group}
+            dimmed={selected != null && selected !== spot.group}
             onSelect={() => onSelect(selected === spot.group ? null : spot.group)}
           />
         ))}
