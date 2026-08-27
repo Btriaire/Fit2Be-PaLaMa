@@ -92,6 +92,15 @@ export async function pullGoogleFitFromNutriTracker(days = 7): Promise<GoogleFit
   }
 }
 
+export type MealCategory = 'breakfast' | 'lunch' | 'dinner' | 'snacks'
+
+export const MEAL_LABELS: Record<MealCategory, string> = {
+  breakfast: 'Petit-déjeuner',
+  lunch: 'Déjeuner',
+  dinner: 'Dîner',
+  snacks: 'Collations',
+}
+
 export interface RemoteNutritionTotals {
   date: string
   calories: number
@@ -100,9 +109,10 @@ export interface RemoteNutritionTotals {
   fatG: number
   sugarG: number
   entryCount: number
+  byMeal: Partial<Record<MealCategory, { calories: number; items: string[] }>>
 }
 
-const EMPTY_NUTRITION: RemoteNutritionTotals = { date: '', calories: 0, proteinG: 0, carbsG: 0, fatG: 0, sugarG: 0, entryCount: 0 }
+const EMPTY_NUTRITION: RemoteNutritionTotals = { date: '', calories: 0, proteinG: 0, carbsG: 0, fatG: 0, sugarG: 0, entryCount: 0, byMeal: {} }
 
 /** Total du jour loggé directement dans NutriTracker (hors ce que VibeFit lui
  * a déjà poussé — le serveur les exclut), pour compléter la balance
@@ -120,9 +130,32 @@ export async function pullNutritionFromNutriTracker(date: string): Promise<Remot
       fatG: data.fatG ?? 0,
       sugarG: data.sugarG ?? 0,
       entryCount: data.entryCount ?? 0,
+      byMeal: data.byMeal ?? {},
     }
   } catch {
     return EMPTY_NUTRITION
+  }
+}
+
+export interface RemoteCardiacDay {
+  date: string
+  heartRateAvg: number | null
+  heartRateResting: number | null
+  systolicBP: number | null
+  diastolicBP: number | null
+  source: string
+}
+
+/** FC (moyenne/repos) et tension artérielle des N derniers jours connus côté
+ * NutriTracker (Apple Health / Withings) — VibeFit n'a pas de capteur propre. */
+export async function pullCardiacRangeFromNutriTracker(days = 14): Promise<RemoteCardiacDay[]> {
+  try {
+    const r = await fetch(`/api/nutritracker?type=cardiac&days=${days}`)
+    if (!r.ok) return []
+    const data = await r.json()
+    return Array.isArray(data.days) ? data.days : []
+  } catch {
+    return []
   }
 }
 

@@ -25,6 +25,7 @@ import ActivityHero from '../../components/ActivityHero'
 import BackButton from '../../components/BackButton'
 import { pushRecord, deleteRecord } from '../../lib/cloudSync'
 import { analyzeRecovery, type RecoveryInsight } from '../../lib/aiInsights'
+import { pullCardiacRangeFromNutriTracker, type RemoteCardiacDay } from '../../lib/nutriTrackerSync'
 import { Sparkles, Loader2 } from 'lucide-react'
 import type { RecoveryCheckin } from '../../types'
 
@@ -81,6 +82,7 @@ export default function RecoveryPage() {
   const [aiLoading, setAiLoading] = useState(false)
   const [aiResult, setAiResult] = useState<RecoveryInsight | null>(null)
   const [aiError, setAiError] = useState(false)
+  const [cardiac, setCardiac] = useState<RemoteCardiacDay[]>([])
   const settings = getSettings()
 
   async function refresh() {
@@ -92,6 +94,7 @@ export default function RecoveryPage() {
     setSleepDebt(await computeSleepDebt(settings.sleepTargetMin))
     setStreak(await computeActivityStreak(settings.ageYears))
     setMonotony(await computeTrainingMonotony(settings.ageYears))
+    pullCardiacRangeFromNutriTracker(14).then(setCardiac)
     const today = all.find((c) => c.date === todayStr())
     if (today) {
       setSleepQuality(today.sleepQuality)
@@ -201,6 +204,37 @@ export default function RecoveryPage() {
       </div>
 
       <div className="glass mb-4 rounded-2xl p-3.5">
+        <p className="mb-2 flex items-center gap-1 text-xs text-zinc-500">
+          <HeartPulse size={12} /> Cardio & tension (NutriTracker)
+        </p>
+        {cardiac.length > 0 ? (
+          (() => {
+            const latest = cardiac[0]
+            return (
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <p className="text-xl font-bold text-red-400">
+                    {latest.heartRateResting ?? latest.heartRateAvg ?? '—'}
+                    <span className="ml-1 text-[10px] font-normal text-zinc-600">bpm</span>
+                  </p>
+                  <p className="text-[10px] text-zinc-600">{latest.heartRateResting != null ? 'FC repos' : 'FC moyenne'} · {latest.date}</p>
+                </div>
+                <div>
+                  <p className="text-xl font-bold text-indigo-300">
+                    {latest.systolicBP != null && latest.diastolicBP != null ? `${latest.systolicBP}/${latest.diastolicBP}` : '—'}
+                    <span className="ml-1 text-[10px] font-normal text-zinc-600">mmHg</span>
+                  </p>
+                  <p className="text-[10px] text-zinc-600">Tension artérielle</p>
+                </div>
+              </div>
+            )
+          })()
+        ) : (
+          <p className="text-xl font-bold text-zinc-600">—</p>
+        )}
+      </div>
+
+      <div className="glass mb-4 rounded-2xl p-3.5">
         <div className="mb-1 flex items-center justify-between">
           <p className="flex items-center gap-1 text-xs text-zinc-500">
             <Gauge size={12} /> Charge aiguë/chronique (ACWR)
@@ -306,6 +340,7 @@ export default function RecoveryPage() {
             streak,
             readiness,
             monotony,
+            cardiac: cardiac.slice(0, 7),
           })
           setAiLoading(false)
           if (!result) setAiError(true)

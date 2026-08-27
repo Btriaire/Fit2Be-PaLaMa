@@ -325,23 +325,22 @@ function ExerciseBlock({
               Dernière fois : {last.weightKg}kg × {last.reps}
             </p>
           )}
-          <div className="flex gap-1.5">
-            <button
-              onClick={onFocus}
-              className="flex items-center gap-1 rounded-full bg-orange-500/15 px-2 py-1 text-[11px] font-medium text-orange-400 active:bg-orange-500/25"
-            >
-              <Play size={12} /> Focus
-            </button>
-            <button
-              onClick={() => setMeterOpen(true)}
-              className="flex items-center gap-1 rounded-full bg-zinc-900 px-2 py-1 text-[11px] font-medium text-red-400 active:bg-zinc-800"
-            >
-              <HeartPulse size={12} /> Mesurer
-            </button>
-          </div>
+          <button
+            onClick={() => setMeterOpen(true)}
+            className="flex items-center gap-1 rounded-full bg-zinc-900 px-2 py-1 text-[11px] font-medium text-red-400 active:bg-zinc-800"
+          >
+            <HeartPulse size={12} /> Mesurer
+          </button>
         </div>
       </div>
       {we.note && <p className="mb-2.5 text-xs leading-snug text-zinc-500">{we.note}</p>}
+
+      <button
+        onClick={onFocus}
+        className="mb-2.5 flex w-full items-center justify-center gap-2 rounded-xl bg-orange-500 py-2.5 text-sm font-bold text-zinc-950 active:bg-orange-400"
+      >
+        <Play size={16} fill="currentColor" /> Lancer le mode Focus
+      </button>
 
       {displayHeartRate && (
         <div className="mb-2.5 flex items-center gap-3 rounded-xl bg-zinc-900/70 px-3 py-2.5">

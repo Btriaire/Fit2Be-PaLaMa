@@ -7,7 +7,7 @@ import { getSettings } from '../../lib/settings'
 import { isSameDay, formatTime, formatDate, formatFullDate, todayStr, addDays } from '../../lib/date'
 import { getAllWorkouts, estimateWorkoutCalories } from '../../lib/workouts'
 import { getWeightLogs, logWeight, deleteWeightLog, adoptWeightFromSync } from '../../lib/weight'
-import { pushFoodToNutriTracker, pullLatestWeightFromNutriTracker, pullNutritionFromNutriTracker, type RemoteNutritionTotals } from '../../lib/nutriTrackerSync'
+import { pushFoodToNutriTracker, pullLatestWeightFromNutriTracker, pullNutritionFromNutriTracker, MEAL_LABELS, type RemoteNutritionTotals } from '../../lib/nutriTrackerSync'
 import { getGoogleFitForDate } from '../../lib/googleFit'
 import { computeCaloriesFromSteps } from '../../lib/met'
 import { computeDailyRecovery } from '../../lib/recovery'
@@ -212,6 +212,28 @@ export default function NutritionPage() {
           </p>
         )}
       </div>
+
+      {remoteNutrition && Object.keys(remoteNutrition.byMeal).length > 0 && (
+        <div className="glass mb-4 rounded-2xl p-4">
+          <p className="mb-2 text-xs text-zinc-500">Par catégorie (NutriTracker)</p>
+          <ul className="space-y-2">
+            {(['breakfast', 'lunch', 'dinner', 'snacks'] as const)
+              .filter((meal) => remoteNutrition.byMeal[meal])
+              .map((meal) => {
+                const m = remoteNutrition.byMeal[meal]!
+                return (
+                  <li key={meal} className="text-xs">
+                    <div className="flex items-center justify-between">
+                      <span className="font-medium text-zinc-300">{MEAL_LABELS[meal]}</span>
+                      <span className="font-mono text-zinc-400">{Math.round(m.calories)} kcal</span>
+                    </div>
+                    {m.items.length > 0 && <p className="mt-0.5 truncate text-[11px] text-zinc-600">{m.items.join(', ')}</p>}
+                  </li>
+                )
+              })}
+          </ul>
+        </div>
+      )}
 
       {totalBurned > 0 && (
         <div className="glass mb-4 rounded-2xl p-4">

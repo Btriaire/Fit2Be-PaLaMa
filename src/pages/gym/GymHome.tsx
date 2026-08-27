@@ -7,6 +7,7 @@ import { formatDate, formatTime } from '../../lib/date'
 import { ALL_EXERCISES } from '../../lib/exercises'
 import { TRAINING_TEMPLATES, type TrainingTemplate } from '../../lib/trainingTemplates'
 import { getCustomTemplates, deleteCustomTemplate } from '../../lib/customTemplates'
+import { getLastExclusions, saveLastExclusions } from '../../lib/templateExclusions'
 import ActivityHero from '../../components/ActivityHero'
 import BackButton from '../../components/BackButton'
 import type { CustomTemplate, Workout, WorkoutExercise } from '../../types'
@@ -289,7 +290,14 @@ function CustomTemplatePreview({
   onStart: (excludedIds: Set<string>) => void
   onDelete: () => void
 }) {
-  const [excluded, setExcluded] = useState<Set<string>>(new Set())
+  const [excluded, setExcluded] = useState<Set<string>>(() => {
+    // Ne garde que les exclusions qui correspondent encore à un exercice du
+    // template (il peut avoir changé depuis) — sinon un id périmé ne ferait
+    // simplement rien, sans casser l'affichage.
+    const saved = getLastExclusions(template.id)
+    const validIds = new Set(template.exercises.map((te) => te.exerciseId))
+    return new Set([...saved].filter((id) => validIds.has(id)))
+  })
   const selectedCount = template.exercises.length - excluded.size
 
   function toggle(exerciseId: string) {
@@ -297,6 +305,7 @@ function CustomTemplatePreview({
       const next = new Set(prev)
       if (next.has(exerciseId)) next.delete(exerciseId)
       else next.add(exerciseId)
+      saveLastExclusions(template.id, next)
       return next
     })
   }
@@ -391,7 +400,11 @@ function TemplatePreview({
   onClose: () => void
   onStart: (excludedIds: Set<string>) => void
 }) {
-  const [excluded, setExcluded] = useState<Set<string>>(new Set())
+  const [excluded, setExcluded] = useState<Set<string>>(() => {
+    const saved = getLastExclusions(template.id)
+    const validIds = new Set(template.exercises.map((te) => te.exerciseId))
+    return new Set([...saved].filter((id) => validIds.has(id)))
+  })
   const selectedCount = template.exercises.length - excluded.size
 
   function toggle(exerciseId: string) {
@@ -399,6 +412,7 @@ function TemplatePreview({
       const next = new Set(prev)
       if (next.has(exerciseId)) next.delete(exerciseId)
       else next.add(exerciseId)
+      saveLastExclusions(template.id, next)
       return next
     })
   }
