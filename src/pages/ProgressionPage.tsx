@@ -159,33 +159,44 @@ export default function ProgressionPage() {
             <p className="mt-1 text-xs text-zinc-500">Musculation (40%) + Cardio (40%) + Régularité (20%)</p>
           </div>
 
-          {overview.some((p) => p.endurance != null || p.marche != null || p.activites != null || p.recuperation != null || p.nutrition != null) && (
-            <div className="glass mb-5 rounded-2xl p-4">
-              <h2 className="mb-2 flex items-center gap-1.5 text-xs font-medium uppercase tracking-wide text-zinc-500">
-                <LayoutGrid size={13} /> Vue d'ensemble — 14 derniers jours
-              </h2>
-              <p className="mb-2 text-[11px] text-zinc-600">
-                Chaque pilier ramené sur 0-100 selon son propre objectif du jour (marche 8000 pas, endurance 45min, activités 30min, nutrition
-                proximité de l'objectif calorique).
-              </p>
-              <div className="h-56 w-full">
-                <ResponsiveContainer width="100%" height="100%">
-                  <LineChart data={overview} margin={{ top: 8, right: 8, left: -20, bottom: 0 }}>
-                    <CartesianGrid strokeDasharray="3 3" stroke="#27272a" vertical={false} />
-                    <XAxis dataKey="label" tick={{ fill: '#71717a', fontSize: 10 }} axisLine={false} tickLine={false} />
-                    <YAxis domain={[0, 100]} tick={{ fill: '#71717a', fontSize: 10 }} axisLine={false} tickLine={false} />
-                    <Tooltip contentStyle={{ background: '#18181b', border: '1px solid #3f3f46', borderRadius: 8, fontSize: 12 }} labelStyle={{ color: '#a1a1aa' }} />
-                    <Legend wrapperStyle={{ fontSize: 11 }} />
-                    <Line type="monotone" dataKey="endurance" name="Endurance" stroke="#2dd4bf" strokeWidth={2} dot={false} connectNulls />
-                    <Line type="monotone" dataKey="marche" name="Marche" stroke="#38bdf8" strokeWidth={2} dot={false} connectNulls />
-                    <Line type="monotone" dataKey="activites" name="Activités" stroke="#f59e0b" strokeWidth={2} dot={false} connectNulls />
-                    <Line type="monotone" dataKey="recuperation" name="Récupération" stroke="#818cf8" strokeWidth={2} dot={false} connectNulls />
-                    <Line type="monotone" dataKey="nutrition" name="Nutrition" stroke="#fb7185" strokeWidth={2} dot={false} connectNulls />
-                  </LineChart>
-                </ResponsiveContainer>
+          {(() => {
+            const firstDataIdx = overview.findIndex(
+              (p) => p.endurance != null || p.marche != null || p.activites != null || p.recuperation != null || p.nutrition != null,
+            )
+            if (firstDataIdx === -1) return null
+            // Coupe les jours de tête sans aucune donnée — sinon, avec peu
+            // d'historique, les points réels se retrouvent écrasés dans une
+            // fraction minuscule d'un graphique à 14 jours et deviennent
+            // impossibles à voir.
+            const trimmed = overview.slice(firstDataIdx)
+            return (
+              <div className="glass mb-5 rounded-2xl p-4">
+                <h2 className="mb-2 flex items-center gap-1.5 text-xs font-medium uppercase tracking-wide text-zinc-500">
+                  <LayoutGrid size={13} /> Vue d'ensemble — {trimmed.length} derniers jours
+                </h2>
+                <p className="mb-2 text-[11px] text-zinc-600">
+                  Chaque pilier ramené sur 0-100 selon son propre objectif du jour (marche 8000 pas, endurance 45min, activités 30min, nutrition
+                  proximité de l'objectif calorique). Un point isolé = pas assez de jours consécutifs pour tracer une ligne.
+                </p>
+                <div className="h-56 w-full">
+                  <ResponsiveContainer width="100%" height="100%">
+                    <LineChart data={trimmed} margin={{ top: 8, right: 8, left: -20, bottom: 0 }}>
+                      <CartesianGrid strokeDasharray="3 3" stroke="#27272a" vertical={false} />
+                      <XAxis dataKey="label" tick={{ fill: '#71717a', fontSize: 10 }} axisLine={false} tickLine={false} />
+                      <YAxis domain={[0, 100]} tick={{ fill: '#71717a', fontSize: 10 }} axisLine={false} tickLine={false} />
+                      <Tooltip contentStyle={{ background: '#18181b', border: '1px solid #3f3f46', borderRadius: 8, fontSize: 12 }} labelStyle={{ color: '#a1a1aa' }} />
+                      <Legend wrapperStyle={{ fontSize: 11 }} />
+                      <Line type="monotone" dataKey="endurance" name="Endurance" stroke="#2dd4bf" strokeWidth={2.5} dot={{ r: 3 }} connectNulls />
+                      <Line type="monotone" dataKey="marche" name="Marche" stroke="#38bdf8" strokeWidth={2.5} dot={{ r: 3 }} connectNulls />
+                      <Line type="monotone" dataKey="activites" name="Activités" stroke="#f59e0b" strokeWidth={2.5} dot={{ r: 3 }} connectNulls />
+                      <Line type="monotone" dataKey="recuperation" name="Récupération" stroke="#818cf8" strokeWidth={2.5} dot={{ r: 3 }} connectNulls />
+                      <Line type="monotone" dataKey="nutrition" name="Nutrition" stroke="#fb7185" strokeWidth={2.5} dot={{ r: 3 }} connectNulls />
+                    </LineChart>
+                  </ResponsiveContainer>
+                </div>
               </div>
-            </div>
-          )}
+            )
+          })()}
 
           {acwr && (
             <div className="glass mb-5 rounded-2xl p-4">
