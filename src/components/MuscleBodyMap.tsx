@@ -13,7 +13,7 @@ interface Props {
   onSelect: (group: string | null) => void
 }
 
-interface Hotspot {
+export interface Hotspot {
   group: string
   x: number // centre, % de la largeur de l'image
   y: number // centre, % de la hauteur de l'image
@@ -21,7 +21,7 @@ interface Hotspot {
   h: number // % de la hauteur de l'image
 }
 
-const FRONT_HOTSPOTS: Hotspot[] = [
+export const FRONT_HOTSPOTS: Hotspot[] = [
   { group: 'Trapèzes', x: 48, y: 13, w: 14, h: 5 },
   { group: 'Épaules', x: 23, y: 20, w: 13, h: 9 },
   { group: 'Épaules', x: 75, y: 20, w: 13, h: 9 },
@@ -39,7 +39,7 @@ const FRONT_HOTSPOTS: Hotspot[] = [
   { group: 'Mollets', x: 61, y: 84, w: 11, h: 11 },
 ]
 
-const BACK_HOTSPOTS: Hotspot[] = [
+export const BACK_HOTSPOTS: Hotspot[] = [
   { group: 'Nuque', x: 48, y: 5, w: 10, h: 5 },
   { group: 'Trapèzes', x: 48, y: 15, w: 20, h: 8 },
   { group: 'Dos', x: 21, y: 24, w: 14, h: 12 },

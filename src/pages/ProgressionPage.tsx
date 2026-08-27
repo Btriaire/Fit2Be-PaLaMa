@@ -45,6 +45,7 @@ import { LineChart, Line, CartesianGrid, ResponsiveContainer, Tooltip, XAxis, YA
 import { Sparkles, Loader2 } from 'lucide-react'
 import { analyzeProgression, type ProgressionInsight } from '../lib/aiInsights'
 import StatsTab from '../components/StatsTab'
+import MuscleHeatmap from '../components/MuscleHeatmap'
 
 function TrendBadge({ trendPct }: { trendPct: number }) {
   if (Math.abs(trendPct) < 1) {
@@ -129,6 +130,8 @@ export default function ProgressionPage() {
     if (!result) setAiError(true)
     else setAiResult(result)
   }
+
+  const maxVolume = Math.max(0, ...muscleVolume.map((m) => m.totalVolume))
 
   useEffect(() => {
     Promise.all([
@@ -437,6 +440,16 @@ export default function ProgressionPage() {
                   <p className="mt-1 text-xl font-bold text-orange-400">{prRate.score}</p>
                 </div>
                 <TrendBadge trendPct={prRate.trendPct} />
+              </div>
+            )}
+            {muscleVolume.length > 0 && (
+              <div className="glass mb-2 rounded-2xl p-4">
+                <p className="mb-2 text-xs text-zinc-500">Heatmap musculaire (7j) — chefs les plus sollicités</p>
+                <MuscleHeatmap
+                  intensities={Object.fromEntries(
+                    muscleVolume.map((m) => [m.muscleGroup, maxVolume > 0 ? m.totalVolume / maxVolume : 0]),
+                  )}
+                />
               </div>
             )}
             {muscleVolume.length > 0 && (

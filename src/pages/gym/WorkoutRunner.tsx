@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react'
 import { useNavigate, useParams } from 'react-router-dom'
-import { Bookmark, Camera, Check, ChevronLeft, Copy, Flame, HeartPulse, Plus, Search, X } from 'lucide-react'
+import { Bookmark, Camera, Check, ChevronLeft, Copy, Flame, HeartPulse, Play, Plus, Search, X } from 'lucide-react'
 import clsx from 'clsx'
 import {
   getWorkout,
@@ -31,6 +31,7 @@ export default function WorkoutRunner() {
   const [restToken, setRestToken] = useState(0)
   const [googleFitToday, setGoogleFitToday] = useState<GoogleFitDay | null>(null)
   const [saveTemplateOpen, setSaveTemplateOpen] = useState(false)
+  const [focusExerciseId, setFocusExerciseId] = useState<string | null>(null)
   const settings = getSettings()
 
   useEffect(() => {
@@ -118,6 +119,7 @@ export default function WorkoutRunner() {
             onHeartRate={(bpm, source) => setExerciseHeartRate(we.exerciseId, bpm, source)}
             googleFitHeartRateAvg={googleFitToday?.heartRateAvg ?? null}
             restTimerDefaultSec={settings.restTimerDefaultSec}
+            onFocus={() => setFocusExerciseId(we.exerciseId)}
           />
         ))}
 
@@ -143,6 +145,19 @@ export default function WorkoutRunner() {
       )}
 
       {saveTemplateOpen && <SaveTemplateModal workout={workout} onClose={() => setSaveTemplateOpen(false)} />}
+
+      {focusExerciseId &&
+        (() => {
+          const we = workout.exercises.find((e) => e.exerciseId === focusExerciseId)
+          if (!we) return null
+          return (
+            <FocusExerciseView
+              we={we}
+              onAddSet={(s) => addSet(we.exerciseId, s)}
+              onClose={() => setFocusExerciseId(null)}
+            />
+          )
+        })()}
     </div>
   )
 }
@@ -226,12 +241,14 @@ function ExerciseBlock({
   onHeartRate,
   googleFitHeartRateAvg,
   restTimerDefaultSec,
+  onFocus,
 }: {
   we: WorkoutExercise
   onAddSet: (set: Omit<SetEntry, 'id' | 'exerciseId' | 'completedAt' | 'isPr'>) => void
   onHeartRate: (bpm: number, source: 'camera' | 'googlefit') => void
   googleFitHeartRateAvg: number | null
   restTimerDefaultSec: number
+  onFocus: () => void
 }) {
   const exercise = ALL_EXERCISES.find((e) => e.id === we.exerciseId)
   const estimatedMin = estimateExerciseDurationMin(restTimerDefaultSec)
@@ -308,12 +325,20 @@ function ExerciseBlock({
               Dernière fois : {last.weightKg}kg × {last.reps}
             </p>
           )}
-          <button
-            onClick={() => setMeterOpen(true)}
-            className="flex items-center gap-1 rounded-full bg-zinc-900 px-2 py-1 text-[11px] font-medium text-red-400 active:bg-zinc-800"
-          >
-            <HeartPulse size={12} /> Mesurer
-          </button>
+          <div className="flex gap-1.5">
+            <button
+              onClick={onFocus}
+              className="flex items-center gap-1 rounded-full bg-orange-500/15 px-2 py-1 text-[11px] font-medium text-orange-400 active:bg-orange-500/25"
+            >
+              <Play size={12} /> Focus
+            </button>
+            <button
+              onClick={() => setMeterOpen(true)}
+              className="flex items-center gap-1 rounded-full bg-zinc-900 px-2 py-1 text-[11px] font-medium text-red-400 active:bg-zinc-800"
+            >
+              <HeartPulse size={12} /> Mesurer
+            </button>
+          </div>
         </div>
       </div>
       {we.note && <p className="mb-2.5 text-xs leading-snug text-zinc-500">{we.note}</p>}
@@ -528,6 +553,132 @@ function ExercisePicker({
             </p>
           )}
         </div>
+      </div>
+    </div>
+  )
+}
+
+const DIFFICULTY_LEVELS: Array<{ label: string; rpe: number; color: string }> = [
+  { label: 'Facile', rpe: 3, color: 'bg-teal-500/15 text-teal-400' },
+  { label: 'Modéré', rpe: 5, color: 'bg-teal-500/15 text-teal-400' },
+  { label: 'Difficile', rpe: 7, color: 'bg-orange-500/15 text-orange-400' },
+  { label: 'Très difficile', rpe: 8.5, color: 'bg-orange-500/15 text-orange-400' },
+  { label: 'Échec musculaire', rpe: 10, color: 'bg-red-500/15 text-red-400' },
+]
+
+// Vue plein écran isolée sur un seul exercice — demande le "niveau de
+// difficulté" après chaque série plutôt qu'un champ RPE optionnel qu'on
+// oublie de remplir, pour que la charge réelle remonte fiablement vers
+// Progression et Récupération (méthode session-RPE, voir lib/recovery.ts).
+function FocusExerciseView({
+  we,
+  onAddSet,
+  onClose,
+}: {
+  we: WorkoutExercise
+  onAddSet: (set: Omit<SetEntry, 'id' | 'exerciseId' | 'completedAt' | 'isPr'>) => void
+  onClose: () => void
+}) {
+  const exercise = ALL_EXERCISES.find((e) => e.id === we.exerciseId)
+  const [weight, setWeight] = useState('')
+  const [reps, setReps] = useState('')
+  const [awaitingDifficulty, setAwaitingDifficulty] = useState(false)
+
+  const doneCount = we.sets.filter((s) => !s.isWarmup).length
+  const targetReached = we.targetSets != null && doneCount >= we.targetSets
+
+  function submitSet() {
+    const w = parseFloat(weight)
+    const r = parseInt(reps, 10)
+    if (!w || !r) return
+    setAwaitingDifficulty(true)
+  }
+
+  function pickDifficulty(rpe: number) {
+    const w = parseFloat(weight)
+    const r = parseInt(reps, 10)
+    onAddSet({ weightKg: w, reps: r, rpe, isWarmup: false })
+    setWeight('')
+    setReps('')
+    setAwaitingDifficulty(false)
+  }
+
+  return (
+    <div className="fixed inset-0 z-30 flex flex-col bg-zinc-950">
+      <header className="flex items-center justify-between px-4 pt-[calc(env(safe-area-inset-top)+12px)]">
+        <div className="min-w-0">
+          <p className="text-xs uppercase tracking-wide text-orange-400">Focus</p>
+          <h1 className="truncate text-lg font-semibold">{exercise?.name ?? we.exerciseId}</h1>
+        </div>
+        <button onClick={onClose} className="rounded-full bg-zinc-900 p-2 active:bg-zinc-800">
+          <X size={20} />
+        </button>
+      </header>
+
+      <div className="flex flex-1 flex-col items-center justify-center px-6">
+        {exercise?.images?.[0] && (
+          <img src={exercise.images[0]} alt="" className="mb-6 h-40 w-40 rounded-2xl bg-zinc-900 object-cover" />
+        )}
+
+        <p className="mb-6 text-sm text-zinc-400">
+          Série <span className="font-mono text-zinc-200">{doneCount + 1}</span>
+          {we.targetSets != null && <span> / {we.targetSets}</span>}
+        </p>
+
+        {!awaitingDifficulty ? (
+          <>
+            <div className="mb-6 flex items-center gap-4">
+              <div className="text-center">
+                <input
+                  value={weight}
+                  onChange={(e) => setWeight(e.target.value)}
+                  inputMode="decimal"
+                  placeholder="0"
+                  className="w-28 rounded-2xl bg-zinc-900 py-4 text-center text-3xl font-bold outline-none focus:ring-1 focus:ring-orange-500"
+                />
+                <p className="mt-1 text-xs text-zinc-500">kg</p>
+              </div>
+              <span className="text-2xl text-zinc-600">×</span>
+              <div className="text-center">
+                <input
+                  value={reps}
+                  onChange={(e) => setReps(e.target.value)}
+                  inputMode="numeric"
+                  placeholder="0"
+                  className="w-28 rounded-2xl bg-zinc-900 py-4 text-center text-3xl font-bold outline-none focus:ring-1 focus:ring-orange-500"
+                />
+                <p className="mt-1 text-xs text-zinc-500">reps</p>
+              </div>
+            </div>
+            <button
+              onClick={submitSet}
+              disabled={!weight || !reps}
+              className="w-full max-w-xs rounded-2xl bg-orange-500 py-4 text-base font-semibold text-zinc-950 active:bg-orange-400 disabled:opacity-40"
+            >
+              Valider la série
+            </button>
+            {targetReached && (
+              <button onClick={onClose} className="mt-4 text-sm font-medium text-teal-400 active:text-teal-300">
+                Terminer l'exercice ✓
+              </button>
+            )}
+          </>
+        ) : (
+          <div className="w-full max-w-xs">
+            <p className="mb-4 text-center text-sm font-medium text-zinc-300">Niveau de difficulté de l'exercice</p>
+            <div className="space-y-2">
+              {DIFFICULTY_LEVELS.map((lvl) => (
+                <button
+                  key={lvl.label}
+                  onClick={() => pickDifficulty(lvl.rpe)}
+                  className={`w-full rounded-xl py-3 text-sm font-semibold active:opacity-80 ${lvl.color}`}
+                >
+                  {lvl.label}
+                </button>
+              ))}
+            </div>
+          </div>
+        )}
       </div>
     </div>
   )
