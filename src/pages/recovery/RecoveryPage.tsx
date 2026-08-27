@@ -19,6 +19,7 @@ import {
   type Readiness,
 } from '../../lib/recovery'
 import ActivityHero from '../../components/ActivityHero'
+import { pushRecord, deleteRecord } from '../../lib/cloudSync'
 import type { RecoveryCheckin } from '../../types'
 
 const SCALE_LABELS: Record<number, string> = { 1: 'Très faible', 2: 'Faible', 3: 'Moyen', 4: 'Bon', 5: 'Excellent' }
@@ -109,7 +110,10 @@ export default function RecoveryPage() {
     const existingForToday = await db.getAllFromIndex('recovery', 'byDate', todayStr())
     const keepId = todayCheckin?.id ?? existingForToday[0]?.id ?? newId()
     for (const extra of existingForToday) {
-      if (extra.id !== keepId) await db.delete('recovery', extra.id)
+      if (extra.id !== keepId) {
+        await db.delete('recovery', extra.id)
+        deleteRecord('recovery', extra.id)
+      }
     }
     const checkin: RecoveryCheckin = {
       id: keepId,
@@ -121,6 +125,7 @@ export default function RecoveryPage() {
       bodyBatteryScore: score,
     }
     await db.put('recovery', checkin)
+    pushRecord('recovery', checkin.id, checkin)
     refresh()
     setSavedFlash(true)
     setTimeout(() => {

@@ -1,6 +1,7 @@
 import { getDb, newId } from './db'
 import { saveSettings } from './settings'
 import { pushWeightToNutriTracker } from './nutriTrackerSync'
+import { pushRecord, deleteRecord } from './cloudSync'
 import type { WeightLog } from '../types'
 
 export async function getWeightLogs(): Promise<WeightLog[]> {
@@ -14,6 +15,7 @@ export async function logWeight(weightKg: number, loggedAt = Date.now()): Promis
   const db = await getDb()
   const entry: WeightLog = { id: newId(), loggedAt, weightKg }
   await db.put('weightLogs', entry)
+  pushRecord('weightLogs', entry.id, entry)
   saveSettings({ bodyWeightKg: weightKg })
   const date = new Date(loggedAt).toISOString().slice(0, 10)
   void pushWeightToNutriTracker(weightKg, date)
@@ -23,6 +25,7 @@ export async function logWeight(weightKg: number, loggedAt = Date.now()): Promis
 export async function deleteWeightLog(id: string) {
   const db = await getDb()
   await db.delete('weightLogs', id)
+  deleteRecord('weightLogs', id)
 }
 
 /**
@@ -39,6 +42,7 @@ export async function adoptWeightFromSync(weightKg: number, dateStr: string): Pr
   const loggedAt = new Date(`${dateStr}T12:00:00`).getTime()
   const entry: WeightLog = { id: newId(), loggedAt, weightKg }
   await db.put('weightLogs', entry)
+  pushRecord('weightLogs', entry.id, entry)
   saveSettings({ bodyWeightKg: weightKg })
   return entry
 }

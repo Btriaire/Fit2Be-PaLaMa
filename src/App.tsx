@@ -1,5 +1,7 @@
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import { Route, Routes } from 'react-router-dom'
+import { getDb } from './lib/db'
+import { restoreFromCloudIfNeeded } from './lib/cloudSync'
 import BottomNav from './components/BottomNav'
 import CoverPage from './pages/CoverPage'
 import Dashboard from './pages/Dashboard'
@@ -21,6 +23,11 @@ const ENTERED_KEY = 'vibefit_entered'
 
 function App() {
   const [entered, setEntered] = useState(() => localStorage.getItem(ENTERED_KEY) === '1')
+
+  useEffect(() => {
+    if (!entered) return
+    getDb().then(restoreFromCloudIfNeeded)
+  }, [entered])
 
   if (!entered) {
     return (

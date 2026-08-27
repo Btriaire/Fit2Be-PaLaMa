@@ -11,6 +11,7 @@ import { pushFoodToNutriTracker, pullLatestWeightFromNutriTracker, pullNutrition
 import { getGoogleFitForDate } from '../../lib/googleFit'
 import { computeCaloriesFromSteps } from '../../lib/met'
 import ActivityHero from '../../components/ActivityHero'
+import { pushRecord, deleteRecord } from '../../lib/cloudSync'
 import type { ActivityLog, GoogleFitDay, NutritionEntry, WeightLog, Workout } from '../../types'
 
 export default function NutritionPage() {
@@ -85,6 +86,7 @@ export default function NutritionPage() {
     const loggedAt = selectedDate === todayStr() ? Date.now() : new Date(`${selectedDate}T12:00:00`).getTime()
     const e: NutritionEntry = { ...entry, id: newId(), loggedAt }
     await db.put('nutrition', e)
+    pushRecord('nutrition', e.id, e)
     setFormOpen(false)
     refresh()
     void pushFoodToNutriTracker({
@@ -101,6 +103,7 @@ export default function NutritionPage() {
     if (!confirm('Supprimer ce repas ?')) return
     const db = await getDb()
     await db.delete('nutrition', id)
+    deleteRecord('nutrition', id)
     refresh()
   }
 

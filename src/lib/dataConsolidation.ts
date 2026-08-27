@@ -4,6 +4,7 @@
 // des moments différents (ex: deux vraies séries à 80kg × 10).
 
 import { getDb } from './db'
+import { pushRecord, deleteRecord } from './cloudSync'
 
 function minuteBucket(ts: number) {
   return Math.floor(ts / 60000)
@@ -46,7 +47,10 @@ export async function consolidateData(apply: boolean): Promise<ConsolidationResu
       }
       we.sets = kept
     }
-    if (changed && apply) await db.put('workouts', w)
+    if (changed && apply) {
+      await db.put('workouts', w)
+      pushRecord('workouts', w.id, w)
+    }
   }
 
   const activities = await db.getAll('activities')
@@ -55,7 +59,10 @@ export async function consolidateData(apply: boolean): Promise<ConsolidationResu
     const key = `${a.label}|${a.durationMin}|${a.caloriesBurned}|${minuteBucket(a.loggedAt)}`
     if (activitySeen.has(key)) {
       result.activitiesRemoved++
-      if (apply) await db.delete('activities', a.id)
+      if (apply) {
+        await db.delete('activities', a.id)
+        deleteRecord('activities', a.id)
+      }
     } else {
       activitySeen.add(key)
     }
@@ -67,7 +74,10 @@ export async function consolidateData(apply: boolean): Promise<ConsolidationResu
     const key = `${n.label}|${n.calories}|${minuteBucket(n.loggedAt)}`
     if (nutritionSeen.has(key)) {
       result.nutritionRemoved++
-      if (apply) await db.delete('nutrition', n.id)
+      if (apply) {
+        await db.delete('nutrition', n.id)
+        deleteRecord('nutrition', n.id)
+      }
     } else {
       nutritionSeen.add(key)
     }
@@ -81,7 +91,10 @@ export async function consolidateData(apply: boolean): Promise<ConsolidationResu
   for (const r of recovery) {
     if (recoverySeen.has(r.date)) {
       result.recoveryRemoved++
-      if (apply) await db.delete('recovery', r.id)
+      if (apply) {
+        await db.delete('recovery', r.id)
+        deleteRecord('recovery', r.id)
+      }
     } else {
       recoverySeen.add(r.date)
     }

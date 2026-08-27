@@ -1,6 +1,7 @@
 import { getDb } from './db'
 import { computeCaloriesForUser, GYM_WORKOUT_MET } from './met'
 import { pushActivityToNutriTracker } from './nutriTrackerSync'
+import { pushRecord, deleteRecord } from './cloudSync'
 import { ALL_EXERCISES, MUSCLE_GROUPS } from './exercises'
 import type { Settings } from './settings'
 import type { SetEntry, Workout } from '../types'
@@ -74,6 +75,7 @@ export function detectPr(set: Pick<SetEntry, 'weightKg' | 'reps' | 'isWarmup'>, 
 export async function saveWorkout(workout: Workout) {
   const db = await getDb()
   await db.put('workouts', workout)
+  pushRecord('workouts', workout.id, workout)
 }
 
 export async function getWorkout(id: string): Promise<Workout | undefined> {
@@ -112,6 +114,7 @@ export function estimateWorkoutCalories(workout: Workout, settings: Settings): n
 export async function deleteWorkout(id: string) {
   const db = await getDb()
   await db.delete('workouts', id)
+  deleteRecord('workouts', id)
 }
 
 /** Termine une séance : fixe finishedAt, sauvegarde, et pousse vers

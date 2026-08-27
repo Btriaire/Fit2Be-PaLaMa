@@ -6,6 +6,7 @@ import { MET_ACTIVITIES, computeCaloriesForUser } from '../../lib/met'
 import { getSettings } from '../../lib/settings'
 import { isToday, formatTime } from '../../lib/date'
 import { pushActivityToNutriTracker } from '../../lib/nutriTrackerSync'
+import { pushRecord, deleteRecord } from '../../lib/cloudSync'
 import ActivityHero from '../../components/ActivityHero'
 import ActivityIcon from '../../components/ActivityIcon'
 import type { ActivityLog } from '../../types'
@@ -39,6 +40,7 @@ export default function ActivitiesPage() {
     const db = await getDb()
     const log: ActivityLog = { ...entry, id: newId(), loggedAt: Date.now() }
     await db.put('activities', log)
+    pushRecord('activities', log.id, log)
     setFormOpen(false)
     refresh()
 
@@ -56,6 +58,7 @@ export default function ActivitiesPage() {
     if (!confirm('Supprimer cette activité ?')) return
     const db = await getDb()
     await db.delete('activities', id)
+    deleteRecord('activities', id)
     refresh()
   }
 

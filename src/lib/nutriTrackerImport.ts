@@ -7,6 +7,7 @@
 
 import { getDb, newId } from './db'
 import { pullActivityHistoryFromNutriTracker, type RemoteActivity } from './nutriTrackerSync'
+import { pushRecord } from './cloudSync'
 import { ENDURANCE_ACTIVITY_META } from './endurance'
 import { computeCaloriesForUser, computeCaloriesFromHr } from './met'
 import type { Settings } from './settings'
@@ -96,6 +97,7 @@ export async function importNutriTrackerActivityHistory(days: number, settings: 
         ...(machineStats ? { machineStats } : {}),
       }
       await db.put('endurance', session)
+      pushRecord('endurance', session.id, session)
     } else {
       // Pas de correspondance dans notre liste d'activités d'endurance — on
       // reconstruit un MET plausible depuis les calories connues plutôt que
@@ -115,6 +117,7 @@ export async function importNutriTrackerActivityHistory(days: number, settings: 
         externalId: a.id,
       }
       await db.put('activities', log)
+      pushRecord('activities', log.id, log)
     }
     imported++
   }

@@ -2,6 +2,7 @@ import { getDb, newId } from './db'
 import { computeCaloriesForUser, computeCaloriesFromHr } from './met'
 import { computeHrZone } from './heartRate'
 import { pushActivityToNutriTracker } from './nutriTrackerSync'
+import { pushRecord, deleteRecord } from './cloudSync'
 import type { Settings } from './settings'
 import type { EnduranceActivityType, EnduranceSession, MachineStats, RoutePoint } from '../types'
 
@@ -82,6 +83,7 @@ export async function logEnduranceSession(
   }
   const db = await getDb()
   await db.put('endurance', session)
+  pushRecord('endurance', session.id, session)
 
   void pushActivityToNutriTracker({
     name: meta.label,
@@ -97,6 +99,7 @@ export async function logEnduranceSession(
 export async function deleteEnduranceSession(id: string) {
   const db = await getDb()
   await db.delete('endurance', id)
+  deleteRecord('endurance', id)
 }
 
 /** Réassigne le type d'activité d'une sortie déjà enregistrée (ex: une
@@ -120,6 +123,7 @@ export async function updateEnduranceActivityType(
 
   const updated: EnduranceSession = { ...session, activityType, caloriesBurned }
   await db.put('endurance', updated)
+  pushRecord('endurance', updated.id, updated)
 
   void pushActivityToNutriTracker({
     name: meta.label,
