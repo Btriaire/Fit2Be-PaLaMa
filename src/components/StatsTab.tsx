@@ -2,11 +2,19 @@ import { useEffect, useMemo, useState } from 'react'
 import { HeartPulse } from 'lucide-react'
 import { Bar, BarChart, CartesianGrid, Cell, Line, LineChart, Pie, PieChart, ResponsiveContainer, Tooltip, XAxis, YAxis } from 'recharts'
 import { getDb } from '../lib/db'
-import { getAllWorkouts, estimateWorkoutCalories, computeEffortDistribution, type EffortDistribution } from '../lib/workouts'
+import {
+  getAllWorkouts,
+  estimateWorkoutCalories,
+  computeEffortDistribution,
+  computeCardiacLoadUnderEffort,
+  type EffortDistribution,
+  type CardiacLoadUnderEffort,
+} from '../lib/workouts'
 import { getSettings } from '../lib/settings'
 import { formatDate } from '../lib/date'
 import { computeVo2Max, computePolarization, type Vo2MaxEstimate, type Polarization } from '../lib/progression'
 import { computeMaxHr } from '../lib/heartRate'
+import { resolveRestingHr } from '../lib/restingHr'
 import { pullCardiacRangeFromNutriTracker, type RemoteCardiacDay } from '../lib/nutriTrackerSync'
 import type { ActivityLog, EnduranceSession, NutritionEntry, RecoveryCheckin, WeightLog, Workout } from '../types'
 
@@ -52,6 +60,7 @@ export default function StatsTab() {
   const [vo2max, setVo2max] = useState<Vo2MaxEstimate | null>(null)
   const [polarization, setPolarization] = useState<Polarization | null>(null)
   const [effort, setEffort] = useState<EffortDistribution | null>(null)
+  const [cardiacLoad, setCardiacLoad] = useState<CardiacLoadUnderEffort | null>(null)
   const settings = getSettings()
 
   useEffect(() => {
@@ -64,9 +73,10 @@ export default function StatsTab() {
       setWeightLogs(await db.getAll('weightLogs'))
     })
     pullCardiacRangeFromNutriTracker(30).then(setCardiac)
-    computeVo2Max(settings.ageYears, settings.restingHeartRateBpm).then(setVo2max)
+    resolveRestingHr(settings).then((r) => computeVo2Max(settings.ageYears, r.bpm)).then(setVo2max)
     computePolarization(28).then(setPolarization)
     computeEffortDistribution(14).then(setEffort)
+    computeCardiacLoadUnderEffort(14).then(setCardiacLoad)
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
 
@@ -191,6 +201,16 @@ export default function StatsTab() {
             <p className="text-[10px] text-zinc-500">RPE moyen (14j)</p>
             <p className="mt-0.5 text-xl font-bold text-orange-400">{effort?.avgRpe ?? '—'}</p>
             <p className="mt-0.5 text-[10px] text-zinc-600">{effort?.ratedSets ?? 0} série(s) notée(s)</p>
+          </div>
+          <div className="rounded-xl bg-zinc-900/70 p-3">
+            <p className="text-[10px] text-zinc-500">Charge cardiaque à l'effort (14j)</p>
+            <p className="mt-0.5 text-xl font-bold text-red-400">
+              {cardiacLoad?.avgBpm ?? '—'}
+              {cardiacLoad?.avgBpm != null && <span className="ml-1 text-[10px] font-normal text-zinc-600">bpm moy.</span>}
+            </p>
+            <p className="mt-0.5 text-[10px] text-zinc-600">
+              {cardiacLoad?.measuredSets ? `${cardiacLoad.measuredSets} série(s) mesurée(s)${cardiacLoad.peakBpm ? ` · pic ${cardiacLoad.peakBpm}` : ''}` : 'Mesure la FC en mode Focus'}
+            </p>
           </div>
         </div>
 

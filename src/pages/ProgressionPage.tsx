@@ -39,6 +39,7 @@ import {
   type OverviewPoint,
 } from '../lib/progression'
 import { computeAcwr, type Acwr, type AcwrRisk } from '../lib/recovery'
+import { resolveRestingHr } from '../lib/restingHr'
 import { getMuscleGroupVolume, getMuscleGroupFreshness, type MuscleGroupStat, type MuscleGroupFreshness } from '../lib/workouts'
 import { getSettings } from '../lib/settings'
 import { LineChart, Line, CartesianGrid, ResponsiveContainer, Tooltip, XAxis, YAxis, Legend } from 'recharts'
@@ -140,7 +141,7 @@ export default function ProgressionPage() {
       computeSpecificCardiacIndices(),
       computePrRateIndex(),
       computeAcwr(settings.ageYears),
-      computeVo2Max(settings.ageYears, settings.restingHeartRateBpm),
+      resolveRestingHr(settings).then((r) => computeVo2Max(settings.ageYears, r.bpm)),
       computePolarization(),
       computeCardioLoadCumulative(settings.ageYears),
       computeDiversityIndex(),

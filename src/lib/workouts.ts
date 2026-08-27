@@ -295,3 +295,31 @@ export async function computeEffortDistribution(days = 14): Promise<EffortDistri
     buckets,
   }
 }
+
+export interface CardiacLoadUnderEffort {
+  measuredSets: number
+  avgBpm: number | null
+  peakBpm: number | null
+}
+
+/** FC mesurée pendant les repos entre séries de musculation (mode Focus) —
+ * distincte de la FC repos "au réveil" : elle reflète la charge cardiaque
+ * réelle imposée par la séance, exercice par exercice, plutôt qu'une
+ * moyenne théorique par MET. */
+export async function computeCardiacLoadUnderEffort(days = 14): Promise<CardiacLoadUnderEffort> {
+  const cutoff = Date.now() - days * 86_400_000
+  const all = await getAllWorkouts()
+  const bpms: number[] = []
+  for (const w of all.filter((w) => w.startedAt >= cutoff)) {
+    for (const we of w.exercises) {
+      for (const s of we.sets) {
+        if (s.heartRateBpm != null) bpms.push(s.heartRateBpm)
+      }
+    }
+  }
+  return {
+    measuredSets: bpms.length,
+    avgBpm: bpms.length > 0 ? Math.round(bpms.reduce((a, b) => a + b, 0) / bpms.length) : null,
+    peakBpm: bpms.length > 0 ? Math.max(...bpms) : null,
+  }
+}

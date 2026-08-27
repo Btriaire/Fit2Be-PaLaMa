@@ -94,6 +94,17 @@ export default function WorkoutRunner() {
     await persist(next)
   }
 
+  async function updateSetHeartRate(exerciseId: string, setId: string, bpm: number) {
+    if (!workout) return
+    const next: Workout = {
+      ...workout,
+      exercises: workout.exercises.map((we) =>
+        we.exerciseId === exerciseId ? { ...we, sets: we.sets.map((s) => (s.id === setId ? { ...s, heartRateBpm: bpm } : s)) } : we,
+      ),
+    }
+    await persist(next)
+  }
+
   async function finishWorkout() {
     if (!workout) return
     const finished = await finishWorkoutAndSync(workout, settings)
@@ -171,6 +182,7 @@ export default function WorkoutRunner() {
                 await applyDifficultyToSets(we.exerciseId, setIds, rpe)
                 setFocusExerciseId(null)
               }}
+              onHeartRate={(setId, bpm) => updateSetHeartRate(we.exerciseId, setId, bpm)}
               onClose={() => setFocusExerciseId(null)}
             />
           )
@@ -590,11 +602,13 @@ function FocusExerciseView({
   we,
   onAddSet,
   onFinish,
+  onHeartRate,
   onClose,
 }: {
   we: WorkoutExercise
   onAddSet: (set: Omit<SetEntry, 'id' | 'exerciseId' | 'completedAt' | 'isPr'>) => Promise<string | null | undefined>
   onFinish: (setIds: string[], rpe: number) => void
+  onHeartRate: (setId: string, bpm: number) => void
   onClose: () => void
 }) {
   const exercise = ALL_EXERCISES.find((e) => e.id === we.exerciseId)
@@ -603,20 +617,33 @@ function FocusExerciseView({
   const [reps, setReps] = useState('')
   const [awaitingDifficulty, setAwaitingDifficulty] = useState(false)
   const [sessionSetIds, setSessionSetIds] = useState<string[]>([])
+  const [lastLoggedSetId, setLastLoggedSetId] = useState<string | null>(null)
+  const [hrMeterOpen, setHrMeterOpen] = useState(false)
 
   const doneCount = we.sets.filter((s) => !s.isWarmup).length
   const targetReached = we.targetSets != null && doneCount >= we.targetSets
 
-  // Même pré-remplissage que la vue standard : dernière performance connue,
-  // sinon la cible du template ("8-10" -> 8) plutôt qu'un champ vide.
+  // Pré-remplissage, par ordre de priorité :
+  // 1. Une série déjà loggée sur cet exercice PLUS TÔT dans cette séance (ex:
+  //    on a fermé puis rouvert le mode Focus entre deux séries) — sinon
+  //    rouvrir Focus reproposait des champs vides alors que la série 1 avait
+  //    déjà été faite.
+  // 2. La dernière performance connue (séance précédente).
+  // 3. La cible du template ("8-10" -> 8), pour les reps uniquement (pas de
+  //    poids cible connu dans un template).
   useEffect(() => {
+    const lastSetThisWorkout = we.sets.length > 0 ? we.sets[we.sets.length - 1] : null
+    if (lastSetThisWorkout) {
+      setWeight(String(lastSetThisWorkout.weightKg))
+      setReps(String(lastSetThisWorkout.reps))
+    }
     getLastPerformance(we.exerciseId).then((lp) => {
       setLast(lp)
-      if (lp && we.sets.length === 0) {
+      if (lp && !lastSetThisWorkout) {
         setWeight((w) => w || String(lp.weightKg))
         setReps((r) => r || String(lp.reps))
       }
-      if (!lp && we.sets.length === 0 && we.targetReps) {
+      if (!lp && !lastSetThisWorkout && we.targetReps) {
         const firstNumber = we.targetReps.match(/\d+/)?.[0]
         if (firstNumber) setReps((r) => r || firstNumber)
       }
@@ -629,7 +656,10 @@ function FocusExerciseView({
     const r = parseInt(reps, 10)
     if (!w || !r) return
     const id = await onAddSet({ weightKg: w, reps: r, isWarmup: false })
-    if (id) setSessionSetIds((ids) => [...ids, id])
+    if (id) {
+      setSessionSetIds((ids) => [...ids, id])
+      setLastLoggedSetId(id)
+    }
     // Garde les valeurs pré-remplies pour la série suivante — souvent identiques.
   }
 
@@ -659,6 +689,16 @@ function FocusExerciseView({
           Série <span className="font-mono text-zinc-200">{doneCount + 1}</span>
           {we.targetSets != null && <span> / {we.targetSets}</span>}
         </p>
+        {we.targetSets != null && we.targetSets > 0 && (
+          <div className="mb-3 flex items-center gap-1.5">
+            {Array.from({ length: Math.max(we.targetSets, doneCount) }, (_, i) => (
+              <span
+                key={i}
+                className={`h-2 w-2 rounded-full ${i < doneCount ? 'bg-orange-500' : 'bg-zinc-800'}`}
+              />
+            ))}
+          </div>
+        )}
         {last && we.sets.length === 0 && (
           <p className="mb-5 text-xs text-zinc-600">
             Dernière fois : {last.weightKg}kg × {last.reps}
@@ -697,6 +737,17 @@ function FocusExerciseView({
             >
               Valider la série
             </button>
+            {lastLoggedSetId && (
+              <button
+                onClick={() => setHrMeterOpen(true)}
+                className="mt-3 flex items-center gap-1.5 rounded-full bg-zinc-900 px-3 py-1.5 text-xs font-medium text-red-400 active:bg-zinc-800"
+              >
+                <HeartPulse size={13} />
+                {we.sets.find((s) => s.id === lastLoggedSetId)?.heartRateBpm != null
+                  ? `${we.sets.find((s) => s.id === lastLoggedSetId)?.heartRateBpm} bpm au repos`
+                  : 'Mesurer la FC au repos'}
+              </button>
+            )}
             <button
               onClick={() => (sessionSetIds.length > 0 ? setAwaitingDifficulty(true) : onClose())}
               className={`mt-4 text-sm font-medium active:opacity-80 ${targetReached ? 'text-teal-400' : 'text-zinc-500'}`}
@@ -721,6 +772,16 @@ function FocusExerciseView({
           </div>
         )}
       </div>
+
+      {hrMeterOpen && lastLoggedSetId && (
+        <HeartRateMeter
+          onClose={() => setHrMeterOpen(false)}
+          onMeasured={(bpm) => {
+            onHeartRate(lastLoggedSetId, bpm)
+            setHrMeterOpen(false)
+          }}
+        />
+      )}
     </div>
   )
 }

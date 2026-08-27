@@ -18,6 +18,10 @@ export interface SetEntry {
   isWarmup: boolean
   isPr: boolean
   completedAt: number
+  /** FC mesurée pendant le repos qui suit cette série (caméra) — plus
+   * précis que la FC moyenne de la séance pour évaluer l'effort cardiaque
+   * réel de CETTE série spécifique. */
+  heartRateBpm?: number
 }
 
 export interface WorkoutExercise {
