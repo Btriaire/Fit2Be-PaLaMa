@@ -126,6 +126,29 @@ export async function pullNutritionFromNutriTracker(date: string): Promise<Remot
   }
 }
 
+/** Même total que pullNutritionFromNutriTracker, mais pour chacun des N
+ * derniers jours en un seul appel — pour tracer une tendance (ex: Progression)
+ * sans faire N requêtes date par date. */
+export async function pullNutritionRangeFromNutriTracker(days = 14): Promise<RemoteNutritionTotals[]> {
+  try {
+    const r = await fetch(`/api/nutritracker?type=nutrition-range&days=${days}`)
+    if (!r.ok) return []
+    const data = await r.json()
+    const rows = Array.isArray(data.days) ? data.days : []
+    return rows.map((d: Partial<RemoteNutritionTotals>) => ({
+      date: d.date ?? '',
+      calories: d.calories ?? 0,
+      proteinG: d.proteinG ?? 0,
+      carbsG: d.carbsG ?? 0,
+      fatG: d.fatG ?? 0,
+      sugarG: d.sugarG ?? 0,
+      entryCount: d.entryCount ?? 0,
+    }))
+  } catch {
+    return []
+  }
+}
+
 export interface RemoteActivity {
   id: string
   date: string

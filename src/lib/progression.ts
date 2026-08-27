@@ -10,6 +10,7 @@ import { enduranceSessionLoad } from './recovery'
 import { computeMaxHr } from './heartRate'
 import { getDb } from './db'
 import { getGoogleFitDays } from './googleFit'
+import { pullNutritionRangeFromNutriTracker } from './nutriTrackerSync'
 import { ALL_EXERCISES } from './exercises'
 import type { Settings } from './settings'
 import type { ActivityLog, EnduranceActivityType, EnduranceSession } from '../types'
@@ -417,13 +418,21 @@ const ACTIVITY_DAILY_TARGET_MIN = 30
  * ramenés sur 0-100 pour être lisibles ensemble sur un même graphique —
  * chaque pilier a sa propre notion de "objectif du jour atteint à 100%". */
 export async function computeOverviewSeries(settings: Settings, days = 14): Promise<OverviewPoint[]> {
-  const [endurance, db, googleFitDays] = await Promise.all([getEnduranceSessions(), getDb(), getGoogleFitDays(days)])
+  const [endurance, db, googleFitDays, remoteNutritionDays] = await Promise.all([
+    getEnduranceSessions(),
+    getDb(),
+    getGoogleFitDays(days),
+    pullNutritionRangeFromNutriTracker(days),
+  ])
   const activities: ActivityLog[] = await db.getAll('activities')
   const recovery = await db.getAll('recovery')
   const nutrition = await db.getAll('nutrition')
 
   const googleFitByDate = new Map(googleFitDays.map((g) => [g.date, g]))
   const recoveryByDate = new Map(recovery.map((r) => [r.date, r]))
+  // Le serveur exclut déjà ce que VibeFit lui a poussé, donc pas de double
+  // compte en additionnant aux repas logués localement.
+  const remoteNutritionByDate = new Map(remoteNutritionDays.map((n) => [n.date, n]))
 
   const points: OverviewPoint[] = []
   for (let i = days - 1; i >= 0; i--) {
@@ -442,9 +451,10 @@ export async function computeOverviewSeries(settings: Settings, days = 14): Prom
     const activityMin = activities
       .filter((a) => a.loggedAt >= dayStart.getTime() && a.loggedAt < dayEnd)
       .reduce((s, a) => s + a.durationMin, 0)
-    const consumed = nutrition
+    const localConsumed = nutrition
       .filter((n) => n.loggedAt >= dayStart.getTime() && n.loggedAt < dayEnd)
       .reduce((s, n) => s + n.calories, 0)
+    const consumed = localConsumed + (remoteNutritionByDate.get(dateKey)?.calories ?? 0)
 
     const steps = googleFitByDate.get(dateKey)?.steps ?? null
     const checkin = recoveryByDate.get(dateKey) ?? null

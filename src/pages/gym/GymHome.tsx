@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { Dumbbell, Plus, ChevronRight, Flame, TrendingUp, Trash2, Target, X } from 'lucide-react'
+import { Dumbbell, Plus, ChevronRight, Flame, TrendingUp, Trash2, Target, X, Check } from 'lucide-react'
 import { getAllWorkouts, saveWorkout, deleteWorkout, getLoggedExerciseIds } from '../../lib/workouts'
 import { newId } from '../../lib/db'
 import { formatDate, formatTime } from '../../lib/date'
@@ -39,15 +39,17 @@ export default function GymHome() {
 
   const inProgress = workouts.find((w) => !w.finishedAt)
 
-  async function startFromTemplate(tpl: TrainingTemplate) {
-    const exercises: WorkoutExercise[] = tpl.exercises.map((te, order) => ({
-      exerciseId: te.exerciseId,
-      order,
-      sets: [],
-      targetSets: te.targetSets,
-      targetReps: te.targetReps,
-      note: te.note,
-    }))
+  async function startFromTemplate(tpl: TrainingTemplate, excludedIds: Set<string>) {
+    const exercises: WorkoutExercise[] = tpl.exercises
+      .filter((te) => !excludedIds.has(te.exerciseId))
+      .map((te, order) => ({
+        exerciseId: te.exerciseId,
+        order,
+        sets: [],
+        targetSets: te.targetSets,
+        targetReps: te.targetReps,
+        note: te.note,
+      }))
     const workout: Workout = { id: newId(), name: tpl.name, startedAt: Date.now(), exercises }
     await saveWorkout(workout)
     setPreviewTemplate(null)
@@ -203,7 +205,7 @@ export default function GymHome() {
         <TemplatePreview
           template={previewTemplate}
           onClose={() => setPreviewTemplate(null)}
-          onStart={() => startFromTemplate(previewTemplate)}
+          onStart={(excludedIds) => startFromTemplate(previewTemplate, excludedIds)}
         />
       )}
     </div>
@@ -217,8 +219,20 @@ function TemplatePreview({
 }: {
   template: TrainingTemplate
   onClose: () => void
-  onStart: () => void
+  onStart: (excludedIds: Set<string>) => void
 }) {
+  const [excluded, setExcluded] = useState<Set<string>>(new Set())
+  const selectedCount = template.exercises.length - excluded.size
+
+  function toggle(exerciseId: string) {
+    setExcluded((prev) => {
+      const next = new Set(prev)
+      if (next.has(exerciseId)) next.delete(exerciseId)
+      else next.add(exerciseId)
+      return next
+    })
+  }
+
   return (
     <div className="fixed inset-0 z-50 flex items-end justify-center bg-black/60" onClick={onClose}>
       <div
@@ -233,30 +247,44 @@ function TemplatePreview({
             </button>
           </div>
           <p className="mb-1 text-xs font-medium uppercase tracking-wide text-orange-400">{template.focus}</p>
-          <p className="mb-4 text-sm text-zinc-400">{template.description}</p>
+          <p className="mb-3 text-sm text-zinc-400">{template.description}</p>
+          <p className="mb-2 text-[11px] text-zinc-600">Décoche ce que tu ne veux pas faire aujourd'hui.</p>
 
           <ul className="space-y-2.5">
             {template.exercises.map((te) => {
               const ex = ALL_EXERCISES.find((e) => e.id === te.exerciseId)
+              const isExcluded = excluded.has(te.exerciseId)
               return (
-                <li key={te.exerciseId} className="glass flex gap-2.5 rounded-xl p-3">
-                  {ex?.images?.[0] ? (
-                    <img src={ex.images[0]} alt="" loading="lazy" className="h-16 w-16 shrink-0 rounded-lg bg-zinc-900 object-cover" />
-                  ) : (
-                    <div className="h-16 w-16 shrink-0 rounded-lg bg-zinc-900" />
-                  )}
-                  <div className="min-w-0 flex-1">
-                    <div className="flex items-baseline justify-between gap-2">
-                      <p className="text-sm font-medium">{ex?.name ?? te.exerciseId}</p>
-                      <span className="shrink-0 rounded-full bg-orange-500/15 px-2 py-0.5 font-mono text-xs font-semibold text-orange-400">
-                        {te.targetSets}×{te.targetReps}
-                      </span>
+                <li key={te.exerciseId}>
+                  <button
+                    onClick={() => toggle(te.exerciseId)}
+                    className={`glass flex w-full items-start gap-2.5 rounded-xl p-3 text-left transition-opacity ${isExcluded ? 'opacity-40' : ''}`}
+                  >
+                    <span
+                      className={`mt-1 flex h-5 w-5 shrink-0 items-center justify-center rounded-md border-2 ${
+                        isExcluded ? 'border-zinc-700 bg-transparent' : 'border-orange-500 bg-orange-500'
+                      }`}
+                    >
+                      {!isExcluded && <Check size={13} strokeWidth={3} className="text-zinc-950" />}
+                    </span>
+                    {ex?.images?.[0] ? (
+                      <img src={ex.images[0]} alt="" loading="lazy" className="h-16 w-16 shrink-0 rounded-lg bg-zinc-900 object-cover" />
+                    ) : (
+                      <div className="h-16 w-16 shrink-0 rounded-lg bg-zinc-900" />
+                    )}
+                    <div className="min-w-0 flex-1">
+                      <div className="flex items-baseline justify-between gap-2">
+                        <p className="text-sm font-medium">{ex?.name ?? te.exerciseId}</p>
+                        <span className="shrink-0 rounded-full bg-orange-500/15 px-2 py-0.5 font-mono text-xs font-semibold text-orange-400">
+                          {te.targetSets}×{te.targetReps}
+                        </span>
+                      </div>
+                      <p className="text-[11px] text-zinc-500">
+                        {ex?.muscleGroup} · {ex?.equipment}
+                      </p>
+                      <p className="mt-1 text-xs leading-snug text-zinc-400">{te.note}</p>
                     </div>
-                    <p className="text-[11px] text-zinc-500">
-                      {ex?.muscleGroup} · {ex?.equipment}
-                    </p>
-                    <p className="mt-1 text-xs leading-snug text-zinc-400">{te.note}</p>
-                  </div>
+                  </button>
                 </li>
               )
             })}
@@ -269,10 +297,11 @@ function TemplatePreview({
             iPhone ou hors d'atteinte sans scroller jusqu'au bout. */}
         <div className="shrink-0 border-t border-zinc-800 p-4" style={{ paddingBottom: 'calc(env(safe-area-inset-bottom) + 16px)' }}>
           <button
-            onClick={onStart}
-            className="w-full rounded-xl bg-orange-500 py-3 text-sm font-semibold text-zinc-950 active:bg-orange-400"
+            onClick={() => onStart(excluded)}
+            disabled={selectedCount === 0}
+            className="w-full rounded-xl bg-orange-500 py-3 text-sm font-semibold text-zinc-950 active:bg-orange-400 disabled:opacity-40"
           >
-            Démarrer cette séance
+            {selectedCount === 0 ? 'Sélectionne au moins un exercice' : `Démarrer cette séance (${selectedCount})`}
           </button>
         </div>
       </div>
