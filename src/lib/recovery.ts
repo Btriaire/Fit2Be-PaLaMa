@@ -31,6 +31,7 @@ export interface DailyRecovery {
   bodyBatteryPenalty: number
   peakHrPct: number | null
   weeklyAvgLoad: number
+  recommendedRestHours: number
 }
 
 /** FC moyenne → effort ressenti, via les mêmes seuils de zone que le reste de
@@ -54,12 +55,12 @@ function effortFromRpe(rpe: number): number {
   return Math.max(0, Math.min(10, rpe))
 }
 
-const BAND_THRESHOLDS: Array<{ max: number; band: RecoveryBand; penalty: number; hint: string }> = [
-  { max: 0, band: 'aucune', penalty: 0, hint: "Pas d'effort enregistré aujourd'hui — récupération naturelle." },
-  { max: 150, band: 'légère', penalty: 5, hint: 'Charge légère. Une bonne nuit de sommeil suffit à récupérer.' },
-  { max: 300, band: 'modérée', penalty: 12, hint: 'Charge modérée. Prévois ~24h avant un effort intense similaire.' },
-  { max: 450, band: 'importante', penalty: 20, hint: 'Charge importante. Privilégie une séance légère ou du repos demain.' },
-  { max: Infinity, band: 'intense', penalty: 30, hint: 'Effort très soutenu. Recommandé : 48h de récupération avant de repousser aussi fort, et priorise le sommeil ce soir.' },
+const BAND_THRESHOLDS: Array<{ max: number; band: RecoveryBand; penalty: number; hint: string; restHours: number }> = [
+  { max: 0, band: 'aucune', penalty: 0, hint: "Pas d'effort enregistré aujourd'hui — récupération naturelle.", restHours: 0 },
+  { max: 150, band: 'légère', penalty: 5, hint: 'Charge légère. Une bonne nuit de sommeil suffit à récupérer.', restHours: 12 },
+  { max: 300, band: 'modérée', penalty: 12, hint: 'Charge modérée. Prévois ~24h avant un effort intense similaire.', restHours: 24 },
+  { max: 450, band: 'importante', penalty: 20, hint: 'Charge importante. Privilégie une séance légère ou du repos demain.', restHours: 36 },
+  { max: Infinity, band: 'intense', penalty: 30, hint: 'Effort très soutenu. Recommandé : 48h de récupération avant de repousser aussi fort, et priorise le sommeil ce soir.', restHours: 48 },
 ]
 
 function bandFor(totalLoad: number) {
@@ -149,7 +150,7 @@ export async function computeDailyRecovery(ageYears: number): Promise<DailyRecov
 
   const totalLoad = sessions.reduce((s, x) => s + x.load, 0)
   const peakHrPct = sessions.reduce<number | null>((max, s) => (s.hrPct != null ? Math.max(max ?? 0, s.hrPct) : max), null)
-  const { band, penalty, hint } = bandFor(totalLoad)
+  const { band, penalty, hint, restHours } = bandFor(totalLoad)
 
   // Moyenne des 7 derniers jours (aujourd'hui exclu) pour donner du contexte.
   let weeklySum = 0
@@ -169,6 +170,7 @@ export async function computeDailyRecovery(ageYears: number): Promise<DailyRecov
     bodyBatteryPenalty: penalty,
     peakHrPct,
     weeklyAvgLoad: Math.round(weeklySum / 7),
+    recommendedRestHours: restHours,
   }
 }
 

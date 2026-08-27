@@ -26,6 +26,7 @@ import BackButton from '../../components/BackButton'
 import { pushRecord, deleteRecord } from '../../lib/cloudSync'
 import { analyzeRecovery, type RecoveryInsight } from '../../lib/aiInsights'
 import { pullCardiacRangeFromNutriTracker, type RemoteCardiacDay } from '../../lib/nutriTrackerSync'
+import { getMuscleGroupFreshness, type MuscleGroupFreshness } from '../../lib/workouts'
 import { Sparkles, Loader2 } from 'lucide-react'
 import type { RecoveryCheckin } from '../../types'
 
@@ -83,6 +84,7 @@ export default function RecoveryPage() {
   const [aiResult, setAiResult] = useState<RecoveryInsight | null>(null)
   const [aiError, setAiError] = useState(false)
   const [cardiac, setCardiac] = useState<RemoteCardiacDay[]>([])
+  const [muscleFreshness, setMuscleFreshness] = useState<MuscleGroupFreshness[]>([])
   const settings = getSettings()
 
   async function refresh() {
@@ -95,6 +97,7 @@ export default function RecoveryPage() {
     setStreak(await computeActivityStreak(settings.ageYears))
     setMonotony(await computeTrainingMonotony(settings.ageYears))
     pullCardiacRangeFromNutriTracker(14).then(setCardiac)
+    setMuscleFreshness(await getMuscleGroupFreshness())
     const today = all.find((c) => c.date === todayStr())
     if (today) {
       setSleepQuality(today.sleepQuality)
@@ -341,6 +344,7 @@ export default function RecoveryPage() {
             readiness,
             monotony,
             cardiac: cardiac.slice(0, 7),
+            muscleFreshness,
           })
           setAiLoading(false)
           if (!result) setAiError(true)
@@ -424,7 +428,13 @@ export default function RecoveryPage() {
             </p>
           )}
 
-          <p className="mb-3 text-xs text-zinc-400">{recovery.hint}</p>
+          <p className="mb-2 text-xs text-zinc-400">{recovery.hint}</p>
+          {recovery.recommendedRestHours > 0 && (
+            <p className="mb-3 flex items-center gap-1 text-[11px] text-zinc-500">
+              <Sunrise size={12} className="text-orange-400" /> Repos recommandé avant un effort similaire :{' '}
+              <span className="font-mono text-zinc-300">{recovery.recommendedRestHours}h</span>
+            </p>
+          )}
 
           {recovery.sessions.length > 0 && (
             <ul className="space-y-1.5 border-t border-zinc-800 pt-3">
@@ -441,6 +451,31 @@ export default function RecoveryPage() {
               ))}
             </ul>
           )}
+        </section>
+      )}
+
+      {muscleFreshness.length > 0 && (
+        <section className="glass mb-6 rounded-2xl p-4">
+          <p className="mb-2 text-xs font-medium uppercase tracking-wide text-zinc-500">Fraîcheur par groupe musculaire</p>
+          <div className="flex flex-wrap gap-1.5">
+            {muscleFreshness.map((f) => (
+              <span
+                key={f.muscleGroup}
+                className={`rounded-full px-2 py-1 text-[10px] font-medium ${
+                  f.daysSinceLast == null
+                    ? 'bg-zinc-900 text-zinc-600'
+                    : f.daysSinceLast <= 1
+                      ? 'bg-red-500/15 text-red-400'
+                      : f.daysSinceLast <= 3
+                        ? 'bg-orange-500/15 text-orange-400'
+                        : 'bg-teal-500/15 text-teal-400'
+                }`}
+              >
+                {f.muscleGroup} · {f.daysSinceLast == null ? 'jamais' : `${f.daysSinceLast}j`}
+              </span>
+            ))}
+          </div>
+          <p className="mt-2 text-[10px] text-zinc-600">Rouge = sollicité très récemment, vert = frais et prêt à retravailler.</p>
         </section>
       )}
 
