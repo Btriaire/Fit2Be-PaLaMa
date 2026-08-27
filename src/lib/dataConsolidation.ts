@@ -13,9 +13,15 @@ export interface ConsolidationResult {
   setsRemoved: number
   activitiesRemoved: number
   nutritionRemoved: number
+  recoveryRemoved: number
 }
 
-export const EMPTY_CONSOLIDATION: ConsolidationResult = { setsRemoved: 0, activitiesRemoved: 0, nutritionRemoved: 0 }
+export const EMPTY_CONSOLIDATION: ConsolidationResult = {
+  setsRemoved: 0,
+  activitiesRemoved: 0,
+  nutritionRemoved: 0,
+  recoveryRemoved: 0,
+}
 
 /** `apply: false` = juste compter (aperçu) ; `apply: true` = supprime réellement les doublons. */
 export async function consolidateData(apply: boolean): Promise<ConsolidationResult> {
@@ -67,9 +73,23 @@ export async function consolidateData(apply: boolean): Promise<ConsolidationResu
     }
   }
 
+  // Un check-in de récupération est censé être unique par jour (la date
+  // n'est qu'un index, pas une clé unique en base) — deux entrées pour la
+  // même date sont toujours un doublon, jamais une coïncidence légitime.
+  const recovery = await db.getAll('recovery')
+  const recoverySeen = new Set<string>()
+  for (const r of recovery) {
+    if (recoverySeen.has(r.date)) {
+      result.recoveryRemoved++
+      if (apply) await db.delete('recovery', r.id)
+    } else {
+      recoverySeen.add(r.date)
+    }
+  }
+
   return result
 }
 
 export function totalDuplicates(r: ConsolidationResult): number {
-  return r.setsRemoved + r.activitiesRemoved + r.nutritionRemoved
+  return r.setsRemoved + r.activitiesRemoved + r.nutritionRemoved + r.recoveryRemoved
 }

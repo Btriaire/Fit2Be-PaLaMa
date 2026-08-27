@@ -1,5 +1,6 @@
-import { useEffect, useState } from 'react'
-import { HeartPulse, Dumbbell, Footprints, Activity, Flame, Gauge, Moon, Flame as StreakIcon, Sunrise } from 'lucide-react'
+import { useEffect, useMemo, useState } from 'react'
+import { HeartPulse, Dumbbell, Footprints, Activity, Flame, Gauge, Moon, Flame as StreakIcon, Sunrise, Pencil, Check } from 'lucide-react'
+import { AreaChart, Area, CartesianGrid, ResponsiveContainer, Tooltip, XAxis, YAxis } from 'recharts'
 import { getDb, newId } from '../../lib/db'
 import { todayStr, formatDate } from '../../lib/date'
 import { getSettings } from '../../lib/settings'
@@ -62,6 +63,7 @@ export default function RecoveryPage() {
   const [streak, setStreak] = useState<ActivityStreak | null>(null)
   const [readiness, setReadiness] = useState<Readiness | null>(null)
   const [savedFlash, setSavedFlash] = useState(false)
+  const [editing, setEditing] = useState(false)
   const settings = getSettings()
 
   async function refresh() {
@@ -100,8 +102,17 @@ export default function RecoveryPage() {
 
   async function submit() {
     const db = await getDb()
+    // La date n'est pas une clé unique en base (seul l'id l'est) — un check-in
+    // du jour peut exister sous un id différent de celui déjà en mémoire
+    // (ex: rechargement entre-temps). On les fusionne au lieu d'en créer un
+    // second, pour garantir qu'un jour = un seul check-in.
+    const existingForToday = await db.getAllFromIndex('recovery', 'byDate', todayStr())
+    const keepId = todayCheckin?.id ?? existingForToday[0]?.id ?? newId()
+    for (const extra of existingForToday) {
+      if (extra.id !== keepId) await db.delete('recovery', extra.id)
+    }
     const checkin: RecoveryCheckin = {
-      id: todayCheckin?.id ?? newId(),
+      id: keepId,
       date: todayStr(),
       sleepQuality: sleepQuality as 1 | 2 | 3 | 4 | 5,
       muscleFatigue: muscleFatigue as 1 | 2 | 3 | 4 | 5,
@@ -112,8 +123,21 @@ export default function RecoveryPage() {
     await db.put('recovery', checkin)
     refresh()
     setSavedFlash(true)
-    setTimeout(() => setSavedFlash(false), 1500)
+    setTimeout(() => {
+      setSavedFlash(false)
+      setEditing(false)
+    }, 1500)
   }
+
+  const showForm = !todayCheckin || editing
+  const chartData = useMemo(
+    () =>
+      [...checkins]
+        .reverse()
+        .slice(-30)
+        .map((c) => ({ label: formatDate(new Date(c.date).getTime()), score: c.bodyBatteryScore })),
+    [checkins],
+  )
 
   const scoreColor = score >= 70 ? 'text-indigo-300' : score >= 40 ? 'text-orange-400' : 'text-red-400'
   const bandColor = recovery ? BAND_COLOR[recovery.band] : BAND_COLOR.aucune
@@ -245,31 +269,114 @@ export default function RecoveryPage() {
         </section>
       )}
 
-      <section className="glass mb-6 space-y-4 rounded-2xl p-4">
-        <SliderRow label="Qualité du sommeil" value={sleepQuality} onChange={setSleepQuality} />
-        <SliderRow label="Fatigue musculaire" value={muscleFatigue} onChange={setMuscleFatigue} invert />
-        <SliderRow label="Niveau de stress" value={stressLevel} onChange={setStressLevel} invert />
-        <SliderRow label="Motivation" value={motivation} onChange={setMotivation} />
-        <button
-          onClick={submit}
-          className="w-full rounded-xl bg-indigo-500 py-3 text-sm font-semibold text-zinc-950 active:bg-indigo-400"
-        >
-          {savedFlash ? 'Enregistré ✓' : todayCheckin ? 'Mettre à jour le check-in' : 'Valider le check-in du jour'}
-        </button>
+      <section className="glass mb-6 rounded-2xl p-4">
+        <div className="mb-3 flex items-center justify-between">
+          <h2 className="text-xs font-medium uppercase tracking-wide text-zinc-500">
+            {showForm && todayCheckin ? 'Modifier le check-in du jour' : 'Check-in du jour'}
+          </h2>
+          {!showForm && (
+            <button
+              onClick={() => setEditing(true)}
+              className="flex items-center gap-1 rounded-full bg-zinc-900 px-2.5 py-1 text-[11px] font-medium text-indigo-300 active:bg-zinc-800"
+            >
+              <Pencil size={11} /> Modifier
+            </button>
+          )}
+        </div>
+
+        {!showForm && todayCheckin ? (
+          <div>
+            <p className="mb-3 flex items-center gap-1.5 text-xs text-teal-400">
+              <Check size={13} /> Déjà validé aujourd'hui — modifie-le plutôt que d'en refaire un nouveau.
+            </p>
+            <div className="grid grid-cols-2 gap-2 text-sm">
+              <SummaryStat label="Qualité du sommeil" value={SCALE_LABELS[todayCheckin.sleepQuality]} />
+              <SummaryStat label="Fatigue musculaire" value={SCALE_LABELS[6 - todayCheckin.muscleFatigue]} />
+              <SummaryStat label="Niveau de stress" value={SCALE_LABELS[6 - todayCheckin.stressLevel]} />
+              <SummaryStat label="Motivation" value={SCALE_LABELS[todayCheckin.motivation]} />
+            </div>
+          </div>
+        ) : (
+          <div className="space-y-4">
+            <SliderRow label="Qualité du sommeil" value={sleepQuality} onChange={setSleepQuality} />
+            <SliderRow label="Fatigue musculaire" value={muscleFatigue} onChange={setMuscleFatigue} invert />
+            <SliderRow label="Niveau de stress" value={stressLevel} onChange={setStressLevel} invert />
+            <SliderRow label="Motivation" value={motivation} onChange={setMotivation} />
+            <div className="flex gap-2">
+              {todayCheckin && (
+                <button
+                  onClick={() => setEditing(false)}
+                  className="rounded-xl bg-zinc-900 px-4 py-3 text-sm font-medium text-zinc-400 active:bg-zinc-800"
+                >
+                  Annuler
+                </button>
+              )}
+              <button
+                onClick={submit}
+                className="flex-1 rounded-xl bg-indigo-500 py-3 text-sm font-semibold text-zinc-950 active:bg-indigo-400"
+              >
+                {savedFlash ? 'Enregistré ✓' : todayCheckin ? 'Mettre à jour le check-in' : 'Valider le check-in du jour'}
+              </button>
+            </div>
+          </div>
+        )}
       </section>
 
       <section>
         <h2 className="mb-2 text-sm font-medium text-zinc-400">Historique</h2>
+        {chartData.length >= 2 && (
+          <div className="glass mb-3 rounded-2xl p-3">
+            <div className="h-32 w-full">
+              <ResponsiveContainer width="100%" height="100%">
+                <AreaChart data={chartData} margin={{ top: 8, right: 12, left: -20, bottom: 0 }}>
+                  <defs>
+                    <linearGradient id="bbFill" x1="0" y1="0" x2="0" y2="1">
+                      <stop offset="0%" stopColor="#818cf8" stopOpacity={0.4} />
+                      <stop offset="100%" stopColor="#818cf8" stopOpacity={0} />
+                    </linearGradient>
+                  </defs>
+                  <CartesianGrid strokeDasharray="3 3" stroke="#27272a" vertical={false} />
+                  <XAxis dataKey="label" tick={{ fill: '#71717a', fontSize: 10 }} axisLine={false} tickLine={false} />
+                  <YAxis domain={[0, 100]} tick={{ fill: '#71717a', fontSize: 10 }} axisLine={false} tickLine={false} />
+                  <Tooltip
+                    contentStyle={{ background: '#18181b', border: '1px solid #3f3f46', borderRadius: 8, fontSize: 12 }}
+                    labelStyle={{ color: '#a1a1aa' }}
+                    formatter={(v) => [v, 'Body Battery']}
+                  />
+                  <Area type="monotone" dataKey="score" stroke="#818cf8" strokeWidth={2} fill="url(#bbFill)" />
+                </AreaChart>
+              </ResponsiveContainer>
+            </div>
+          </div>
+        )}
+        {checkins.length === 0 && <p className="px-1 text-sm text-zinc-500">Pas encore de check-in enregistré.</p>}
         <ul className="space-y-2">
-          {checkins.map((c) => (
-            <li key={c.id} className="glass flex items-center justify-between rounded-xl p-3">
-              <p className="text-sm">{formatDate(new Date(c.date).getTime())}</p>
-              <p className="font-mono text-sm font-semibold">{c.bodyBatteryScore}</p>
-            </li>
-          ))}
+          {checkins.map((c) => {
+            const isToday = c.date === todayStr()
+            return (
+              <li
+                key={c.id}
+                className={`glass flex items-center justify-between rounded-xl p-3 ${isToday ? 'ring-1 ring-indigo-500/40' : ''}`}
+              >
+                <p className={`text-sm ${isToday ? 'font-medium text-indigo-300' : ''}`}>
+                  {isToday ? "Aujourd'hui" : formatDate(new Date(c.date).getTime())}
+                </p>
+                <p className="font-mono text-sm font-semibold">{c.bodyBatteryScore}</p>
+              </li>
+            )
+          })}
         </ul>
       </section>
       </div>
+    </div>
+  )
+}
+
+function SummaryStat({ label, value }: { label: string; value: string }) {
+  return (
+    <div className="rounded-lg bg-zinc-900 px-3 py-2">
+      <p className="text-[11px] text-zinc-500">{label}</p>
+      <p className="font-medium text-zinc-200">{value}</p>
     </div>
   )
 }

@@ -258,6 +258,7 @@ export default function SettingsPage() {
                   {dupScan.setsRemoved > 0 && <li>{dupScan.setsRemoved} série(s) de musculation en double</li>}
                   {dupScan.activitiesRemoved > 0 && <li>{dupScan.activitiesRemoved} activité(s) en double</li>}
                   {dupScan.nutritionRemoved > 0 && <li>{dupScan.nutritionRemoved} repas en double</li>}
+                  {dupScan.recoveryRemoved > 0 && <li>{dupScan.recoveryRemoved} check-in de récupération en double</li>}
                 </ul>
                 <button
                   onClick={applyDuplicates}
