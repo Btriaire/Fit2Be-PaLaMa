@@ -1,9 +1,0 @@
-Planche anatomique musculaire (avant/arrière) — OpenStax Anatomy &
-Physiology, via Wikimedia Commons, licence Creative Commons By Attribution
-4.0 (CC BY 4.0). Traits de renvoi (lignes + repères de légende) supprimés
-par inpainting (OpenCV), recadrées, redimensionnées.
-
-muscle-front.png  https://commons.wikimedia.org/wiki/File:Muscles;_anterior_view;_unlabeled.png
-muscle-back.png   https://commons.wikimedia.org/wiki/File:Muscles;_posterior_view;_unlabeled.png
-
-https://creativecommons.org/licenses/by/4.0/

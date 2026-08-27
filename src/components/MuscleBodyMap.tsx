@@ -1,118 +1,48 @@
-// Vraie planche anatomique (OpenStax Anatomy & Physiology, CC BY 4.0 — voir
-// src/assets/body/CREDITS.txt) au lieu d'une silhouette dessinée à la main :
-// l'utilisateur a rejeté deux fois les versions en formes vectorielles ("ça
-// ressemble à des ovales"). Chaque groupe musculaire a sa propre couleur,
-// affichée en permanence (pas seulement à la sélection) — cf. les
-// références qu'il a fournies (planche 3D "blocking" colorée par groupe) :
-// on ne pouvait pas réutiliser ce modèle précis (pas de licence libre), donc
-// même principe de code couleur appliqué en calque sur la vraie illustration
-// anatomique plutôt que sur un modèle 3D.
+// Vraie planche anatomique segmentée par groupe musculaire — react-muscle-
+// highlighter (MIT, SVG dessiné à la main par groupe, pas une planche photo
+// avec des points chauds approximatifs par-dessus). Remplace deux tentatives
+// précédentes (formes ovales dessinées à la main, puis planche OpenStax +
+// hotspots) toutes deux jugées insuffisantes.
 
-import muscleFront from '../assets/body/muscle-front.png'
-import muscleBack from '../assets/body/muscle-back.png'
+import Body, { type ExtendedBodyPart } from 'react-muscle-highlighter'
 import { colorForMuscleGroup } from '../lib/muscleColors'
+import { MUSCLE_GROUP_TO_SLUG, SLUG_TO_MUSCLE_GROUPS } from '../lib/muscleSlugs'
 
 interface Props {
   selected: string | null
   onSelect: (group: string | null) => void
 }
 
-export interface Hotspot {
-  group: string
-  x: number // centre, % de la largeur de l'image
-  y: number // centre, % de la hauteur de l'image
-  w: number // % de la largeur de l'image
-  h: number // % de la hauteur de l'image
+const DEFAULT_FILL = '#3f3f46'
+
+function buildData(selected: string | null): ExtendedBodyPart[] {
+  const selectedSlug = selected ? MUSCLE_GROUP_TO_SLUG[selected] : null
+  return Object.entries(MUSCLE_GROUP_TO_SLUG).map(([group, slug]) => {
+    const base = colorForMuscleGroup(group)
+    const isSelected = slug === selectedSlug
+    const dimmed = selectedSlug != null && !isSelected
+    return { slug, color: dimmed ? `${base}2e` : base }
+  })
 }
 
-export const FRONT_HOTSPOTS: Hotspot[] = [
-  { group: 'Trapèzes', x: 48, y: 13, w: 14, h: 5 },
-  { group: 'Épaules', x: 23, y: 20, w: 13, h: 9 },
-  { group: 'Épaules', x: 75, y: 20, w: 13, h: 9 },
-  { group: 'Pectoraux', x: 38, y: 25, w: 16, h: 9 },
-  { group: 'Pectoraux', x: 60, y: 25, w: 16, h: 9 },
-  { group: 'Biceps', x: 15, y: 31, w: 11, h: 11 },
-  { group: 'Biceps', x: 83, y: 31, w: 11, h: 11 },
-  { group: 'Abdominaux', x: 48, y: 39, w: 18, h: 15 },
-  { group: 'Avant-bras', x: 9, y: 45, w: 9, h: 12 },
-  { group: 'Avant-bras', x: 90, y: 45, w: 9, h: 12 },
-  { group: 'Adducteurs', x: 48, y: 58, w: 10, h: 10 },
-  { group: 'Quadriceps', x: 36, y: 63, w: 14, h: 15 },
-  { group: 'Quadriceps', x: 62, y: 63, w: 14, h: 15 },
-  { group: 'Mollets', x: 37, y: 84, w: 11, h: 11 },
-  { group: 'Mollets', x: 61, y: 84, w: 11, h: 11 },
-]
-
-export const BACK_HOTSPOTS: Hotspot[] = [
-  { group: 'Nuque', x: 48, y: 5, w: 10, h: 5 },
-  { group: 'Trapèzes', x: 48, y: 15, w: 20, h: 8 },
-  { group: 'Dos', x: 21, y: 24, w: 14, h: 12 },
-  { group: 'Dos', x: 77, y: 24, w: 14, h: 12 },
-  { group: 'Milieu du dos', x: 48, y: 27, w: 14, h: 8 },
-  { group: 'Bas du dos', x: 48, y: 40, w: 14, h: 8 },
-  { group: 'Triceps', x: 12, y: 32, w: 10, h: 11 },
-  { group: 'Triceps', x: 87, y: 32, w: 10, h: 11 },
-  { group: 'Avant-bras', x: 8, y: 46, w: 9, h: 12 },
-  { group: 'Avant-bras', x: 91, y: 46, w: 9, h: 12 },
-  { group: 'Fessiers', x: 38, y: 52, w: 14, h: 10 },
-  { group: 'Fessiers', x: 60, y: 52, w: 14, h: 10 },
-  { group: 'Abducteurs', x: 25, y: 60, w: 10, h: 12 },
-  { group: 'Abducteurs', x: 74, y: 60, w: 10, h: 12 },
-  { group: 'Ischio-jambiers', x: 39, y: 67, w: 12, h: 14 },
-  { group: 'Ischio-jambiers', x: 60, y: 67, w: 12, h: 14 },
-  { group: 'Mollets', x: 39, y: 85, w: 11, h: 11 },
-  { group: 'Mollets', x: 60, y: 85, w: 11, h: 11 },
-]
-
-function HotspotDot({ spot, active, dimmed, onSelect }: { spot: Hotspot; active: boolean; dimmed: boolean; onSelect: () => void }) {
-  const color = colorForMuscleGroup(spot.group)
+function BodyPanel({ side, selected, onSelect }: { side: 'front' | 'back'; selected: string | null; onSelect: (g: string | null) => void }) {
+  const data = buildData(selected)
   return (
-    <button
-      type="button"
-      onClick={onSelect}
-      aria-label={spot.group}
-      className="absolute -translate-x-1/2 -translate-y-1/2 rounded-full mix-blend-multiply transition-all duration-150"
-      style={{
-        left: `${spot.x}%`,
-        top: `${spot.y}%`,
-        width: `${spot.w}%`,
-        height: `${spot.h}%`,
-        backgroundColor: color,
-        opacity: active ? 0.95 : dimmed ? 0.18 : 0.55,
-        boxShadow: active ? `0 0 0 2px ${color}, 0 0 14px 2px ${color}aa` : 'none',
-      }}
-    />
-  )
-}
-
-function BodyPanel({
-  src,
-  label,
-  hotspots,
-  selected,
-  onSelect,
-}: {
-  src: string
-  label: string
-  hotspots: Hotspot[]
-  selected: string | null
-  onSelect: (g: string | null) => void
-}) {
-  return (
-    <div className="w-28 shrink-0">
-      <div className="relative overflow-hidden rounded-xl bg-zinc-100">
-        <img src={src} alt={`Anatomie — vue ${label}`} className="block w-full select-none" draggable={false} />
-        {hotspots.map((spot, i) => (
-          <HotspotDot
-            key={i}
-            spot={spot}
-            active={selected === spot.group}
-            dimmed={selected != null && selected !== spot.group}
-            onSelect={() => onSelect(selected === spot.group ? null : spot.group)}
-          />
-        ))}
-      </div>
-      <p className="mt-1.5 text-center text-[10px] uppercase tracking-wide text-zinc-600">{label}</p>
+    <div className="w-32 shrink-0 [&_svg]:h-auto [&_svg]:w-full">
+      <Body
+        data={data}
+        side={side}
+        gender="male"
+        defaultFill={DEFAULT_FILL}
+        border="#52525b"
+        onBodyPartPress={(part) => {
+          const groups = part.slug ? SLUG_TO_MUSCLE_GROUPS[part.slug] : undefined
+          const group = groups?.[0] ?? null
+          if (!group) return
+          onSelect(selected === group ? null : group)
+        }}
+      />
+      <p className="mt-1.5 text-center text-[10px] uppercase tracking-wide text-zinc-600">{side === 'front' ? 'Avant' : 'Arrière'}</p>
     </div>
   )
 }
@@ -120,8 +50,8 @@ function BodyPanel({
 export default function MuscleBodyMap({ selected, onSelect }: Props) {
   return (
     <div className="mb-3 flex items-center justify-center gap-6 overflow-x-auto rounded-xl bg-zinc-900/60 px-3 py-4">
-      <BodyPanel src={muscleFront} label="Avant" hotspots={FRONT_HOTSPOTS} selected={selected} onSelect={onSelect} />
-      <BodyPanel src={muscleBack} label="Arrière" hotspots={BACK_HOTSPOTS} selected={selected} onSelect={onSelect} />
+      <BodyPanel side="front" selected={selected} onSelect={onSelect} />
+      <BodyPanel side="back" selected={selected} onSelect={onSelect} />
     </div>
   )
 }

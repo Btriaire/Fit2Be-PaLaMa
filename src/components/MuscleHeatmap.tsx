@@ -1,25 +1,24 @@
-// Variante lecture-seule de MuscleBodyMap : au lieu d'un point sélectionné,
-// colore chaque zone selon son intensité d'activation (volume d'entraînement
-// récent) — mêmes points chauds, même planche anatomique, juste un rendu en
-// dégradé plutôt qu'un état on/off.
+// Variante lecture-seule de MuscleBodyMap (react-muscle-highlighter, MIT) :
+// au lieu d'une couleur fixe par groupe, colore chaque groupe selon son
+// intensité d'activation récente (dégradé froid -> chaud).
 
-import muscleFront from '../assets/body/muscle-front.png'
-import muscleBack from '../assets/body/muscle-back.png'
-import { FRONT_HOTSPOTS, BACK_HOTSPOTS, type Hotspot } from './MuscleBodyMap'
+import Body, { type ExtendedBodyPart } from 'react-muscle-highlighter'
+import { MUSCLE_GROUP_TO_SLUG } from '../lib/muscleSlugs'
 
 interface Props {
-  /** Groupe musculaire -> intensité 0..1 (0 = pas sollicité récemment, 1 = groupe le plus sollicité). */
+  /** Groupe musculaire (FR) -> intensité 0..1 (0 = pas sollicité récemment, 1 = groupe le plus sollicité). */
   intensities: Record<string, number>
 }
 
-// Dégradé froid -> chaud (bleu indigo à peine visible -> rouge orange intense),
-// cohérent avec la palette de l'app (indigo = récupération, rouge/orange = charge).
-function heatColor(intensity: number): { bg: string; glow: number } {
-  if (intensity <= 0) return { bg: 'transparent', glow: 0 }
+const DEFAULT_FILL = '#3f3f46'
+
+// Dégradé froid -> chaud (indigo à peine visible -> rouge marque intense).
+function heatColor(intensity: number): string {
+  if (intensity <= 0) return DEFAULT_FILL
   const stops = [
-    { t: 0, r: 79, g: 70, b: 229 }, // indigo-600
+    { t: 0, r: 63, g: 63, b: 70 }, // zinc-700 (neutre, quasi pas sollicité)
     { t: 0.5, r: 249, g: 115, b: 22 }, // orange-500
-    { t: 1, r: 226, g: 54, b: 28 }, // rouge marque (HIGHLIGHT)
+    { t: 1, r: 226, g: 54, b: 28 }, // rouge marque
   ]
   let lo = stops[0]
   let hi = stops[stops.length - 1]
@@ -35,36 +34,21 @@ function heatColor(intensity: number): { bg: string; glow: number } {
   const r = Math.round(lo.r + (hi.r - lo.r) * localT)
   const g = Math.round(lo.g + (hi.g - lo.g) * localT)
   const b = Math.round(lo.b + (hi.b - lo.b) * localT)
-  return { bg: `rgba(${r},${g},${b},${0.25 + intensity * 0.45})`, glow: intensity }
+  return `rgb(${r},${g},${b})`
 }
 
-function HeatDot({ spot, intensity }: { spot: Hotspot; intensity: number }) {
-  const { bg, glow } = heatColor(intensity)
-  return (
-    <div
-      className="absolute -translate-x-1/2 -translate-y-1/2 rounded-full"
-      style={{
-        left: `${spot.x}%`,
-        top: `${spot.y}%`,
-        width: `${spot.w}%`,
-        height: `${spot.h}%`,
-        backgroundColor: bg,
-        boxShadow: glow > 0.15 ? `0 0 ${6 + glow * 10}px ${1 + glow * 2}px ${bg}` : 'none',
-      }}
-    />
-  )
+function buildData(intensities: Record<string, number>): ExtendedBodyPart[] {
+  return Object.entries(MUSCLE_GROUP_TO_SLUG).map(([group, slug]) => ({
+    slug,
+    color: heatColor(intensities[group] ?? 0),
+  }))
 }
 
-function Panel({ src, label, hotspots, intensities }: { src: string; label: string; hotspots: Hotspot[]; intensities: Record<string, number> }) {
+function Panel({ side, intensities }: { side: 'front' | 'back'; intensities: Record<string, number> }) {
   return (
-    <div className="w-28 shrink-0">
-      <div className="relative overflow-hidden rounded-xl bg-zinc-100">
-        <img src={src} alt={`Anatomie — vue ${label}`} className="block w-full select-none" draggable={false} />
-        {hotspots.map((spot, i) => (
-          <HeatDot key={i} spot={spot} intensity={intensities[spot.group] ?? 0} />
-        ))}
-      </div>
-      <p className="mt-1.5 text-center text-[10px] uppercase tracking-wide text-zinc-600">{label}</p>
+    <div className="w-32 shrink-0 [&_svg]:h-auto [&_svg]:w-full">
+      <Body data={buildData(intensities)} side={side} gender="male" defaultFill={DEFAULT_FILL} border="#52525b" />
+      <p className="mt-1.5 text-center text-[10px] uppercase tracking-wide text-zinc-600">{side === 'front' ? 'Avant' : 'Arrière'}</p>
     </div>
   )
 }
@@ -72,8 +56,8 @@ function Panel({ src, label, hotspots, intensities }: { src: string; label: stri
 export default function MuscleHeatmap({ intensities }: Props) {
   return (
     <div className="flex items-center justify-center gap-6 overflow-x-auto rounded-xl bg-zinc-900/60 px-3 py-4">
-      <Panel src={muscleFront} label="Avant" hotspots={FRONT_HOTSPOTS} intensities={intensities} />
-      <Panel src={muscleBack} label="Arrière" hotspots={BACK_HOTSPOTS} intensities={intensities} />
+      <Panel side="front" intensities={intensities} />
+      <Panel side="back" intensities={intensities} />
     </div>
   )
 }
