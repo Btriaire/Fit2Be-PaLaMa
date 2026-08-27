@@ -396,3 +396,75 @@ export async function computeBodyBatteryTrend(): Promise<BodyBatteryTrend> {
   const deltaPct = avg7d != null && avgPrev7d != null && avgPrev7d > 0 ? Math.round(((avg7d - avgPrev7d) / avgPrev7d) * 100) : null
   return { avg7d, avgPrev7d, deltaPct }
 }
+
+// ---- Vue d'ensemble multi-piliers ----
+
+export interface OverviewPoint {
+  date: string
+  label: string
+  endurance: number | null // 0-100, minutes du jour vs objectif 45min
+  marche: number | null // 0-100, pas du jour vs objectif 8000
+  activites: number | null // 0-100, minutes quotidien vs objectif 30min
+  recuperation: number | null // 0-100, Body Battery du jour (null si pas de check-in)
+  nutrition: number | null // 0-100, proximité des calories consommées vs objectif (null si rien logué)
+}
+
+const ENDURANCE_DAILY_TARGET_MIN = 45
+const WALK_DAILY_TARGET_STEPS = 8000
+const ACTIVITY_DAILY_TARGET_MIN = 30
+
+/** Une série par jour pour chacun des 5 piliers (hors musculation), tous
+ * ramenés sur 0-100 pour être lisibles ensemble sur un même graphique —
+ * chaque pilier a sa propre notion de "objectif du jour atteint à 100%". */
+export async function computeOverviewSeries(settings: Settings, days = 14): Promise<OverviewPoint[]> {
+  const [endurance, db, googleFitDays] = await Promise.all([getEnduranceSessions(), getDb(), getGoogleFitDays(days)])
+  const activities: ActivityLog[] = await db.getAll('activities')
+  const recovery = await db.getAll('recovery')
+  const nutrition = await db.getAll('nutrition')
+
+  const googleFitByDate = new Map(googleFitDays.map((g) => [g.date, g]))
+  const recoveryByDate = new Map(recovery.map((r) => [r.date, r]))
+
+  const points: OverviewPoint[] = []
+  for (let i = days - 1; i >= 0; i--) {
+    const dayStart = new Date()
+    dayStart.setHours(0, 0, 0, 0)
+    dayStart.setDate(dayStart.getDate() - i)
+    const dayEnd = dayStart.getTime() + 86_400_000
+    // Date locale (pas UTC) — GoogleFitDay.date et RecoveryCheckin.date sont
+    // clés avec les composants de date locaux (même convention que todayStr()
+    // dans lib/date.ts), toISOString() les aurait ratés d'un jour selon le fuseau.
+    const dateKey = `${dayStart.getFullYear()}-${String(dayStart.getMonth() + 1).padStart(2, '0')}-${String(dayStart.getDate()).padStart(2, '0')}`
+
+    const enduranceMin = endurance
+      .filter((e) => e.startedAt >= dayStart.getTime() && e.startedAt < dayEnd)
+      .reduce((s, e) => s + e.durationMin, 0)
+    const activityMin = activities
+      .filter((a) => a.loggedAt >= dayStart.getTime() && a.loggedAt < dayEnd)
+      .reduce((s, a) => s + a.durationMin, 0)
+    const consumed = nutrition
+      .filter((n) => n.loggedAt >= dayStart.getTime() && n.loggedAt < dayEnd)
+      .reduce((s, n) => s + n.calories, 0)
+
+    const steps = googleFitByDate.get(dateKey)?.steps ?? null
+    const checkin = recoveryByDate.get(dateKey) ?? null
+
+    points.push({
+      date: dateKey,
+      label: formatDateShort(dayStart.getTime()),
+      endurance: enduranceMin > 0 ? Math.min(100, Math.round((enduranceMin / ENDURANCE_DAILY_TARGET_MIN) * 100)) : null,
+      marche: steps != null ? Math.min(100, Math.round((steps / WALK_DAILY_TARGET_STEPS) * 100)) : null,
+      activites: activityMin > 0 ? Math.min(100, Math.round((activityMin / ACTIVITY_DAILY_TARGET_MIN) * 100)) : null,
+      recuperation: checkin ? checkin.bodyBatteryScore : null,
+      nutrition:
+        consumed > 0 && settings.dailyCalorieTarget > 0
+          ? Math.max(0, 100 - Math.round((Math.abs(consumed - settings.dailyCalorieTarget) / settings.dailyCalorieTarget) * 100))
+          : null,
+    })
+  }
+  return points
+}
+
+function formatDateShort(ts: number): string {
+  return new Date(ts).toLocaleDateString('fr-FR', { day: '2-digit', month: '2-digit' })
+}
