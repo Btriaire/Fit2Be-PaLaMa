@@ -1,13 +1,14 @@
 import { useEffect, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { Dumbbell, Plus, ChevronRight, Flame, TrendingUp, Trash2, Target, X, Check } from 'lucide-react'
+import { Dumbbell, Plus, ChevronRight, Flame, TrendingUp, Trash2, Target, X, Check, Bookmark } from 'lucide-react'
 import { getAllWorkouts, saveWorkout, deleteWorkout, getLoggedExerciseIds } from '../../lib/workouts'
 import { newId } from '../../lib/db'
 import { formatDate, formatTime } from '../../lib/date'
 import { ALL_EXERCISES } from '../../lib/exercises'
 import { TRAINING_TEMPLATES, type TrainingTemplate } from '../../lib/trainingTemplates'
+import { getCustomTemplates, deleteCustomTemplate } from '../../lib/customTemplates'
 import ActivityHero from '../../components/ActivityHero'
-import type { Workout, WorkoutExercise } from '../../types'
+import type { CustomTemplate, Workout, WorkoutExercise } from '../../types'
 
 const QUICK_NAMES = ['Push Day', 'Pull Day', 'Leg Day', 'Full Body', 'Haut du corps', 'Bas du corps']
 
@@ -17,6 +18,12 @@ export default function GymHome() {
   const [loading, setLoading] = useState(true)
   const [loggedExercises, setLoggedExercises] = useState<Array<{ exerciseId: string; lastDate: number }>>([])
   const [previewTemplate, setPreviewTemplate] = useState<TrainingTemplate | null>(null)
+  const [customTemplates, setCustomTemplates] = useState<CustomTemplate[]>([])
+  const [previewCustom, setPreviewCustom] = useState<CustomTemplate | null>(null)
+
+  function refreshCustomTemplates() {
+    getCustomTemplates().then(setCustomTemplates)
+  }
 
   useEffect(() => {
     getAllWorkouts().then((w) => {
@@ -24,6 +31,7 @@ export default function GymHome() {
       setLoading(false)
     })
     getLoggedExerciseIds().then(setLoggedExercises)
+    refreshCustomTemplates()
   }, [])
 
   async function startWorkout(name: string) {
@@ -54,6 +62,23 @@ export default function GymHome() {
     await saveWorkout(workout)
     setPreviewTemplate(null)
     navigate(`/gym/workout/${workout.id}`)
+  }
+
+  async function startFromCustomTemplate(tpl: CustomTemplate, excludedIds: Set<string>) {
+    const exercises: WorkoutExercise[] = tpl.exercises
+      .filter((te) => !excludedIds.has(te.exerciseId))
+      .map((te, order) => ({ exerciseId: te.exerciseId, order, sets: [], targetSets: te.targetSets, targetReps: te.targetReps }))
+    const workout: Workout = { id: newId(), name: tpl.name, startedAt: Date.now(), exercises }
+    await saveWorkout(workout)
+    setPreviewCustom(null)
+    navigate(`/gym/workout/${workout.id}`)
+  }
+
+  async function removeCustomTemplate(id: string, name: string) {
+    if (!confirm(`Supprimer le modèle "${name}" ?`)) return
+    await deleteCustomTemplate(id)
+    setPreviewCustom(null)
+    refreshCustomTemplates()
   }
 
   async function removeWorkout(id: string, name: string) {
@@ -135,6 +160,36 @@ export default function GymHome() {
         </div>
       </section>
 
+      {customTemplates.length > 0 && (
+        <section className="mb-6">
+          <h2 className="mb-2 text-sm font-medium text-zinc-400">Mes modèles</h2>
+          <div className="space-y-2">
+            {customTemplates.map((tpl) => (
+              <button
+                key={tpl.id}
+                onClick={() => setPreviewCustom(tpl)}
+                className="glass flex w-full items-center gap-3 rounded-xl p-3.5 text-left active:scale-[0.98] transition-transform"
+              >
+                {tpl.photoDataUrl ? (
+                  <img src={tpl.photoDataUrl} alt="" className="h-10 w-10 shrink-0 rounded-lg object-cover" />
+                ) : (
+                  <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-indigo-500/15 text-indigo-300">
+                    <Bookmark size={18} />
+                  </span>
+                )}
+                <div className="min-w-0 flex-1">
+                  <p className="text-sm font-semibold">{tpl.name}</p>
+                  <p className="truncate text-xs text-zinc-500">
+                    {tpl.exercises.length} exercice{tpl.exercises.length > 1 ? 's' : ''}
+                  </p>
+                </div>
+                <ChevronRight size={16} className="shrink-0 text-zinc-600" />
+              </button>
+            ))}
+          </div>
+        </section>
+      )}
+
       {loggedExercises.length > 0 && (
         <section className="mb-6">
           <h2 className="mb-2 text-sm font-medium text-zinc-400">Progression</h2>
@@ -208,6 +263,119 @@ export default function GymHome() {
           onStart={(excludedIds) => startFromTemplate(previewTemplate, excludedIds)}
         />
       )}
+
+      {previewCustom && (
+        <CustomTemplatePreview
+          template={previewCustom}
+          onClose={() => setPreviewCustom(null)}
+          onStart={(excludedIds) => startFromCustomTemplate(previewCustom, excludedIds)}
+          onDelete={() => removeCustomTemplate(previewCustom.id, previewCustom.name)}
+        />
+      )}
+    </div>
+  )
+}
+
+function CustomTemplatePreview({
+  template,
+  onClose,
+  onStart,
+  onDelete,
+}: {
+  template: CustomTemplate
+  onClose: () => void
+  onStart: (excludedIds: Set<string>) => void
+  onDelete: () => void
+}) {
+  const [excluded, setExcluded] = useState<Set<string>>(new Set())
+  const selectedCount = template.exercises.length - excluded.size
+
+  function toggle(exerciseId: string) {
+    setExcluded((prev) => {
+      const next = new Set(prev)
+      if (next.has(exerciseId)) next.delete(exerciseId)
+      else next.add(exerciseId)
+      return next
+    })
+  }
+
+  return (
+    <div className="fixed inset-0 z-50 flex items-end justify-center bg-black/60" onClick={onClose}>
+      <div
+        className="mesh-backdrop flex max-h-[85vh] w-full max-w-md flex-col rounded-t-2xl bg-zinc-950 border-t border-zinc-800"
+        onClick={(e) => e.stopPropagation()}
+      >
+        <div className="flex-1 overflow-y-auto p-4">
+          <div className="mb-3 flex items-center gap-3">
+            {template.photoDataUrl ? (
+              <img src={template.photoDataUrl} alt="" className="h-14 w-14 shrink-0 rounded-xl object-cover" />
+            ) : (
+              <span className="flex h-14 w-14 shrink-0 items-center justify-center rounded-xl bg-indigo-500/15 text-indigo-300">
+                <Bookmark size={22} />
+              </span>
+            )}
+            <div className="min-w-0 flex-1">
+              <h2 className="font-semibold">{template.name}</h2>
+              <p className="text-xs text-zinc-500">
+                {template.exercises.length} exercice{template.exercises.length > 1 ? 's' : ''}
+              </p>
+            </div>
+            <button onClick={onClose} className="shrink-0 rounded-full p-1 active:bg-zinc-900">
+              <X size={18} />
+            </button>
+          </div>
+          <p className="mb-2 text-[11px] text-zinc-600">Décoche ce que tu ne veux pas faire aujourd'hui.</p>
+
+          <ul className="space-y-2.5">
+            {template.exercises.map((te) => {
+              const ex = ALL_EXERCISES.find((e) => e.id === te.exerciseId)
+              const isExcluded = excluded.has(te.exerciseId)
+              return (
+                <li key={te.exerciseId}>
+                  <button
+                    onClick={() => toggle(te.exerciseId)}
+                    className={`glass flex w-full items-center gap-2.5 rounded-xl p-3 text-left transition-opacity ${isExcluded ? 'opacity-40' : ''}`}
+                  >
+                    <span
+                      className={`flex h-5 w-5 shrink-0 items-center justify-center rounded-md border-2 ${
+                        isExcluded ? 'border-zinc-700 bg-transparent' : 'border-orange-500 bg-orange-500'
+                      }`}
+                    >
+                      {!isExcluded && <Check size={13} strokeWidth={3} className="text-zinc-950" />}
+                    </span>
+                    {ex?.images?.[0] ? (
+                      <img src={ex.images[0]} alt="" loading="lazy" className="h-14 w-14 shrink-0 rounded-lg bg-zinc-900 object-cover" />
+                    ) : (
+                      <div className="h-14 w-14 shrink-0 rounded-lg bg-zinc-900" />
+                    )}
+                    <div className="min-w-0 flex-1">
+                      <p className="text-sm font-medium">{ex?.name ?? te.exerciseId}</p>
+                      <p className="text-[11px] text-zinc-500">
+                        {ex?.muscleGroup} · {ex?.equipment}
+                        {te.targetSets && te.targetReps ? ` · cible ${te.targetSets}×${te.targetReps}` : ''}
+                      </p>
+                    </div>
+                  </button>
+                </li>
+              )
+            })}
+          </ul>
+
+          <button onClick={onDelete} className="mt-4 flex w-full items-center justify-center gap-1.5 py-1 text-xs font-medium text-red-400/80 active:text-red-400">
+            <Trash2 size={12} /> Supprimer ce modèle
+          </button>
+        </div>
+
+        <div className="shrink-0 border-t border-zinc-800 p-4" style={{ paddingBottom: 'calc(env(safe-area-inset-bottom) + 16px)' }}>
+          <button
+            onClick={() => onStart(excluded)}
+            disabled={selectedCount === 0}
+            className="w-full rounded-xl bg-indigo-500 py-3 text-sm font-semibold text-zinc-950 active:bg-indigo-400 disabled:opacity-40"
+          >
+            {selectedCount === 0 ? 'Sélectionne au moins un exercice' : `Démarrer cette séance (${selectedCount})`}
+          </button>
+        </div>
+      </div>
     </div>
   )
 }

@@ -45,6 +45,24 @@ export interface Workout {
   notes?: string
 }
 
+export interface CustomTemplateExercise {
+  exerciseId: string
+  targetSets?: number
+  targetReps?: string
+}
+
+/** Modèle de séance personnalisé, sauvegardé depuis une séance en cours —
+ * même principe que les templates par chef musculaire, mais créé par
+ * l'utilisateur, réutilisable depuis "Mes modèles" sur l'accueil Gym. */
+export interface CustomTemplate {
+  id: string
+  name: string
+  /** Miniature compressée en data URL (jamais l'image d'origine — voir compressImageToDataUrl). */
+  photoDataUrl?: string
+  exercises: CustomTemplateExercise[]
+  createdAt: number
+}
+
 // ---- Activités quotidiennes ----
 
 export type ActivityCategory = 'gym' | 'outdoor' | 'loisir' | 'quotidien'
