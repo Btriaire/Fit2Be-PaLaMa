@@ -21,18 +21,35 @@ const NAME_TO_ENDURANCE: Record<string, EnduranceActivityType> = {
   marche: 'marche',
   'marche rapide': 'marche',
   randonnée: 'marche',
+  // Variantes anglaises — un appareil en locale anglaise (ou une session
+  // Google Fit/Apple Health sans nom localisé) peut renvoyer ces libellés
+  // au lieu du français ; sans ce filet, ces séances de marche tombaient
+  // dans le générique "Activité" au lieu d'être reconnues comme endurance.
+  walking: 'marche',
+  walk: 'marche',
+  'brisk walking': 'marche',
+  hiking: 'marche',
+  hike: 'marche',
   course: 'course',
   'course à pied': 'course',
   jogging: 'course',
+  running: 'course',
+  run: 'course',
   vélo: 'velo',
   cyclisme: 'velo',
   vtt: 'velo',
+  cycling: 'velo',
+  biking: 'velo',
   natation: 'natation',
+  swimming: 'natation',
   rameur: 'rameur',
   aviron: 'rameur',
+  rowing: 'rameur',
   'tapis de course': 'tapis',
+  treadmill: 'tapis',
   "vélo d'appartement": 'velo-appart',
   'vélo stationnaire': 'velo-appart',
+  'stationary biking': 'velo-appart',
 }
 
 function normalize(s: string): string {
@@ -122,4 +139,23 @@ export async function importNutriTrackerActivityHistory(days: number, settings: 
     imported++
   }
   return imported
+}
+
+const AUTO_IMPORT_KEY = 'fit2be:lastNutriTrackerAutoImport'
+const AUTO_IMPORT_MIN_INTERVAL_MS = 15 * 60_000
+
+/** Même import que le bouton manuel des Réglages, mais déclenché tout seul
+ * au démarrage de l'app — jusqu'ici il fallait penser à aller taper sur ce
+ * bouton pour que les séances loggées côté NutriTracker (dont "Marche",
+ * "Marche rapide", "Randonnée") apparaissent ici. Un throttle localStorage
+ * évite de refaire l'appel à chaque ouverture rapprochée de l'app. */
+export async function autoImportNutriTrackerActivitiesIfNeeded(settings: Settings): Promise<void> {
+  try {
+    const last = Number(localStorage.getItem(AUTO_IMPORT_KEY) ?? 0)
+    if (Date.now() - last < AUTO_IMPORT_MIN_INTERVAL_MS) return
+    localStorage.setItem(AUTO_IMPORT_KEY, String(Date.now()))
+    await importNutriTrackerActivityHistory(30, settings)
+  } catch {
+    // best effort — un échec ici ne doit jamais bloquer le chargement de l'app
+  }
 }

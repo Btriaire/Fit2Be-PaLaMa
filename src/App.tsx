@@ -2,6 +2,8 @@ import { useEffect, useState } from 'react'
 import { Route, Routes } from 'react-router-dom'
 import { getDb } from './lib/db'
 import { restoreFromCloudIfNeeded } from './lib/cloudSync'
+import { autoImportNutriTrackerActivitiesIfNeeded } from './lib/nutriTrackerImport'
+import { getSettings } from './lib/settings'
 import BottomNav from './components/BottomNav'
 import CoverPage from './pages/CoverPage'
 import Dashboard from './pages/Dashboard'
@@ -26,6 +28,20 @@ function App() {
   useEffect(() => {
     if (!entered) return
     getDb().then(restoreFromCloudIfNeeded)
+    autoImportNutriTrackerActivitiesIfNeeded(getSettings())
+  }, [entered])
+
+  useEffect(() => {
+    if (!entered) return
+    // Reprend l'import dès que l'app revient au premier plan (pas seulement
+    // au tout premier chargement) — sinon une marche loggée dans
+    // NutriTracker pendant que VibeFit était en arrière-plan n'apparaît
+    // qu'au prochain relancement complet.
+    function onVisible() {
+      if (document.visibilityState === 'visible') autoImportNutriTrackerActivitiesIfNeeded(getSettings())
+    }
+    document.addEventListener('visibilitychange', onVisible)
+    return () => document.removeEventListener('visibilitychange', onVisible)
   }, [entered])
 
   if (!entered) {
