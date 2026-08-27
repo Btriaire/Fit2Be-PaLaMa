@@ -227,6 +227,9 @@ export default function NutritionPage() {
                       <span className="font-medium text-zinc-300">{MEAL_LABELS[meal]}</span>
                       <span className="font-mono text-zinc-400">{Math.round(m.calories)} kcal</span>
                     </div>
+                    <p className="mt-0.5 text-[11px] text-zinc-500">
+                      P {Math.round(m.proteinG)}g · G {Math.round(m.carbsG)}g · L {Math.round(m.fatG)}g
+                    </p>
                     {m.items.length > 0 && <p className="mt-0.5 truncate text-[11px] text-zinc-600">{m.items.join(', ')}</p>}
                   </li>
                 )

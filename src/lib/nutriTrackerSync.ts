@@ -109,7 +109,7 @@ export interface RemoteNutritionTotals {
   fatG: number
   sugarG: number
   entryCount: number
-  byMeal: Partial<Record<MealCategory, { calories: number; items: string[] }>>
+  byMeal: Partial<Record<MealCategory, { calories: number; proteinG: number; carbsG: number; fatG: number; items: string[] }>>
 }
 
 const EMPTY_NUTRITION: RemoteNutritionTotals = { date: '', calories: 0, proteinG: 0, carbsG: 0, fatG: 0, sugarG: 0, entryCount: 0, byMeal: {} }

@@ -1,10 +1,22 @@
 import { useEffect, useMemo, useState } from 'react'
+import { HeartPulse } from 'lucide-react'
 import { Bar, BarChart, CartesianGrid, Cell, Line, LineChart, Pie, PieChart, ResponsiveContainer, Tooltip, XAxis, YAxis } from 'recharts'
 import { getDb } from '../lib/db'
-import { getAllWorkouts, estimateWorkoutCalories } from '../lib/workouts'
+import { getAllWorkouts, estimateWorkoutCalories, computeEffortDistribution, type EffortDistribution } from '../lib/workouts'
 import { getSettings } from '../lib/settings'
 import { formatDate } from '../lib/date'
+import { computeVo2Max, computePolarization, type Vo2MaxEstimate, type Polarization } from '../lib/progression'
+import { computeMaxHr } from '../lib/heartRate'
+import { pullCardiacRangeFromNutriTracker, type RemoteCardiacDay } from '../lib/nutriTrackerSync'
 import type { ActivityLog, EnduranceSession, NutritionEntry, RecoveryCheckin, WeightLog, Workout } from '../types'
+
+function bpCategory(systolic: number, diastolic: number): { label: string; color: string } {
+  // Repères informatifs (classification AHA), pas un diagnostic — jamais présenté comme tel dans l'UI.
+  if (systolic >= 140 || diastolic >= 90) return { label: 'élevée', color: '#e2361c' }
+  if (systolic >= 130 || diastolic >= 80) return { label: 'légèrement élevée', color: '#facc15' }
+  if (systolic < 90 || diastolic < 60) return { label: 'basse', color: '#38bdf8' }
+  return { label: 'normale', color: '#2dd4bf' }
+}
 
 type Period = 'day' | 'week' | 'month'
 
@@ -36,6 +48,10 @@ export default function StatsTab() {
   const [nutrition, setNutrition] = useState<NutritionEntry[]>([])
   const [recovery, setRecovery] = useState<RecoveryCheckin[]>([])
   const [weightLogs, setWeightLogs] = useState<WeightLog[]>([])
+  const [cardiac, setCardiac] = useState<RemoteCardiacDay[]>([])
+  const [vo2max, setVo2max] = useState<Vo2MaxEstimate | null>(null)
+  const [polarization, setPolarization] = useState<Polarization | null>(null)
+  const [effort, setEffort] = useState<EffortDistribution | null>(null)
   const settings = getSettings()
 
   useEffect(() => {
@@ -47,6 +63,11 @@ export default function StatsTab() {
       setRecovery(await db.getAll('recovery'))
       setWeightLogs(await db.getAll('weightLogs'))
     })
+    pullCardiacRangeFromNutriTracker(30).then(setCardiac)
+    computeVo2Max(settings.ageYears, settings.restingHeartRateBpm).then(setVo2max)
+    computePolarization(28).then(setPolarization)
+    computeEffortDistribution(14).then(setEffort)
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
 
   const rangeStart = startOfRange(PERIOD_DAYS[period])
@@ -124,9 +145,94 @@ export default function StatsTab() {
   }, [workouts, activities, endurance, rangeStart, settings])
 
   const pieColors = [CHART_COLORS.orange, CHART_COLORS.turquoise, CHART_COLORS.indigo]
+  const latestCardiac = cardiac[0] ?? null
+  const maxHr = computeMaxHr(settings.ageYears)
+  const latestHrPctMax = latestCardiac?.heartRateAvg != null ? Math.round((latestCardiac.heartRateAvg / maxHr) * 100) : null
 
   return (
     <div>
+      <section className="glass mb-5 rounded-2xl p-4">
+        <p className="mb-3 flex items-center gap-1.5 text-xs font-semibold uppercase tracking-wide text-red-400">
+          <HeartPulse size={13} /> Santé cardiaque & effort
+        </p>
+
+        <div className="mb-3 grid grid-cols-2 gap-2">
+          <div className="rounded-xl bg-zinc-900/70 p-3">
+            <p className="text-[10px] text-zinc-500">FC repos {latestCardiac?.heartRateResting != null ? '' : '/ moyenne'}</p>
+            <p className="mt-0.5 text-xl font-bold text-red-400">
+              {latestCardiac?.heartRateResting ?? latestCardiac?.heartRateAvg ?? '—'}
+              <span className="ml-1 text-[10px] font-normal text-zinc-600">bpm</span>
+            </p>
+            {latestHrPctMax != null && <p className="mt-0.5 text-[10px] text-zinc-600">{latestHrPctMax}% de la FC max ({maxHr})</p>}
+          </div>
+          <div className="rounded-xl bg-zinc-900/70 p-3">
+            <p className="text-[10px] text-zinc-500">Tension artérielle</p>
+            {latestCardiac?.systolicBP != null && latestCardiac?.diastolicBP != null ? (
+              <>
+                <p className="mt-0.5 text-xl font-bold" style={{ color: bpCategory(latestCardiac.systolicBP, latestCardiac.diastolicBP).color }}>
+                  {latestCardiac.systolicBP}/{latestCardiac.diastolicBP}
+                  <span className="ml-1 text-[10px] font-normal text-zinc-600">mmHg</span>
+                </p>
+                <p className="mt-0.5 text-[10px] text-zinc-600">{bpCategory(latestCardiac.systolicBP, latestCardiac.diastolicBP).label}</p>
+              </>
+            ) : (
+              <p className="mt-0.5 text-xl font-bold text-zinc-600">—</p>
+            )}
+          </div>
+          <div className="rounded-xl bg-zinc-900/70 p-3">
+            <p className="text-[10px] text-zinc-500">VO2max estimé</p>
+            <p className="mt-0.5 text-xl font-bold text-teal-400">
+              {vo2max?.vo2max ?? '—'}
+              {vo2max && <span className="ml-1 text-[10px] font-normal text-zinc-600">ml/kg/min</span>}
+            </p>
+            {vo2max && <p className="mt-0.5 text-[10px] text-zinc-600">Formule Uth et al. · {vo2max.source}</p>}
+          </div>
+          <div className="rounded-xl bg-zinc-900/70 p-3">
+            <p className="text-[10px] text-zinc-500">RPE moyen (14j)</p>
+            <p className="mt-0.5 text-xl font-bold text-orange-400">{effort?.avgRpe ?? '—'}</p>
+            <p className="mt-0.5 text-[10px] text-zinc-600">{effort?.ratedSets ?? 0} série(s) notée(s)</p>
+          </div>
+        </div>
+
+        {polarization && (
+          <div className="mb-3">
+            <p className="mb-1 text-[10px] text-zinc-500">Polarisation cardio (28j) — {polarization.totalMinutes}min</p>
+            <div className="flex h-2 overflow-hidden rounded-full bg-zinc-900">
+              <div className="h-full bg-teal-500" style={{ width: `${polarization.easyPct}%` }} />
+              <div className="h-full bg-amber-500" style={{ width: `${polarization.moderatePct}%` }} />
+              <div className="h-full bg-red-500" style={{ width: `${polarization.hardPct}%` }} />
+            </div>
+            <p className="mt-1 text-[10px] text-zinc-600">
+              Facile {polarization.easyPct}% · Modéré {polarization.moderatePct}% · Dur {polarization.hardPct}% — cible ≈80/20 (peu de zone 3)
+            </p>
+          </div>
+        )}
+
+        {effort && effort.ratedSets > 0 && (
+          <div>
+            <p className="mb-1 text-[10px] text-zinc-500">Répartition des niveaux de difficulté (mode Focus)</p>
+            <div className="flex h-2 overflow-hidden rounded-full bg-zinc-900">
+              {effort.buckets.map((b, i) => (
+                <div
+                  key={b.label}
+                  className="h-full"
+                  style={{ width: `${b.pct}%`, backgroundColor: ['#2dd4bf', '#2dd4bf', '#f59e0b', '#f97316', '#e2361c'][i] }}
+                />
+              ))}
+            </div>
+            <div className="mt-1 flex flex-wrap gap-x-3 gap-y-0.5 text-[10px] text-zinc-600">
+              {effort.buckets
+                .filter((b) => b.count > 0)
+                .map((b) => (
+                  <span key={b.label}>
+                    {b.label} {b.pct}%
+                  </span>
+                ))}
+            </div>
+          </div>
+        )}
+      </section>
+
       <div className="mb-5 flex gap-1.5 rounded-xl bg-zinc-900 p-1">
         {(['day', 'week', 'month'] as Period[]).map((p) => (
           <button

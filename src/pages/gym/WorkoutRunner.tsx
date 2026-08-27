@@ -67,7 +67,7 @@ export default function WorkoutRunner() {
   }
 
   async function addSet(exerciseId: string, set: Omit<SetEntry, 'id' | 'exerciseId' | 'completedAt' | 'isPr'>) {
-    if (!workout) return
+    if (!workout) return null
     const best = await getBestPerformance(exerciseId, workout.id)
     const isPr = detectPr(set, best)
     const entry: SetEntry = { ...set, id: newId(), exerciseId, completedAt: Date.now(), isPr }
@@ -79,6 +79,19 @@ export default function WorkoutRunner() {
     }
     await persist(next)
     if (!set.isWarmup) setRestToken((t) => t + 1)
+    return entry.id
+  }
+
+  async function applyDifficultyToSets(exerciseId: string, setIds: string[], rpe: number) {
+    if (!workout) return
+    const setIdSet = new Set(setIds)
+    const next: Workout = {
+      ...workout,
+      exercises: workout.exercises.map((we) =>
+        we.exerciseId === exerciseId ? { ...we, sets: we.sets.map((s) => (setIdSet.has(s.id) ? { ...s, rpe } : s)) } : we,
+      ),
+    }
+    await persist(next)
   }
 
   async function finishWorkout() {
@@ -154,6 +167,10 @@ export default function WorkoutRunner() {
             <FocusExerciseView
               we={we}
               onAddSet={(s) => addSet(we.exerciseId, s)}
+              onFinish={async (setIds, rpe) => {
+                await applyDifficultyToSets(we.exerciseId, setIds, rpe)
+                setFocusExerciseId(null)
+              }}
               onClose={() => setFocusExerciseId(null)}
             />
           )
@@ -572,33 +589,52 @@ const DIFFICULTY_LEVELS: Array<{ label: string; rpe: number; color: string }> = 
 function FocusExerciseView({
   we,
   onAddSet,
+  onFinish,
   onClose,
 }: {
   we: WorkoutExercise
-  onAddSet: (set: Omit<SetEntry, 'id' | 'exerciseId' | 'completedAt' | 'isPr'>) => void
+  onAddSet: (set: Omit<SetEntry, 'id' | 'exerciseId' | 'completedAt' | 'isPr'>) => Promise<string | null | undefined>
+  onFinish: (setIds: string[], rpe: number) => void
   onClose: () => void
 }) {
   const exercise = ALL_EXERCISES.find((e) => e.id === we.exerciseId)
+  const [last, setLast] = useState<LastPerformance | null>(null)
   const [weight, setWeight] = useState('')
   const [reps, setReps] = useState('')
   const [awaitingDifficulty, setAwaitingDifficulty] = useState(false)
+  const [sessionSetIds, setSessionSetIds] = useState<string[]>([])
 
   const doneCount = we.sets.filter((s) => !s.isWarmup).length
   const targetReached = we.targetSets != null && doneCount >= we.targetSets
 
-  function submitSet() {
+  // Même pré-remplissage que la vue standard : dernière performance connue,
+  // sinon la cible du template ("8-10" -> 8) plutôt qu'un champ vide.
+  useEffect(() => {
+    getLastPerformance(we.exerciseId).then((lp) => {
+      setLast(lp)
+      if (lp && we.sets.length === 0) {
+        setWeight((w) => w || String(lp.weightKg))
+        setReps((r) => r || String(lp.reps))
+      }
+      if (!lp && we.sets.length === 0 && we.targetReps) {
+        const firstNumber = we.targetReps.match(/\d+/)?.[0]
+        if (firstNumber) setReps((r) => r || firstNumber)
+      }
+    })
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [we.exerciseId])
+
+  async function submitSet() {
     const w = parseFloat(weight)
     const r = parseInt(reps, 10)
     if (!w || !r) return
-    setAwaitingDifficulty(true)
+    const id = await onAddSet({ weightKg: w, reps: r, isWarmup: false })
+    if (id) setSessionSetIds((ids) => [...ids, id])
+    // Garde les valeurs pré-remplies pour la série suivante — souvent identiques.
   }
 
   function pickDifficulty(rpe: number) {
-    const w = parseFloat(weight)
-    const r = parseInt(reps, 10)
-    onAddSet({ weightKg: w, reps: r, rpe, isWarmup: false })
-    setWeight('')
-    setReps('')
+    onFinish(sessionSetIds, rpe)
     setAwaitingDifficulty(false)
   }
 
@@ -619,10 +655,15 @@ function FocusExerciseView({
           <img src={exercise.images[0]} alt="" className="mb-6 h-40 w-40 rounded-2xl bg-zinc-900 object-cover" />
         )}
 
-        <p className="mb-6 text-sm text-zinc-400">
+        <p className="mb-1 text-sm text-zinc-400">
           Série <span className="font-mono text-zinc-200">{doneCount + 1}</span>
           {we.targetSets != null && <span> / {we.targetSets}</span>}
         </p>
+        {last && we.sets.length === 0 && (
+          <p className="mb-5 text-xs text-zinc-600">
+            Dernière fois : {last.weightKg}kg × {last.reps}
+          </p>
+        )}
 
         {!awaitingDifficulty ? (
           <>
@@ -656,11 +697,12 @@ function FocusExerciseView({
             >
               Valider la série
             </button>
-            {targetReached && (
-              <button onClick={onClose} className="mt-4 text-sm font-medium text-teal-400 active:text-teal-300">
-                Terminer l'exercice ✓
-              </button>
-            )}
+            <button
+              onClick={() => (sessionSetIds.length > 0 ? setAwaitingDifficulty(true) : onClose())}
+              className={`mt-4 text-sm font-medium active:opacity-80 ${targetReached ? 'text-teal-400' : 'text-zinc-500'}`}
+            >
+              Terminer l'exercice {targetReached ? '✓' : ''}
+            </button>
           </>
         ) : (
           <div className="w-full max-w-xs">

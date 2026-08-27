@@ -254,3 +254,44 @@ export async function getLoggedExerciseIds(): Promise<Array<{ exerciseId: string
     .map(([exerciseId, lastDate]) => ({ exerciseId, lastDate }))
     .sort((a, b) => b.lastDate - a.lastDate)
 }
+
+export interface EffortDistribution {
+  ratedSets: number
+  avgRpe: number | null
+  buckets: { label: string; count: number; pct: number }[]
+}
+
+const EFFORT_BUCKETS = [
+  { label: 'Facile', max: 4 },
+  { label: 'Modéré', max: 6 },
+  { label: 'Difficile', max: 8 },
+  { label: 'Très difficile', max: 9.5 },
+  { label: 'Échec', max: Infinity },
+]
+
+/** Répartition des niveaux de difficulté saisis (RPE, mode Focus ou saisie
+ * manuelle) sur les séries de musculation des N derniers jours — donne une
+ * vue directe de "à quelle intensité je m'entraîne réellement", complément
+ * du volume (kg x reps) qui ne dit rien de l'effort ressenti. */
+export async function computeEffortDistribution(days = 14): Promise<EffortDistribution> {
+  const cutoff = Date.now() - days * 86_400_000
+  const all = await getAllWorkouts()
+  const rpes: number[] = []
+  for (const w of all.filter((w) => w.startedAt >= cutoff)) {
+    for (const we of w.exercises) {
+      for (const s of we.sets) {
+        if (!s.isWarmup && s.rpe != null) rpes.push(s.rpe)
+      }
+    }
+  }
+  const buckets = EFFORT_BUCKETS.map((b, i) => {
+    const min = i === 0 ? 0 : EFFORT_BUCKETS[i - 1].max
+    const count = rpes.filter((r) => r > min - 1e-9 && r <= b.max).length
+    return { label: b.label, count, pct: rpes.length > 0 ? Math.round((count / rpes.length) * 100) : 0 }
+  })
+  return {
+    ratedSets: rpes.length,
+    avgRpe: rpes.length > 0 ? Math.round((rpes.reduce((a, b) => a + b, 0) / rpes.length) * 10) / 10 : null,
+    buckets,
+  }
+}
