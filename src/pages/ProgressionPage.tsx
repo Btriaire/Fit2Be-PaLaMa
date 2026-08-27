@@ -442,16 +442,17 @@ export default function ProgressionPage() {
                 <TrendBadge trendPct={prRate.trendPct} />
               </div>
             )}
-            {muscleVolume.length > 0 && (
-              <div className="glass mb-2 rounded-2xl p-4">
-                <p className="mb-2 text-xs text-zinc-500">Heatmap musculaire (7j) — chefs les plus sollicités</p>
-                <MuscleHeatmap
-                  intensities={Object.fromEntries(
-                    muscleVolume.map((m) => [m.muscleGroup, maxVolume > 0 ? m.totalVolume / maxVolume : 0]),
-                  )}
-                />
-              </div>
-            )}
+            <div className="glass mb-2 rounded-2xl p-4">
+              <p className="mb-2 text-xs text-zinc-500">Heatmap musculaire (7j) — chefs les plus sollicités</p>
+              <MuscleHeatmap
+                intensities={Object.fromEntries(
+                  muscleVolume.map((m) => [m.muscleGroup, maxVolume > 0 ? m.totalVolume / maxVolume : 0]),
+                )}
+              />
+              {muscleVolume.length === 0 && (
+                <p className="mt-2 text-center text-[11px] text-zinc-600">Aucune séance de musculation loggée ces 7 derniers jours.</p>
+              )}
+            </div>
             {muscleVolume.length > 0 && (
               <div className="glass mb-2 rounded-2xl p-4">
                 <p className="mb-2 text-xs text-zinc-500">Volume par groupe musculaire (7j)</p>

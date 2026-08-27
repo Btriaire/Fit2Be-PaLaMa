@@ -143,33 +143,29 @@ export default function Dashboard() {
         </div>
       </div>
 
-      {(googleFit || mood?.mood != null) && (
-        <div className="mb-6 grid grid-cols-2 gap-2">
-          {googleFit && (
-            <>
-              <StatTile
-                icon={<Footprints size={14} className="text-teal-400" />}
-                label="Pas (Google Fit)"
-                value={googleFit.steps.toLocaleString('fr-FR')}
-                color="text-teal-400"
-              />
-              <StatTile
-                icon={<Moon size={14} className="text-indigo-400" />}
-                label="Sommeil (Google Fit)"
-                value={googleFit.sleepMinutes != null ? `${Math.floor(googleFit.sleepMinutes / 60)}h${String(googleFit.sleepMinutes % 60).padStart(2, '0')}` : '—'}
-                color="text-indigo-400"
-              />
-            </>
-          )}
-          {mood?.mood != null && (
+      <div className="mb-6 grid grid-cols-2 gap-2">
+        {googleFit && (
+          <>
             <StatTile
-              label="Humeur du jour"
-              value={`${MOOD_EMOJI[mood.mood] ?? '😐'} ${mood.mood}/5`}
-              color="text-indigo-300"
+              icon={<Footprints size={14} className="text-teal-400" />}
+              label="Pas (Google Fit)"
+              value={googleFit.steps.toLocaleString('fr-FR')}
+              color="text-teal-400"
             />
-          )}
-        </div>
-      )}
+            <StatTile
+              icon={<Moon size={14} className="text-indigo-400" />}
+              label="Sommeil (Google Fit)"
+              value={googleFit.sleepMinutes != null ? `${Math.floor(googleFit.sleepMinutes / 60)}h${String(googleFit.sleepMinutes % 60).padStart(2, '0')}` : '—'}
+              color="text-indigo-400"
+            />
+          </>
+        )}
+        <StatTile
+          label="Humeur du jour"
+          value={mood?.mood != null ? `${MOOD_EMOJI[mood.mood] ?? '😐'} ${mood.mood}/5` : '—'}
+          color="text-indigo-300"
+        />
+      </div>
 
       <div className="glass mb-6 flex items-center gap-3 rounded-2xl p-3.5">
         <input ref={photoInputRef} type="file" accept="image/*" capture="user" className="hidden" onChange={handleDailyPhoto} />

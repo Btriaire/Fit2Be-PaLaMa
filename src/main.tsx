@@ -21,6 +21,20 @@ document.addEventListener('visibilitychange', () => {
   if (document.visibilityState === 'visible') updateSW()
 })
 
+// Belt-and-suspenders: a device that already had a PRE-FIX service worker
+// registered (before this update-check logic existed) can stay stuck
+// indefinitely — that old SW's own browser-level update check can still
+// fire independently of this page's JS, but nothing ever reloaded the open
+// tab once it did. Force an explicit update() check on load/foreground, and
+// hard-reload the instant a new SW takes control.
+if ('serviceWorker' in navigator) {
+  navigator.serviceWorker.getRegistration().then((reg) => reg?.update())
+  document.addEventListener('visibilitychange', () => {
+    if (document.visibilityState === 'visible') navigator.serviceWorker.getRegistration().then((reg) => reg?.update())
+  })
+  navigator.serviceWorker.addEventListener('controllerchange', () => window.location.reload())
+}
+
 createRoot(document.getElementById('root')!).render(
   <StrictMode>
     <BrowserRouter>

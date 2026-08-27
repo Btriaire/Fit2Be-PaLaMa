@@ -200,6 +200,28 @@ export default function RecoveryPage() {
         </div>
       </div>
 
+      <div className="glass mb-4 rounded-2xl p-3.5">
+        <div className="mb-1 flex items-center justify-between">
+          <p className="flex items-center gap-1 text-xs text-zinc-500">
+            <Gauge size={12} /> Charge aiguë/chronique (ACWR)
+          </p>
+          {acwr && (
+            <span
+              className="rounded-full px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide"
+              style={{ backgroundColor: `${ACWR_COLOR[acwr.risk]}22`, color: ACWR_COLOR[acwr.risk] }}
+            >
+              {acwr.ratio != null ? acwr.risk : 'pas de données'}
+            </span>
+          )}
+        </div>
+        <p className="text-xl font-bold" style={{ color: acwr ? ACWR_COLOR[acwr.risk] : undefined }}>
+          {acwr?.ratio ?? '—'}
+        </p>
+        <p className="mt-0.5 text-[10px] text-zinc-600">
+          {acwr ? `Charge 7j : ${acwr.acute} pts/j · Charge 28j : ${acwr.chronic} pts/j` : 'Zone saine ≈ 0.8-1.3'}
+        </p>
+      </div>
+
       {acwr && acwr.ratio != null && (acwr.risk === 'à surveiller' || acwr.risk === 'risque élevé') && (
         <div
           className="mb-4 rounded-2xl border p-3 text-xs"
@@ -216,29 +238,29 @@ export default function RecoveryPage() {
       )}
 
       <div className="mb-4 grid grid-cols-2 gap-2">
-        {sleepDebt && sleepDebt.daysWithData > 0 && (
-          <div className="glass rounded-2xl p-3.5">
-            <p className="flex items-center gap-1 text-xs text-zinc-500">
-              <Moon size={12} /> Dette de sommeil (7j)
-            </p>
-            <p className={`mt-1 text-xl font-bold ${sleepDebt.totalDebtMin > 120 ? 'text-red-400' : 'text-indigo-300'}`}>
-              {sleepDebt.totalDebtMin > 0 ? `-${Math.round(sleepDebt.totalDebtMin / 60)}h` : '0h'}
-            </p>
-            <p className="mt-0.5 text-[10px] text-zinc-600">Moy. {sleepDebt.avgSleepMin ? Math.round(sleepDebt.avgSleepMin / 60) : '—'}h/nuit</p>
-          </div>
-        )}
-        {streak && (streak.activeDaysStreak > 0 || streak.restDaysStreak > 0) && (
-          <div className="glass rounded-2xl p-3.5">
-            <p className="flex items-center gap-1 text-xs text-zinc-500">
-              <StreakIcon size={12} /> {streak.activeDaysStreak > 0 ? 'Jours actifs' : 'Jours de repos'}
-            </p>
-            <p className="mt-1 text-xl font-bold text-orange-400">{streak.activeDaysStreak > 0 ? streak.activeDaysStreak : streak.restDaysStreak}</p>
-            <p className="mt-0.5 text-[10px] text-zinc-600">d'affilée</p>
-          </div>
-        )}
+        <div className="glass rounded-2xl p-3.5">
+          <p className="flex items-center gap-1 text-xs text-zinc-500">
+            <Moon size={12} /> Dette de sommeil (7j)
+          </p>
+          <p className={`mt-1 text-xl font-bold ${sleepDebt && sleepDebt.totalDebtMin > 120 ? 'text-red-400' : 'text-indigo-300'}`}>
+            {sleepDebt && sleepDebt.daysWithData > 0 ? (sleepDebt.totalDebtMin > 0 ? `-${Math.round(sleepDebt.totalDebtMin / 60)}h` : '0h') : '—'}
+          </p>
+          <p className="mt-0.5 text-[10px] text-zinc-600">
+            {sleepDebt && sleepDebt.daysWithData > 0 ? `Moy. ${sleepDebt.avgSleepMin ? Math.round(sleepDebt.avgSleepMin / 60) : '—'}h/nuit` : 'Pas de données Google Fit'}
+          </p>
+        </div>
+        <div className="glass rounded-2xl p-3.5">
+          <p className="flex items-center gap-1 text-xs text-zinc-500">
+            <StreakIcon size={12} /> {streak && streak.activeDaysStreak > 0 ? 'Jours actifs' : 'Jours de repos'}
+          </p>
+          <p className="mt-1 text-xl font-bold text-orange-400">
+            {streak ? (streak.activeDaysStreak > 0 ? streak.activeDaysStreak : streak.restDaysStreak) : '—'}
+          </p>
+          <p className="mt-0.5 text-[10px] text-zinc-600">d'affilée</p>
+        </div>
       </div>
 
-      {monotony && monotony.weeklyLoad > 0 && (
+      {monotony && (
         <div className="glass mb-4 rounded-2xl p-3.5">
           <div className="mb-1 flex items-center justify-between">
             <p className="flex items-center gap-1 text-xs text-zinc-500">
@@ -248,19 +270,19 @@ export default function RecoveryPage() {
               className="rounded-full px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide"
               style={{ backgroundColor: `${MONOTONY_COLOR[monotony.risk]}22`, color: MONOTONY_COLOR[monotony.risk] }}
             >
-              {monotony.risk}
+              {monotony.weeklyLoad > 0 ? monotony.risk : 'pas de données'}
             </span>
           </div>
           <div className="flex items-baseline gap-4">
             <p>
               <span className="text-xl font-bold" style={{ color: MONOTONY_COLOR[monotony.risk] }}>
-                {monotony.monotony}
+                {monotony.weeklyLoad > 0 ? monotony.monotony : '—'}
               </span>
               <span className="ml-1 text-[10px] text-zinc-600">monotonie</span>
             </p>
             <p>
               <span className="text-xl font-bold" style={{ color: MONOTONY_COLOR[monotony.risk] }}>
-                {monotony.strain}
+                {monotony.weeklyLoad > 0 ? monotony.strain : '—'}
               </span>
               <span className="ml-1 text-[10px] text-zinc-600">contrainte</span>
             </p>
