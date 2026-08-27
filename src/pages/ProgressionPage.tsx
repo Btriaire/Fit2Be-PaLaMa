@@ -192,7 +192,8 @@ export default function ProgressionPage() {
                 </p>
                 <p className="mt-1 text-2xl font-bold text-indigo-300">{diversity.score}</p>
                 <p className="mt-0.5 text-[11px] text-zinc-600">
-                  Gym {diversity.gymMin}min · Endurance {diversity.enduranceMin}min · Activités {diversity.activityMin}min
+                  Gym {diversity.gymMin}min · Endurance {diversity.enduranceMin}min · Activités {diversity.activityMin}min · Marche{' '}
+                  {diversity.walkingMin}min
                 </p>
               </div>
             )}

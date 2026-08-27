@@ -9,9 +9,19 @@ import { getEnduranceSessions, ENDURANCE_ACTIVITY_META } from './endurance'
 import { enduranceSessionLoad } from './recovery'
 import { computeMaxHr } from './heartRate'
 import { getDb } from './db'
+import { getGoogleFitDays } from './googleFit'
 import { ALL_EXERCISES } from './exercises'
 import type { Settings } from './settings'
 import type { ActivityLog, EnduranceActivityType, EnduranceSession } from '../types'
+
+// Pas au sol usuel pour un pas de marche modéré — sert à convertir un
+// nombre de pas en "minutes de marche équivalentes" pour que la marche
+// pèse dans la régularité/diversité au même titre que gym/endurance/activités,
+// au lieu d'être invisible tant qu'elle n'est pas loguée manuellement.
+const STEPS_PER_MINUTE = 100
+// En-dessous, on considère que c'est du déplacement du quotidien plutôt
+// qu'une vraie marche active — évite de compter chaque jour comme "actif".
+const MEANINGFUL_WALK_STEPS = 1500
 
 export interface ProgressionIndex {
   score: number // 0-100, 50 = neutre/stable
@@ -149,9 +159,16 @@ export async function computeCardiacIndex(): Promise<ProgressionIndex> {
 
 // ---- Régularité & index général ----
 
-/** Jours distincts avec au moins une activité (gym/endurance) sur les 14 derniers jours. */
+/** Jours distincts avec au moins une activité (gym/endurance/quotidien/marche)
+ * sur les 14 derniers jours. */
 async function computeConsistencyIndex(): Promise<ProgressionIndex> {
-  const [workouts, endurance] = await Promise.all([getAllWorkouts(), getEnduranceSessions()])
+  const [workouts, endurance, db, googleFitDays] = await Promise.all([
+    getAllWorkouts(),
+    getEnduranceSessions(),
+    getDb(),
+    getGoogleFitDays(14),
+  ])
+  const activities: ActivityLog[] = await db.getAll('activities')
   const cutoff = Date.now() - 14 * 24 * 3600_000
   const days = new Set<string>()
   for (const w of workouts) {
@@ -159,6 +176,12 @@ async function computeConsistencyIndex(): Promise<ProgressionIndex> {
   }
   for (const e of endurance) {
     if (e.startedAt >= cutoff) days.add(new Date(e.startedAt).toISOString().slice(0, 10))
+  }
+  for (const a of activities) {
+    if (a.loggedAt >= cutoff) days.add(new Date(a.loggedAt).toISOString().slice(0, 10))
+  }
+  for (const g of googleFitDays) {
+    if (g.steps >= MEANINGFUL_WALK_STEPS) days.add(g.date)
   }
   // 8 jours actifs / 14 = score plein — rythme "un jour sur deux" jugé solide.
   const score = Math.max(0, Math.min(100, Math.round((days.size / 8) * 100)))
@@ -276,18 +299,24 @@ function shannonEntropyNormalized(values: number[]): number {
 }
 
 export interface DiversityIndex {
-  score: number // 0-100, 100 = temps réparti également entre les 3 modules
+  score: number // 0-100, 100 = temps réparti également entre les 4 modules
   gymMin: number
   enduranceMin: number
   activityMin: number
+  walkingMin: number
 }
 
 /** Indice de diversité (entropie de Shannon) entre gym / endurance / activités
- * sur N jours — un score bas signale un mono-sport qui isole certains index
- * (ex: index cardiaque jamais alimenté si 100% muscu). */
+ * / marche (pas Google Fit) sur N jours — un score bas signale un mono-sport
+ * qui isole certains index (ex: index cardiaque jamais alimenté si 100% muscu). */
 export async function computeDiversityIndex(days = 14): Promise<DiversityIndex> {
   const cutoff = Date.now() - days * 86_400_000
-  const [workouts, endurance, db] = await Promise.all([getAllWorkouts(), getEnduranceSessions(), getDb()])
+  const [workouts, endurance, db, googleFitDays] = await Promise.all([
+    getAllWorkouts(),
+    getEnduranceSessions(),
+    getDb(),
+    getGoogleFitDays(days),
+  ])
   const activities: ActivityLog[] = await db.getAll('activities')
 
   const gymMin = workouts
@@ -295,12 +324,14 @@ export async function computeDiversityIndex(days = 14): Promise<DiversityIndex> 
     .reduce((s, w) => s + (w.finishedAt! - w.startedAt) / 60000, 0)
   const enduranceMin = endurance.filter((e) => e.startedAt >= cutoff).reduce((s, e) => s + e.durationMin, 0)
   const activityMin = activities.filter((a) => a.loggedAt >= cutoff).reduce((s, a) => s + a.durationMin, 0)
+  const walkingMin = googleFitDays.reduce((s, g) => s + g.steps / STEPS_PER_MINUTE, 0)
 
   return {
-    score: shannonEntropyNormalized([gymMin, enduranceMin, activityMin]),
+    score: shannonEntropyNormalized([gymMin, enduranceMin, activityMin, walkingMin]),
     gymMin: Math.round(gymMin),
     enduranceMin: Math.round(enduranceMin),
     activityMin: Math.round(activityMin),
+    walkingMin: Math.round(walkingMin),
   }
 }
 

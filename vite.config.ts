@@ -10,6 +10,13 @@ export default defineConfig({
     tailwindcss(),
     VitePWA({
       registerType: 'autoUpdate',
+      // Default injectRegister:'auto' only adds a bare
+      // navigator.serviceWorker.register() call — it ignores registerType
+      // entirely, so a new deploy never actually reaches an
+      // already-installed PWA (no update check, no reload, ever). We
+      // register manually in main.tsx via virtual:pwa-register instead,
+      // which knows how to check for and apply updates.
+      injectRegister: false,
       includeAssets: ['favicon.svg'],
       manifest: {
         name: 'Fit2Be-PaLaMa — Gym, Sport & Longévité',
