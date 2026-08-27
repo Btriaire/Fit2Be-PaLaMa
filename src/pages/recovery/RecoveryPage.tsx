@@ -19,6 +19,7 @@ import {
   type Readiness,
 } from '../../lib/recovery'
 import ActivityHero from '../../components/ActivityHero'
+import BackButton from '../../components/BackButton'
 import { pushRecord, deleteRecord } from '../../lib/cloudSync'
 import type { RecoveryCheckin } from '../../types'
 
@@ -152,6 +153,7 @@ export default function RecoveryPage() {
       <div className="relative">
         <ActivityHero heroKey="yoga" className="h-40" />
         <div className="absolute inset-x-0 top-0 flex items-center gap-2 px-4 pt-[calc(env(safe-area-inset-top)+16px)]">
+          <BackButton />
           <HeartPulse className="text-indigo-400" size={24} />
           <h1 className="text-xl font-semibold tracking-tight text-white drop-shadow">Récupération</h1>
         </div>

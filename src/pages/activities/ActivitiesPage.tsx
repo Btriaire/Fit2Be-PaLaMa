@@ -9,12 +9,15 @@ import { pushActivityToNutriTracker } from '../../lib/nutriTrackerSync'
 import { pushRecord, deleteRecord } from '../../lib/cloudSync'
 import { ACTIVITY_PHOTOS } from '../../lib/activityPhotos'
 import ActivityHero from '../../components/ActivityHero'
+import BackButton from '../../components/BackButton'
 import type { ActivityCategory, ActivityLog } from '../../types'
 
 const CATEGORY_SECTION_LABEL: Partial<Record<ActivityCategory, string>> = {
   outdoor: 'Sport',
   loisir: 'Loisirs',
   quotidien: 'Quotidien',
+  bureau: 'Au bureau',
+  deplacement: 'Déplacement pro',
 }
 
 interface NavState {
@@ -73,6 +76,7 @@ export default function ActivitiesPage() {
       <div className="relative">
         <ActivityHero heroKey="marche" className="h-40" />
         <div className="absolute inset-x-0 top-0 flex items-center gap-2 px-4 pt-[calc(env(safe-area-inset-top)+16px)]">
+          <BackButton />
           <Footprints className="text-teal-400" size={24} />
           <h1 className="text-xl font-semibold tracking-tight text-white drop-shadow">Activités & Quotidien</h1>
         </div>
@@ -158,7 +162,7 @@ function ActivityForm({
 
   const activity = options.find((a) => a.id === activityId) ?? options[0]
 
-  const sections = (['outdoor', 'loisir', 'quotidien'] as ActivityCategory[])
+  const sections = (['outdoor', 'loisir', 'bureau', 'deplacement', 'quotidien'] as ActivityCategory[])
     .map((cat) => ({ cat, items: options.filter((a) => a.category === cat) }))
     .filter((s) => s.items.length > 0)
 

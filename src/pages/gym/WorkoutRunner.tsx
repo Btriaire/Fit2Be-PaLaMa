@@ -257,8 +257,14 @@ function ExerciseBlock({
         setWeight((w) => w || String(lp.weightKg))
         setReps((r) => r || String(lp.reps))
       }
+      // Pas d'historique (1ère fois sur cet exercice) : reprend la cible du
+      // template ("8-10" -> 8) plutôt que de laisser le champ vide.
+      if (!lp && we.sets.length === 0 && we.targetReps) {
+        const firstNumber = we.targetReps.match(/\d+/)?.[0]
+        if (firstNumber) setReps((r) => r || firstNumber)
+      }
     })
-  }, [we.exerciseId, we.sets.length])
+  }, [we.exerciseId, we.sets.length, we.targetReps])
 
   function submit() {
     const w = parseFloat(weight)

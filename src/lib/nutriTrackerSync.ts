@@ -164,6 +164,36 @@ export interface RemoteActivity {
   elevationGainM: number | null
 }
 
+export interface RemoteMood {
+  date: string
+  mood: number | null // 1-5
+  stressLevel: number | null
+  energy: number | null
+  tags: string[]
+}
+
+const EMPTY_MOOD: RemoteMood = { date: '', mood: null, stressLevel: null, energy: null, tags: [] }
+
+/** "Humeur du jour" saisie côté NutriTracker (widget mood circle) — lue ici
+ * en lecture seule, jamais modifiée depuis VibeFit. */
+export async function pullMoodOfTheDay(date?: string): Promise<RemoteMood> {
+  try {
+    const qs = date ? `&date=${date}` : ''
+    const r = await fetch(`/api/nutritracker?type=mood${qs}`)
+    if (!r.ok) return EMPTY_MOOD
+    const data = await r.json()
+    return {
+      date: data.date ?? date ?? '',
+      mood: data.mood ?? null,
+      stressLevel: data.stressLevel ?? null,
+      energy: data.energy ?? null,
+      tags: Array.isArray(data.tags) ? data.tags : [],
+    }
+  } catch {
+    return EMPTY_MOOD
+  }
+}
+
 /** Historique des activités loggées côté NutriTracker (dans son UI, pas
  * celles que VibeFit lui a déjà poussées — le serveur les exclut). */
 export async function pullActivityHistoryFromNutriTracker(days = 30): Promise<RemoteActivity[]> {

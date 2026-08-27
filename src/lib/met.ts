@@ -40,6 +40,16 @@ export const MET_ACTIVITIES: MetActivity[] = [
   { id: 'carrying-groceries', label: 'Porter les courses', category: 'quotidien', met: 4, googleFitType: 97 },
   { id: 'diy', label: 'Bricolage', category: 'quotidien', met: 4.5, googleFitType: 97 },
   { id: 'car-washing', label: 'Laver la voiture', category: 'quotidien', met: 3.5, googleFitType: 97 },
+  // Au bureau — faisable sur place, peu de matériel
+  { id: 'desk-stretching', label: 'Étirements (pause bureau)', category: 'bureau', met: 2.3, googleFitType: 61 },
+  { id: 'standing-desk', label: 'Poste debout', category: 'bureau', met: 1.8, googleFitType: 97 },
+  { id: 'office-stairs', label: "Pause escaliers (bureau)", category: 'bureau', met: 8, googleFitType: 55 },
+  { id: 'walking-meeting', label: 'Réunion en marchant', category: 'bureau', met: 3.3, googleFitType: 75 },
+  { id: 'chair-exercises', label: 'Exercices sur chaise (gainage, mollets)', category: 'bureau', met: 2.8, googleFitType: 97 },
+  // Déplacement professionnel — aéroport, train, correspondances : dépense
+  // notable (marche + bagages + station debout prolongée), impacte la fatigue.
+  { id: 'airport-connection', label: 'Aéroport / gare (bagages, correspondance)', category: 'deplacement', met: 4, googleFitType: 97 },
+  { id: 'train-travel', label: 'Trajet train / avion (assis, prolongé)', category: 'deplacement', met: 1.5, googleFitType: 97 },
 ]
 
 // Formule standard : kcal = MET x poids(kg) x durée(h)
@@ -101,4 +111,6 @@ export const CATEGORY_META: Record<ActivityCategory, { label: string; emoji: str
   outdoor: { label: 'Sport Outdoor', emoji: '🟢', color: 'var(--color-turquoise)' },
   loisir: { label: 'Loisir', emoji: '🔵', color: 'var(--color-turquoise)' },
   quotidien: { label: 'Quotidien', emoji: '🟠', color: 'var(--color-turquoise)' },
+  bureau: { label: 'Au bureau', emoji: '🧑‍💻', color: 'var(--color-turquoise)' },
+  deplacement: { label: 'Déplacement pro', emoji: '🧳', color: 'var(--color-turquoise)' },
 }

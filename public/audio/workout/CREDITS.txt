@@ -8,5 +8,11 @@ https://creativecommons.org/licenses/by/4.0/
 - workout-04-wallpaper.mp3         — "Wallpaper"
 - workout-05-hard-boiled.mp3       — "Hard Boiled"
 - workout-06-volatile-reaction.mp3 — "Volatile Reaction"
+- workout-07-hyperfun.mp3           — "Hyperfun"
+- workout-08-cipher2.mp3            — "Cipher2"
+- workout-09-aggressor.mp3          — "Aggressor"
+- workout-10-ambush.mp3             — "Ambush"
+- workout-11-exciting-trailer.mp3   — "Exciting Trailer"
+- workout-12-call-to-adventure.mp3  — "Call to Adventure"
 
 Source: https://incompetech.com/music/royalty-free/music.html

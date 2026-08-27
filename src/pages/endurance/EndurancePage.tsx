@@ -17,6 +17,7 @@ import { useGeoTracking } from '../../lib/useGeoTracking'
 import { scanMachineResults, machineTypeToActivityType, toMachineStats, type ParsedMachineResult } from '../../lib/machineScan'
 import RouteMap from '../../components/RouteMap'
 import ActivityHero, { hasHeroImage } from '../../components/ActivityHero'
+import BackButton from '../../components/BackButton'
 import type { EnduranceActivityType, EnduranceSession, MachineStats, RoutePoint } from '../../types'
 
 interface NavState {
@@ -86,6 +87,7 @@ export default function EndurancePage() {
       <div className="relative">
         <ActivityHero heroKey={heroKey} className="h-40" />
         <div className="absolute inset-x-0 top-0 flex items-center gap-2 px-4 pt-[calc(env(safe-area-inset-top)+16px)]">
+          <BackButton />
           <Activity className="text-teal-400" size={24} />
           <h1 className="text-xl font-semibold tracking-tight text-white drop-shadow">Endurance</h1>
         </div>

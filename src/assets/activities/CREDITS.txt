@@ -26,3 +26,7 @@ stairs.jpg            https://commons.wikimedia.org/wiki/File:Gabriel_walking_up
 carrying-groceries.jpg Flickr, via Openverse (live.staticflickr.com/2005/2092883077)
 diy.jpg               Flickr, via Openverse (live.staticflickr.com/744/32345791706)
 car-washing.jpg       Flickr, via Openverse (live.staticflickr.com/7205/6963153485)
+desk-stretching.jpg   Flickr, via Openverse (live.staticflickr.com/8162/7559234072)
+standing-desk.jpg     Flickr, via Openverse (live.staticflickr.com/604/22823077822)
+airport-connection.jpg Flickr, via Openverse (live.staticflickr.com/3945/15710694686)
+train-travel.jpg      Flickr, via Openverse (live.staticflickr.com/6212/6327493213)

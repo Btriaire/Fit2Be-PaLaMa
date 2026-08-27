@@ -65,7 +65,7 @@ export interface CustomTemplate {
 
 // ---- Activités quotidiennes ----
 
-export type ActivityCategory = 'gym' | 'outdoor' | 'loisir' | 'quotidien'
+export type ActivityCategory = 'gym' | 'outdoor' | 'loisir' | 'quotidien' | 'bureau' | 'deplacement'
 
 export interface ActivityLog {
   id: string
@@ -161,6 +161,17 @@ export interface UserSettings {
   dailyCalorieTarget: number
   restTimerDefaultSec: number
   units: 'kg' | 'lb'
+}
+
+// ---- Photo du jour (Dashboard) ----
+
+export interface DailyPhoto {
+  /** Égal à `date` — clé primaire du store, nommée `id` pour rester compatible
+   * avec le mécanisme générique de cloudSync/restore (voir SYNCABLE_STORES). */
+  id: string
+  date: string // YYYY-MM-DD
+  dataUrl: string
+  createdAt: number
 }
 
 // ---- Google Fit (lu depuis NutriTracker, pas d'OAuth propre à cette app) ----

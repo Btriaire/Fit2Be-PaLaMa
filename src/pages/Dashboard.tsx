@@ -1,14 +1,24 @@
 import { useEffect, useRef, useState } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
-import { Dumbbell, Footprints, HeartPulse, Apple, Camera, ChevronRight, Settings, Activity, BarChart3, Loader2, Plus, Moon, TrendingUp } from 'lucide-react'
+import { Dumbbell, Footprints, HeartPulse, Apple, Camera, ChevronRight, Settings, Activity, BarChart3, Loader2, Plus, Moon, TrendingUp, ImagePlus } from 'lucide-react'
 import { getDb } from '../lib/db'
 import { getAllWorkouts, estimateWorkoutCalories } from '../lib/workouts'
 import { isToday, todayStr } from '../lib/date'
 import { getSettings } from '../lib/settings'
 import { syncGoogleFit, getTodayGoogleFit } from '../lib/googleFit'
 import { scanMachineResults } from '../lib/machineScan'
+import { getDailyPhoto, saveDailyPhoto } from '../lib/dailyPhoto'
+import { compressImageToDataUrl } from '../lib/image'
+import { pullMoodOfTheDay, type RemoteMood } from '../lib/nutriTrackerSync'
 import ActivityHero, { type HeroKey } from '../components/ActivityHero'
-import type { ActivityLog, EnduranceSession, GoogleFitDay, NutritionEntry, RecoveryCheckin, Workout } from '../types'
+import type { ActivityLog, DailyPhoto, EnduranceSession, GoogleFitDay, NutritionEntry, RecoveryCheckin, Workout } from '../types'
+
+const MOOD_EMOJI: Record<number, string> = { 1: '😞', 2: '🙁', 3: '😐', 4: '🙂', 5: '😄' }
+
+function todayLabel(): string {
+  const s = new Date().toLocaleDateString('fr-FR', { weekday: 'long', day: 'numeric', month: 'long' })
+  return s.charAt(0).toUpperCase() + s.slice(1)
+}
 
 export default function Dashboard() {
   const navigate = useNavigate()
@@ -21,7 +31,24 @@ export default function Dashboard() {
   const [scanning, setScanning] = useState(false)
   const [scanError, setScanError] = useState<string | null>(null)
   const scanInputRef = useRef<HTMLInputElement>(null)
+  const [dailyPhoto, setDailyPhoto] = useState<DailyPhoto | null>(null)
+  const [photoSaving, setPhotoSaving] = useState(false)
+  const photoInputRef = useRef<HTMLInputElement>(null)
+  const [mood, setMood] = useState<RemoteMood | null>(null)
   const settings = getSettings()
+
+  async function handleDailyPhoto(e: React.ChangeEvent<HTMLInputElement>) {
+    const file = e.target.files?.[0]
+    e.target.value = ''
+    if (!file) return
+    setPhotoSaving(true)
+    try {
+      const dataUrl = await compressImageToDataUrl(file)
+      setDailyPhoto(await saveDailyPhoto(dataUrl))
+    } finally {
+      setPhotoSaving(false)
+    }
+  }
 
   async function handleScanFile(e: React.ChangeEvent<HTMLInputElement>) {
     const files = Array.from(e.target.files ?? [])
@@ -51,6 +78,8 @@ export default function Dashboard() {
     })
     getTodayGoogleFit().then(setGoogleFit)
     syncGoogleFit().then(() => getTodayGoogleFit().then(setGoogleFit))
+    getDailyPhoto().then(setDailyPhoto)
+    pullMoodOfTheDay().then(setMood)
   }, [])
 
   const todayWorkouts = workouts.filter((w) => isToday(w.startedAt) && w.finishedAt)
@@ -67,7 +96,7 @@ export default function Dashboard() {
         <ActivityHero heroKey="course" className="h-48" />
         <div className="absolute inset-x-0 top-0 flex items-start justify-between px-4 pt-[calc(env(safe-area-inset-top)+16px)]">
           <div>
-            <p className="text-sm text-zinc-300 drop-shadow">Aujourd'hui</p>
+            <p className="text-sm text-zinc-300 drop-shadow">{todayLabel()}</p>
             <h1 className="text-2xl font-bold tracking-tight text-white drop-shadow">Ton activité</h1>
           </div>
           <div className="flex items-center gap-1">
@@ -101,22 +130,56 @@ export default function Dashboard() {
         <StatTile label="Balance kcal" value={`${balance >= 0 ? '+' : ''}${balance}`} color="text-teal-400" />
       </div>
 
-      {googleFit && (
+      {(googleFit || mood?.mood != null) && (
         <div className="mb-6 grid grid-cols-2 gap-2">
-          <StatTile
-            icon={<Footprints size={14} className="text-teal-400" />}
-            label="Pas (Google Fit)"
-            value={googleFit.steps.toLocaleString('fr-FR')}
-            color="text-teal-400"
-          />
-          <StatTile
-            icon={<Moon size={14} className="text-indigo-400" />}
-            label="Sommeil (Google Fit)"
-            value={googleFit.sleepMinutes != null ? `${Math.floor(googleFit.sleepMinutes / 60)}h${String(googleFit.sleepMinutes % 60).padStart(2, '0')}` : '—'}
-            color="text-indigo-400"
-          />
+          {googleFit && (
+            <>
+              <StatTile
+                icon={<Footprints size={14} className="text-teal-400" />}
+                label="Pas (Google Fit)"
+                value={googleFit.steps.toLocaleString('fr-FR')}
+                color="text-teal-400"
+              />
+              <StatTile
+                icon={<Moon size={14} className="text-indigo-400" />}
+                label="Sommeil (Google Fit)"
+                value={googleFit.sleepMinutes != null ? `${Math.floor(googleFit.sleepMinutes / 60)}h${String(googleFit.sleepMinutes % 60).padStart(2, '0')}` : '—'}
+                color="text-indigo-400"
+              />
+            </>
+          )}
+          {mood?.mood != null && (
+            <StatTile
+              label="Humeur du jour"
+              value={`${MOOD_EMOJI[mood.mood] ?? '😐'} ${mood.mood}/5`}
+              color="text-indigo-300"
+            />
+          )}
         </div>
       )}
+
+      <div className="glass mb-6 flex items-center gap-3 rounded-2xl p-3.5">
+        <input ref={photoInputRef} type="file" accept="image/*" capture="user" className="hidden" onChange={handleDailyPhoto} />
+        {dailyPhoto ? (
+          <img src={dailyPhoto.dataUrl} alt="Photo du jour" className="h-14 w-14 shrink-0 rounded-xl object-cover" />
+        ) : (
+          <div className="flex h-14 w-14 shrink-0 items-center justify-center rounded-xl bg-zinc-900 text-zinc-600">
+            <ImagePlus size={22} />
+          </div>
+        )}
+        <div className="flex-1">
+          <p className="font-semibold">Photo du jour</p>
+          <p className="text-xs text-zinc-500">{dailyPhoto ? 'Prise aujourd\'hui' : 'Aucune photo pour aujourd\'hui'}</p>
+        </div>
+        <button
+          onClick={() => photoInputRef.current?.click()}
+          disabled={photoSaving}
+          className="rounded-full bg-zinc-800 p-2.5 active:bg-zinc-700 disabled:opacity-60"
+          aria-label="Prendre ou choisir une photo"
+        >
+          {photoSaving ? <Loader2 size={18} className="animate-spin" /> : <Camera size={18} />}
+        </button>
+      </div>
 
       <Link
         to="/add"

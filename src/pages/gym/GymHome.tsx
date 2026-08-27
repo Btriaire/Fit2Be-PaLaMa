@@ -8,6 +8,7 @@ import { ALL_EXERCISES } from '../../lib/exercises'
 import { TRAINING_TEMPLATES, type TrainingTemplate } from '../../lib/trainingTemplates'
 import { getCustomTemplates, deleteCustomTemplate } from '../../lib/customTemplates'
 import ActivityHero from '../../components/ActivityHero'
+import BackButton from '../../components/BackButton'
 import type { CustomTemplate, Workout, WorkoutExercise } from '../../types'
 
 const QUICK_NAMES = ['Push Day', 'Pull Day', 'Leg Day', 'Full Body', 'Haut du corps', 'Bas du corps']
@@ -92,6 +93,7 @@ export default function GymHome() {
       <div className="relative">
         <ActivityHero heroKey="gym" className="h-40" />
         <div className="absolute inset-x-0 top-0 flex items-center gap-2 px-4 pt-[calc(env(safe-area-inset-top)+16px)]">
+          <BackButton />
           <Dumbbell className="text-orange-400" size={24} />
           <h1 className="text-xl font-semibold tracking-tight text-white drop-shadow">Gym & Fitness</h1>
         </div>
