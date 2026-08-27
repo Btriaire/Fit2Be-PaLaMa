@@ -10,6 +10,8 @@ import { scanMachineResults } from '../lib/machineScan'
 import { getDailyPhoto, saveDailyPhoto } from '../lib/dailyPhoto'
 import { compressImageToDataUrl } from '../lib/image'
 import { pullMoodOfTheDay, type RemoteMood } from '../lib/nutriTrackerSync'
+import { getQuoteOfTheDay } from '../lib/motivation'
+import { Quote } from 'lucide-react'
 import ActivityHero, { type HeroKey } from '../components/ActivityHero'
 import type { ActivityLog, DailyPhoto, EnduranceSession, GoogleFitDay, NutritionEntry, RecoveryCheckin, Workout } from '../types'
 
@@ -36,6 +38,7 @@ export default function Dashboard() {
   const photoInputRef = useRef<HTMLInputElement>(null)
   const [mood, setMood] = useState<RemoteMood | null>(null)
   const settings = getSettings()
+  const quote = getQuoteOfTheDay()
 
   async function handleDailyPhoto(e: React.ChangeEvent<HTMLInputElement>) {
     const file = e.target.files?.[0]
@@ -128,6 +131,16 @@ export default function Dashboard() {
         <StatTile label="Calories brûlées" value={`${todayBurnedCalories}`} color="text-teal-400" />
         <StatTile label="Body Battery" value={recovery ? `${recovery.bodyBatteryScore}` : '—'} color="text-indigo-400" />
         <StatTile label="Balance kcal" value={`${balance >= 0 ? '+' : ''}${balance}`} color="text-teal-400" />
+      </div>
+
+      <div className="glass mb-6 rounded-2xl border border-orange-500/20 bg-gradient-to-br from-orange-500/10 to-transparent p-4">
+        <div className="flex items-start gap-2.5">
+          <Quote size={18} className="mt-0.5 shrink-0 text-orange-400" />
+          <div>
+            <p className="text-sm italic leading-snug text-zinc-200">{quote.text}</p>
+            <p className="mt-1.5 text-xs text-zinc-500">— {quote.author}</p>
+          </div>
+        </div>
       </div>
 
       {(googleFit || mood?.mood != null) && (

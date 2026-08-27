@@ -315,3 +315,58 @@ export async function computeReadiness(ageYears: number, subjectiveScore: number
 
   return { score: Math.max(0, Math.min(100, score)), loadComponent, sleepComponent, subjectiveComponent: subjectiveScore }
 }
+
+// ---- Monotonie & Contrainte (Foster, 2001) ----
+
+export type MonotonyRisk = 'faible' | 'modéré' | 'élevé'
+
+export interface TrainingMonotony {
+  weeklyLoad: number // somme des charges journalières (session-RPE) des 7 derniers jours
+  meanDailyLoad: number
+  stdDev: number
+  monotony: number // moyenne / écart-type — mesure le manque de variation de la charge jour après jour
+  strain: number // charge hebdo x monotonie — combiné, prédit le risque de surentraînement/blessure/maladie
+  risk: MonotonyRisk
+}
+
+/** Complète l'ACWR (surcharge relative) par la monotonie de l'entraînement :
+ * une charge répétée sans variation jour après jour (même si le volume total
+ * est raisonnable) est elle-même un facteur de risque indépendant identifié
+ * par Foster (1998, 2001) chez des athlètes d'endurance — d'où le calcul
+ * séparé plutôt qu'une simple relecture de l'ACWR. */
+export async function computeTrainingMonotony(ageYears: number): Promise<TrainingMonotony> {
+  const [workouts, endurance, db] = await Promise.all([getAllWorkouts(), getEnduranceSessions(), getDb()])
+  const activities = await db.getAll('activities')
+
+  const dailyLoads: number[] = []
+  for (let i = 0; i < 7; i++) {
+    const dayStart = new Date()
+    dayStart.setHours(0, 0, 0, 0)
+    dayStart.setDate(dayStart.getDate() - i)
+    const dayEnd = dayStart.getTime() + 24 * 3600_000
+    dailyLoads.push(dailyLoadFor((ts) => ts >= dayStart.getTime() && ts < dayEnd, ageYears, workouts, activities, endurance))
+  }
+
+  const weeklyLoad = dailyLoads.reduce((a, b) => a + b, 0)
+  const meanDailyLoad = weeklyLoad / 7
+  const variance = dailyLoads.reduce((sum, l) => sum + (l - meanDailyLoad) ** 2, 0) / 7
+  const stdDev = Math.sqrt(variance)
+  // Écart-type nul (aucune variation, y compris 7 jours de repos) -> pas de
+  // signal exploitable, on affiche une monotonie neutre plutôt qu'une
+  // division par zéro.
+  const monotony = stdDev > 0 ? meanDailyLoad / stdDev : 0
+  const strain = weeklyLoad * monotony
+
+  let risk: MonotonyRisk = 'faible'
+  if (monotony > 2 && strain > 6000) risk = 'élevé'
+  else if (monotony > 1.5 || strain > 4000) risk = 'modéré'
+
+  return {
+    weeklyLoad: Math.round(weeklyLoad),
+    meanDailyLoad: Math.round(meanDailyLoad),
+    stdDev: Math.round(stdDev * 10) / 10,
+    monotony: Math.round(monotony * 100) / 100,
+    strain: Math.round(strain),
+    risk,
+  }
+}

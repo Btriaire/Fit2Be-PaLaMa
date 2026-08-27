@@ -10,6 +10,9 @@ import { getWeightLogs, logWeight, deleteWeightLog, adoptWeightFromSync } from '
 import { pushFoodToNutriTracker, pullLatestWeightFromNutriTracker, pullNutritionFromNutriTracker, type RemoteNutritionTotals } from '../../lib/nutriTrackerSync'
 import { getGoogleFitForDate } from '../../lib/googleFit'
 import { computeCaloriesFromSteps } from '../../lib/met'
+import { computeDailyRecovery } from '../../lib/recovery'
+import { suggestDietAdjustments, type DietInsight } from '../../lib/aiInsights'
+import { Sparkles, Loader2 } from 'lucide-react'
 import ActivityHero from '../../components/ActivityHero'
 import BackButton from '../../components/BackButton'
 import { pushRecord, deleteRecord } from '../../lib/cloudSync'
@@ -25,6 +28,9 @@ export default function NutritionPage() {
   const [settings, setSettings] = useState(getSettings())
   const [remoteNutrition, setRemoteNutrition] = useState<RemoteNutritionTotals | null>(null)
   const [googleFitDay, setGoogleFitDay] = useState<GoogleFitDay | null>(null)
+  const [aiLoading, setAiLoading] = useState(false)
+  const [aiResult, setAiResult] = useState<DietInsight | null>(null)
+  const [aiError, setAiError] = useState(false)
 
   async function refresh() {
     const db = await getDb()
@@ -119,6 +125,25 @@ export default function NutritionPage() {
     refresh()
   }
 
+  async function runAiDietAnalysis() {
+    setAiLoading(true)
+    setAiError(false)
+    setAiResult(null)
+    const recovery = await computeDailyRecovery(settings.ageYears)
+    const result = await suggestDietAdjustments({
+      dailyCalorieTarget: settings.dailyCalorieTarget,
+      consumedToday: { calories: consumed, proteinG: protein, carbsG: carbs, fatG: fat, sugarG: sugar },
+      totalBurnedToday: totalBurned,
+      recentMeals: dayEntries.map((e) => ({ label: e.label, calories: e.calories, proteinG: e.proteinG, carbsG: e.carbsG, fatG: e.fatG })),
+      todayTrainingLoad: recovery.totalLoad,
+      trainingBand: recovery.band,
+      weeklyAvgLoad: recovery.weeklyAvgLoad,
+    })
+    setAiLoading(false)
+    if (!result) setAiError(true)
+    else setAiResult(result)
+  }
+
   return (
     <div>
       <div className="relative">
@@ -204,6 +229,46 @@ export default function NutritionPage() {
               </span>
             )}
           </div>
+        </div>
+      )}
+
+      <button
+        onClick={runAiDietAnalysis}
+        disabled={aiLoading}
+        className="mb-4 flex w-full items-center justify-center gap-1.5 rounded-2xl bg-indigo-500/15 py-3 text-sm font-semibold text-indigo-300 active:bg-indigo-500/25 disabled:opacity-60"
+      >
+        {aiLoading ? <Loader2 size={16} className="animate-spin" /> : <Sparkles size={16} />}
+        Suggestions IA (selon entraînement & récupération)
+      </button>
+      {aiError && <p className="-mt-2 mb-4 text-center text-xs text-red-400">Analyse indisponible pour le moment.</p>}
+      {aiResult && (
+        <div className="mb-4 space-y-3 rounded-2xl border border-indigo-500/20 bg-indigo-500/5 p-4">
+          <p className="text-sm leading-snug text-zinc-200">{aiResult.summary}</p>
+          {aiResult.increase.length > 0 && (
+            <div>
+              <p className="mb-1 text-xs font-medium uppercase tracking-wide text-teal-400">À augmenter</p>
+              <ul className="space-y-1 text-xs text-zinc-400">
+                {aiResult.increase.map((it, i) => (
+                  <li key={i}>
+                    <span className="font-medium text-zinc-300">{it.item}</span> — {it.reason}
+                  </li>
+                ))}
+              </ul>
+            </div>
+          )}
+          {aiResult.decrease.length > 0 && (
+            <div>
+              <p className="mb-1 text-xs font-medium uppercase tracking-wide text-amber-400">À diminuer</p>
+              <ul className="space-y-1 text-xs text-zinc-400">
+                {aiResult.decrease.map((it, i) => (
+                  <li key={i}>
+                    <span className="font-medium text-zinc-300">{it.item}</span> — {it.reason}
+                  </li>
+                ))}
+              </ul>
+            </div>
+          )}
+          <p className="text-[10px] text-zinc-600">Objectif calorique {settings.dailyCalorieTarget} kcal toujours respecté.</p>
         </div>
       )}
 

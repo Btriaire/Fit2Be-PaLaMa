@@ -10,6 +10,7 @@ import {
   computeSleepDebt,
   computeActivityStreak,
   computeReadiness,
+  computeTrainingMonotony,
   type DailyRecovery,
   type SessionLoad,
   type Acwr,
@@ -17,10 +18,14 @@ import {
   type SleepDebt,
   type ActivityStreak,
   type Readiness,
+  type TrainingMonotony,
+  type MonotonyRisk,
 } from '../../lib/recovery'
 import ActivityHero from '../../components/ActivityHero'
 import BackButton from '../../components/BackButton'
 import { pushRecord, deleteRecord } from '../../lib/cloudSync'
+import { analyzeRecovery, type RecoveryInsight } from '../../lib/aiInsights'
+import { Sparkles, Loader2 } from 'lucide-react'
 import type { RecoveryCheckin } from '../../types'
 
 const SCALE_LABELS: Record<number, string> = { 1: 'Très faible', 2: 'Faible', 3: 'Moyen', 4: 'Bon', 5: 'Excellent' }
@@ -46,6 +51,12 @@ const ACWR_COLOR: Record<AcwrRisk, string> = {
   'risque élevé': '#e2361c',
 }
 
+const MONOTONY_COLOR: Record<MonotonyRisk, string> = {
+  faible: '#2dd4bf',
+  modéré: '#facc15',
+  élevé: '#e2361c',
+}
+
 function computeSubjectiveScore(c: { sleepQuality: number; muscleFatigue: number; stressLevel: number; motivation: number }) {
   // Sommeil + motivation pèsent positif, fatigue musculaire + stress pèsent négatif (inversés)
   const positive = c.sleepQuality + c.motivation
@@ -64,8 +75,12 @@ export default function RecoveryPage() {
   const [sleepDebt, setSleepDebt] = useState<SleepDebt | null>(null)
   const [streak, setStreak] = useState<ActivityStreak | null>(null)
   const [readiness, setReadiness] = useState<Readiness | null>(null)
+  const [monotony, setMonotony] = useState<TrainingMonotony | null>(null)
   const [savedFlash, setSavedFlash] = useState(false)
   const [editing, setEditing] = useState(false)
+  const [aiLoading, setAiLoading] = useState(false)
+  const [aiResult, setAiResult] = useState<RecoveryInsight | null>(null)
+  const [aiError, setAiError] = useState(false)
   const settings = getSettings()
 
   async function refresh() {
@@ -76,6 +91,7 @@ export default function RecoveryPage() {
     setAcwr(await computeAcwr(settings.ageYears))
     setSleepDebt(await computeSleepDebt(settings.sleepTargetMin))
     setStreak(await computeActivityStreak(settings.ageYears))
+    setMonotony(await computeTrainingMonotony(settings.ageYears))
     const today = all.find((c) => c.date === todayStr())
     if (today) {
       setSleepQuality(today.sleepQuality)
@@ -221,6 +237,101 @@ export default function RecoveryPage() {
           </div>
         )}
       </div>
+
+      {monotony && monotony.weeklyLoad > 0 && (
+        <div className="glass mb-4 rounded-2xl p-3.5">
+          <div className="mb-1 flex items-center justify-between">
+            <p className="flex items-center gap-1 text-xs text-zinc-500">
+              <Gauge size={12} /> Monotonie & Contrainte (7j)
+            </p>
+            <span
+              className="rounded-full px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide"
+              style={{ backgroundColor: `${MONOTONY_COLOR[monotony.risk]}22`, color: MONOTONY_COLOR[monotony.risk] }}
+            >
+              {monotony.risk}
+            </span>
+          </div>
+          <div className="flex items-baseline gap-4">
+            <p>
+              <span className="text-xl font-bold" style={{ color: MONOTONY_COLOR[monotony.risk] }}>
+                {monotony.monotony}
+              </span>
+              <span className="ml-1 text-[10px] text-zinc-600">monotonie</span>
+            </p>
+            <p>
+              <span className="text-xl font-bold" style={{ color: MONOTONY_COLOR[monotony.risk] }}>
+                {monotony.strain}
+              </span>
+              <span className="ml-1 text-[10px] text-zinc-600">contrainte</span>
+            </p>
+          </div>
+          <p className="mt-1 text-[10px] text-zinc-600">
+            Méthode Foster (2001) — charge répétée sans variation jour après jour, facteur de risque indépendant de l'ACWR.
+          </p>
+        </div>
+      )}
+
+      <button
+        onClick={async () => {
+          setAiLoading(true)
+          setAiError(false)
+          setAiResult(null)
+          const result = await analyzeRecovery({
+            recentCheckins: checkins.slice(0, 14),
+            dailyRecovery: recovery,
+            acwr,
+            sleepDebt,
+            streak,
+            readiness,
+            monotony,
+          })
+          setAiLoading(false)
+          if (!result) setAiError(true)
+          else setAiResult(result)
+        }}
+        disabled={aiLoading}
+        className="mb-4 flex w-full items-center justify-center gap-1.5 rounded-2xl bg-indigo-500/15 py-3 text-sm font-semibold text-indigo-300 active:bg-indigo-500/25 disabled:opacity-60"
+      >
+        {aiLoading ? <Loader2 size={16} className="animate-spin" /> : <Sparkles size={16} />}
+        Analyse IA de la récupération
+      </button>
+      {aiError && <p className="-mt-2 mb-4 text-center text-xs text-red-400">Analyse indisponible pour le moment.</p>}
+      {aiResult && (
+        <div className="mb-4 space-y-3 rounded-2xl border border-indigo-500/20 bg-indigo-500/5 p-4">
+          <div className="flex items-center justify-between">
+            <p className="text-sm leading-snug text-zinc-200">{aiResult.summary}</p>
+          </div>
+          <span
+            className="inline-block rounded-full px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide"
+            style={{
+              backgroundColor: aiResult.riskLevel === 'élevé' ? '#e2361c22' : aiResult.riskLevel === 'modéré' ? '#facc1522' : '#2dd4bf22',
+              color: aiResult.riskLevel === 'élevé' ? '#e2361c' : aiResult.riskLevel === 'modéré' ? '#facc15' : '#2dd4bf',
+            }}
+          >
+            Risque {aiResult.riskLevel}
+          </span>
+          {aiResult.signals.length > 0 && (
+            <div>
+              <p className="mb-1 text-xs font-medium uppercase tracking-wide text-amber-400">Signaux</p>
+              <ul className="space-y-0.5 text-xs text-zinc-400">
+                {aiResult.signals.map((s, i) => (
+                  <li key={i}>• {s}</li>
+                ))}
+              </ul>
+            </div>
+          )}
+          {aiResult.suggestions.length > 0 && (
+            <div>
+              <p className="mb-1 text-xs font-medium uppercase tracking-wide text-indigo-300">Suggestions</p>
+              <ul className="space-y-0.5 text-xs text-zinc-400">
+                {aiResult.suggestions.map((s, i) => (
+                  <li key={i}>• {s}</li>
+                ))}
+              </ul>
+            </div>
+          )}
+        </div>
+      )}
 
       {recovery && (
         <section className="glass mb-6 rounded-2xl p-4">

@@ -239,4 +239,151 @@ export const TRAINING_TEMPLATES: TrainingTemplate[] = [
       },
     ],
   },
+  {
+    id: 'tpl-machine-full-body',
+    name: 'Full Body — 100% Machines',
+    focus: 'Corps entier, guidé, faible risque technique',
+    description:
+      "Séance complète sans barre ni haltère libre : trajectoire guidée sur chaque mouvement, idéal quand la salle est bondée ou pour progresser en sécurité sur les fondamentaux.",
+    exercises: [
+      {
+        exerciseId: 'leg-press',
+        targetSets: 4,
+        targetReps: '10-12',
+        note: "Quadriceps + fessiers, guidé. Pieds au centre du plateau, ne verrouille jamais complètement les genoux en haut.",
+      },
+      {
+        exerciseId: 'machine-bench-press',
+        targetSets: 4,
+        targetReps: '8-10',
+        note: "Pectoraux, trajectoire fixe. Règle le siège pour que la poignée soit à hauteur de poitrine.",
+      },
+      {
+        exerciseId: 'leverage-high-row',
+        targetSets: 4,
+        targetReps: '10-12',
+        note: "Dos, épaisseur. Poitrine calée contre l'appui, tire les coudes vers l'arrière sans à-coup.",
+      },
+      {
+        exerciseId: 'machine-shoulder-military-press',
+        targetSets: 3,
+        targetReps: '8-10',
+        note: "Épaules, faisceau antérieur. Dos bien plaqué au dossier, ne cambre pas pour finir la répétition.",
+      },
+      {
+        exerciseId: 'lying-leg-curls',
+        targetSets: 3,
+        targetReps: '12-15',
+        note: "Ischio-jambiers, isolation. Bassin collé au banc, contraction complète en haut.",
+      },
+      {
+        exerciseId: 'standing-calf-raises',
+        targetSets: 3,
+        targetReps: '15-20',
+        note: "Mollets. Amplitude complète, pause en haut et en bas de chaque répétition.",
+      },
+    ],
+  },
+  {
+    id: 'tpl-machine-haut',
+    name: 'Haut du corps — Machines',
+    focus: 'Pectoraux, dos, épaules, bras — 100% guidé',
+    description:
+      "Toute la séance du haut du corps sur machines : parfait pour un retour après blessure, un débutant, ou simplement varier des barres/haltères.",
+    exercises: [
+      {
+        exerciseId: 'leverage-incline-chest-press',
+        targetSets: 4,
+        targetReps: '8-10',
+        note: "Haut des pecs, guidé. Poignées à hauteur de clavicule avant de démarrer.",
+      },
+      {
+        exerciseId: 'leverage-high-row',
+        targetSets: 4,
+        targetReps: '10-12',
+        note: "Épaisseur du dos. Tire les coudes vers l'arrière, contraction 1s en fin de mouvement.",
+      },
+      {
+        exerciseId: 'lying-t-bar-row',
+        targetSets: 3,
+        targetReps: '10-12',
+        note: "Milieu du dos. Buste calé, tire vers le bas-ventre sans cambrer.",
+      },
+      {
+        exerciseId: 'machine-shoulder-military-press',
+        targetSets: 3,
+        targetReps: '8-10',
+        note: "Épaules, faisceau antérieur/moyen. Amplitude complète, contrôle la descente.",
+      },
+      {
+        exerciseId: 'reverse-machine-flyes',
+        targetSets: 3,
+        targetReps: '12-15',
+        note: "Faisceau postérieur d'épaule, souvent négligé. Coudes hauts, ouvre largement sans à-coup.",
+      },
+      {
+        exerciseId: 'machine-bicep-curl',
+        targetSets: 3,
+        targetReps: '10-12',
+        note: "Biceps, isolation stricte. Coudes fixes contre l'appui, pas de triche avec les épaules.",
+      },
+      {
+        exerciseId: 'machine-triceps-extension',
+        targetSets: 3,
+        targetReps: '10-12',
+        note: "Triceps, finisher. Coudes collés au corps, extension complète sans verrouiller brutalement.",
+      },
+    ],
+  },
+  {
+    id: 'tpl-machine-bas',
+    name: 'Bas du corps — Machines',
+    focus: 'Quadriceps, ischios, fessiers, mollets, adducteurs/abducteurs',
+    description:
+      "Jambes complètes sur machines guidées, y compris le travail latéral de hanche (adducteurs/abducteurs) rarement fait avec des poids libres.",
+    exercises: [
+      {
+        exerciseId: 'hack-squat',
+        targetSets: 4,
+        targetReps: '8-10',
+        note: "Quadriceps global, guidé en sécurité. Dos plaqué au support, descend jusqu'à ce que les cuisses soient parallèles.",
+      },
+      {
+        exerciseId: 'leg-press',
+        targetSets: 3,
+        targetReps: '10-12',
+        note: "Complément quadriceps/fessiers. Pieds bas et rapprochés pour insister sur le quadriceps.",
+      },
+      {
+        exerciseId: 'leg-extensions',
+        targetSets: 3,
+        targetReps: '12-15',
+        note: "Isolation quadriceps. Contraction 1s en haut, redescends lentement.",
+      },
+      {
+        exerciseId: 'seated-leg-curl',
+        targetSets: 3,
+        targetReps: '12-15',
+        note: "Ischio-jambiers, isolation assise. Dos droit contre le dossier, amplitude complète.",
+      },
+      {
+        exerciseId: 'thigh-abductor',
+        targetSets: 3,
+        targetReps: '15-20',
+        note: "Fessier moyen, stabilité de hanche. Mouvement contrôlé, pas d'élan.",
+      },
+      {
+        exerciseId: 'thigh-adductor',
+        targetSets: 3,
+        targetReps: '15-20',
+        note: "Adducteurs, équilibre du travail de hanche. Amplitude complète des deux côtés.",
+      },
+      {
+        exerciseId: 'seated-calf-raise',
+        targetSets: 3,
+        targetReps: '15-20',
+        note: "Soléaire (genou fléchi). Amplitude complète, pause en haut.",
+      },
+    ],
+  },
 ]

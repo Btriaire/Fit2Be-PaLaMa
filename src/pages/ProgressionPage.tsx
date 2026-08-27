@@ -42,6 +42,8 @@ import { computeAcwr, type Acwr, type AcwrRisk } from '../lib/recovery'
 import { getMuscleGroupVolume, getMuscleGroupFreshness, type MuscleGroupStat, type MuscleGroupFreshness } from '../lib/workouts'
 import { getSettings } from '../lib/settings'
 import { LineChart, Line, CartesianGrid, ResponsiveContainer, Tooltip, XAxis, YAxis, Legend } from 'recharts'
+import { Sparkles, Loader2 } from 'lucide-react'
+import { analyzeProgression, type ProgressionInsight } from '../lib/aiInsights'
 import StatsTab from '../components/StatsTab'
 
 function TrendBadge({ trendPct }: { trendPct: number }) {
@@ -102,6 +104,31 @@ export default function ProgressionPage() {
   const [overview, setOverview] = useState<OverviewPoint[]>([])
   const [loading, setLoading] = useState(true)
   const [tab, setTab] = useState<'overview' | 'stats'>('overview')
+  const [aiLoading, setAiLoading] = useState(false)
+  const [aiResult, setAiResult] = useState<ProgressionInsight | null>(null)
+  const [aiError, setAiError] = useState(false)
+
+  async function runAiAnalysis() {
+    if (!general) return
+    setAiLoading(true)
+    setAiError(false)
+    setAiResult(null)
+    const result = await analyzeProgression({
+      generalIndex: general,
+      muscular: muscularList.slice(0, 8),
+      cardiac: cardiacList.slice(0, 8),
+      prRate,
+      acwr,
+      vo2max,
+      polarization,
+      diversity,
+      energyBalance,
+      bodyBatteryTrend: bbTrend,
+    })
+    setAiLoading(false)
+    if (!result) setAiError(true)
+    else setAiResult(result)
+  }
 
   useEffect(() => {
     Promise.all([
@@ -178,6 +205,53 @@ export default function ProgressionPage() {
               {general.general.sampleSize >= 2 ? general.general.score : '—'}
             </p>
             <p className="mt-1 text-xs text-zinc-500">Musculation (40%) + Cardio (40%) + Régularité (20%)</p>
+          </div>
+
+          <div className="mb-5">
+            <button
+              onClick={runAiAnalysis}
+              disabled={aiLoading}
+              className="flex w-full items-center justify-center gap-1.5 rounded-2xl bg-indigo-500/15 py-3 text-sm font-semibold text-indigo-300 active:bg-indigo-500/25 disabled:opacity-60"
+            >
+              {aiLoading ? <Loader2 size={16} className="animate-spin" /> : <Sparkles size={16} />}
+              Analyse IA de la progression
+            </button>
+            {aiError && <p className="mt-2 text-center text-xs text-red-400">Analyse indisponible pour le moment.</p>}
+            {aiResult && (
+              <div className="mt-3 space-y-3 rounded-2xl border border-indigo-500/20 bg-indigo-500/5 p-4">
+                <p className="text-sm leading-snug text-zinc-200">{aiResult.summary}</p>
+                {aiResult.strengths.length > 0 && (
+                  <div>
+                    <p className="mb-1 text-xs font-medium uppercase tracking-wide text-teal-400">Points forts</p>
+                    <ul className="space-y-0.5 text-xs text-zinc-400">
+                      {aiResult.strengths.map((s, i) => (
+                        <li key={i}>• {s}</li>
+                      ))}
+                    </ul>
+                  </div>
+                )}
+                {aiResult.attentionPoints.length > 0 && (
+                  <div>
+                    <p className="mb-1 text-xs font-medium uppercase tracking-wide text-amber-400">À surveiller</p>
+                    <ul className="space-y-0.5 text-xs text-zinc-400">
+                      {aiResult.attentionPoints.map((s, i) => (
+                        <li key={i}>• {s}</li>
+                      ))}
+                    </ul>
+                  </div>
+                )}
+                {aiResult.suggestions.length > 0 && (
+                  <div>
+                    <p className="mb-1 text-xs font-medium uppercase tracking-wide text-indigo-300">Suggestions</p>
+                    <ul className="space-y-0.5 text-xs text-zinc-400">
+                      {aiResult.suggestions.map((s, i) => (
+                        <li key={i}>• {s}</li>
+                      ))}
+                    </ul>
+                  </div>
+                )}
+              </div>
+            )}
           </div>
 
           {(() => {
