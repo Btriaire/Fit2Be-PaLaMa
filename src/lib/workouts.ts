@@ -1,5 +1,5 @@
 import { getDb } from './db'
-import { computeCaloriesForUser, GYM_WORKOUT_MET } from './met'
+import { computeCaloriesForUser, computeCaloriesFromHr, GYM_WORKOUT_MET } from './met'
 import { pushActivityToNutriTracker } from './nutriTrackerSync'
 import { pushRecord, deleteRecord } from './cloudSync'
 import { ALL_EXERCISES, MUSCLE_GROUPS } from './exercises'
@@ -96,19 +96,49 @@ function averageRpe(workout: Workout): number | null {
   return rpes.reduce((a, b) => a + b, 0) / rpes.length
 }
 
+// Majoration EPOC (Excess Post-exercise Oxygen Consumption) : la musculation,
+// contrairement au cardio stable, génère une dépense calorique post-effort
+// significative (~10% sur 24h — Schuenke, Mikat & McBride 2002, Eur J Appl
+// Physiol) qu'un simple MET×durée ne capture pas puisqu'il ne compte que la
+// durée de la séance elle-même.
+const EPOC_FACTOR = 1.1
+
 /**
- * Calories brûlées estimées pour une séance de gym. Le MET fixe (5.5) sert de
- * base "effort modéré non qualifié" ; dès qu'un RPE a été saisi sur au moins
- * une série, le MET est ajusté à l'intensité réelle (RPE 5 ≈ MET de base,
- * RPE 8 ≈ +1.5, RPE 3 ≈ -1) plutôt que de rester figé peu importe l'effort.
+ * Calories brûlées estimées pour une séance de gym, par ordre de fiabilité
+ * décroissant :
+ * 1. FC mesurée pendant la séance (moyenne des mesures prises pendant les
+ *    repos entre séries) via la régression de Keytel et al. (2005, Int J
+ *    Sports Med) — en musculation à repos courts la FC reste substantiellement
+ *    élevée entre les séries (Scott et al. 2011), donc ces mesures restent un
+ *    signal valable de l'intensité réelle fournie, propre à chaque individu
+ *    (contrairement à un MET générique par type d'activité).
+ * 2. À défaut, MET du Compendium of Physical Activities (Ainsworth et al.
+ *    2011) pour la musculation — 5.5 en base, ajusté au RPE réel de la séance
+ *    (RPE 5 ≈ MET de base, RPE 8 ≈ +1.5, RPE 3 ≈ -1) — majoré de l'EPOC.
+ * Le MET/HR est déjà appliqué au poids réel de l'utilisateur (computeCaloriesForUser
+ * et computeCaloriesFromHr scalent tous deux avec settings.bodyWeightKg), ce
+ * qui reflète l'essentiel de l'effet de la composition corporelle : déplacer
+ * une masse plus importante en squat/soulevé de terre coûte proportionnellement
+ * plus cher en énergie.
  */
 export function estimateWorkoutCalories(workout: Workout, settings: Settings): number {
   if (!workout.finishedAt) return 0
   const durationMin = (workout.finishedAt - workout.startedAt) / 60000
   if (durationMin <= 0) return 0
+
+  const measuredHr = workout.exercises
+    .flatMap((we) => we.sets)
+    .map((s) => s.heartRateBpm)
+    .filter((bpm): bpm is number => bpm != null)
+  if (measuredHr.length > 0) {
+    const avgHr = measuredHr.reduce((a, b) => a + b, 0) / measuredHr.length
+    const fromHr = computeCaloriesFromHr(avgHr, durationMin, settings)
+    if (fromHr != null) return fromHr
+  }
+
   const avgRpe = averageRpe(workout)
   const met = avgRpe != null ? Math.max(3, Math.min(9, GYM_WORKOUT_MET + (avgRpe - 5) * 0.5)) : GYM_WORKOUT_MET
-  return computeCaloriesForUser(met, durationMin, settings)
+  return Math.round(computeCaloriesForUser(met, durationMin, settings) * EPOC_FACTOR)
 }
 
 export async function deleteWorkout(id: string) {
