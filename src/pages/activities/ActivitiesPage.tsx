@@ -1,16 +1,17 @@
 import { useEffect, useMemo, useState } from 'react'
-import { useLocation } from 'react-router-dom'
+import { useLocation, useNavigate } from 'react-router-dom'
 import { Footprints, Plus, Trash2, X } from 'lucide-react'
 import { getDb, newId } from '../../lib/db'
 import { MET_ACTIVITIES, computeCaloriesForUser } from '../../lib/met'
 import { getSettings } from '../../lib/settings'
-import { isToday, formatTime } from '../../lib/date'
+import { isToday, formatTime, formatDate } from '../../lib/date'
 import { pushActivityToNutriTracker } from '../../lib/nutriTrackerSync'
 import { pushRecord, deleteRecord } from '../../lib/cloudSync'
 import { ACTIVITY_PHOTOS } from '../../lib/activityPhotos'
+import { getEnduranceSessions } from '../../lib/endurance'
 import ActivityHero from '../../components/ActivityHero'
 import BackButton from '../../components/BackButton'
-import type { ActivityCategory, ActivityLog } from '../../types'
+import type { ActivityCategory, ActivityLog, EnduranceSession } from '../../types'
 
 const CATEGORY_SECTION_LABEL: Partial<Record<ActivityCategory, string>> = {
   outdoor: 'Sport',
@@ -27,14 +28,18 @@ interface NavState {
 
 export default function ActivitiesPage() {
   const location = useLocation()
+  const navigate = useNavigate()
   const navState = (location.state as NavState) ?? {}
   const [logs, setLogs] = useState<ActivityLog[]>([])
+  const [marcheSessions, setMarcheSessions] = useState<EnduranceSession[]>([])
   const [formOpen, setFormOpen] = useState(navState.openForm ?? false)
 
   async function refresh() {
     const db = await getDb()
     const all = await db.getAllFromIndex('activities', 'byLoggedAt')
     setLogs(all.reverse())
+    const endurance = await getEnduranceSessions()
+    setMarcheSessions(endurance.filter((s) => s.activityType === 'marche'))
   }
 
   useEffect(() => {
@@ -137,6 +142,37 @@ export default function ActivitiesPage() {
           })}
         </ul>
       </section>
+
+      {marcheSessions.length > 0 && (
+        <section className="mt-6">
+          <h2 className="mb-2 text-sm font-medium text-zinc-400">Marche (historique)</h2>
+          <ul className="space-y-2">
+            {marcheSessions.map((s) => (
+              <li key={s.id}>
+                <button
+                  onClick={() => navigate(`/endurance/session/${s.id}`)}
+                  className="glass flex w-full items-center justify-between rounded-xl p-3 text-left active:bg-zinc-900/80"
+                >
+                  <div className="flex items-center gap-2.5">
+                    <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-zinc-900">
+                      <Footprints size={18} className="text-teal-400" />
+                    </span>
+                    <div>
+                      <p className="text-sm font-medium">
+                        Marche {s.distanceKm ? `· ${s.distanceKm.toFixed(1)} km` : ''}
+                      </p>
+                      <p className="text-xs text-zinc-500">
+                        {formatDate(s.startedAt)} · {s.durationMin} min
+                      </p>
+                    </div>
+                  </div>
+                  <p className="text-sm font-semibold text-teal-400">{s.caloriesBurned} kcal</p>
+                </button>
+              </li>
+            ))}
+          </ul>
+        </section>
+      )}
 
       {formOpen && (
         <ActivityForm onSubmit={addLog} onClose={() => setFormOpen(false)} filterIds={navState.filterIds} />
