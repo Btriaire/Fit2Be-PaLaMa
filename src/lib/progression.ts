@@ -478,3 +478,43 @@ export async function computeOverviewSeries(settings: Settings, days = 14): Prom
 function formatDateShort(ts: number): string {
   return new Date(ts).toLocaleDateString('fr-FR', { day: '2-digit', month: '2-digit' })
 }
+
+export interface ActivityCalendarDay {
+  date: string // YYYY-MM-DD
+  minutes: number
+  sessionCount: number
+}
+
+/** Historique jour par jour (gym + activités + endurance, marche incluse
+ * puisqu'elle est loguée en endurance) pour la vue "régularité" — volume par
+ * jour plutôt qu'un index agrégé, pour repérer les trous plutôt que juste la
+ * moyenne. */
+export async function computeActivityCalendar(days = 84): Promise<ActivityCalendarDay[]> {
+  const [workouts, endurance, db] = await Promise.all([getAllWorkouts(), getEnduranceSessions(), getDb()])
+  const activities: ActivityLog[] = await db.getAll('activities')
+
+  const cells: ActivityCalendarDay[] = []
+  for (let i = days - 1; i >= 0; i--) {
+    const dayStart = new Date()
+    dayStart.setHours(0, 0, 0, 0)
+    dayStart.setDate(dayStart.getDate() - i)
+    const dayEnd = dayStart.getTime() + 86_400_000
+    const dateKey = `${dayStart.getFullYear()}-${String(dayStart.getMonth() + 1).padStart(2, '0')}-${String(dayStart.getDate()).padStart(2, '0')}`
+
+    const dayWorkouts = workouts.filter((w) => w.finishedAt && w.startedAt >= dayStart.getTime() && w.startedAt < dayEnd)
+    const dayActivities = activities.filter((a) => a.loggedAt >= dayStart.getTime() && a.loggedAt < dayEnd)
+    const dayEndurance = endurance.filter((e) => e.startedAt >= dayStart.getTime() && e.startedAt < dayEnd)
+
+    const minutes =
+      dayWorkouts.reduce((s, w) => s + (w.finishedAt! - w.startedAt) / 60000, 0) +
+      dayActivities.reduce((s, a) => s + a.durationMin, 0) +
+      dayEndurance.reduce((s, e) => s + e.durationMin, 0)
+
+    cells.push({
+      date: dateKey,
+      minutes: Math.round(minutes),
+      sessionCount: dayWorkouts.length + dayActivities.length + dayEndurance.length,
+    })
+  }
+  return cells
+}

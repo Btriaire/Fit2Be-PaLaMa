@@ -6,6 +6,8 @@ import { getDb } from '../lib/db'
 import { importNutriTrackerActivityHistory } from '../lib/nutriTrackerImport'
 import { consolidateData, totalDuplicates, type ConsolidationResult } from '../lib/dataConsolidation'
 import { compressImageToDataUrl } from '../lib/image'
+import { syncGoogleFit, getTodayGoogleFit } from '../lib/googleFit'
+import { autoLogWalkFromStepsIfNeeded } from '../lib/stepsActivity'
 
 export default function SettingsPage() {
   const navigate = useNavigate()
@@ -30,6 +32,8 @@ export default function SettingsPage() {
   const [dupScan, setDupScan] = useState<ConsolidationResult | null>(null)
   const [dupApplying, setDupApplying] = useState(false)
   const [dupFlash, setDupFlash] = useState<string | null>(null)
+  const [gfSyncing, setGfSyncing] = useState(false)
+  const [gfFlash, setGfFlash] = useState<string | null>(null)
 
   async function handlePhoto(e: React.ChangeEvent<HTMLInputElement>) {
     const file = e.target.files?.[0]
@@ -68,6 +72,22 @@ export default function SettingsPage() {
     } finally {
       setNtImporting(false)
       setTimeout(() => setNtImportFlash(null), 4000)
+    }
+  }
+
+  async function syncGoogleFitNow() {
+    setGfSyncing(true)
+    setGfFlash(null)
+    try {
+      await syncGoogleFit()
+      await autoLogWalkFromStepsIfNeeded(getSettings())
+      const today = await getTodayGoogleFit()
+      setGfFlash(today ? `${today.steps.toLocaleString('fr-FR')} pas aujourd'hui` : 'Rien de disponible pour l\'instant')
+    } catch {
+      setGfFlash('Échec — vérifie ta connexion et réessaie')
+    } finally {
+      setGfSyncing(false)
+      setTimeout(() => setGfFlash(null), 4000)
     }
   }
 
@@ -236,6 +256,18 @@ export default function SettingsPage() {
         {ntImportFlash && <p className="pt-1 text-center text-xs text-zinc-400">{ntImportFlash}</p>}
         <p className="pt-1 text-center text-[11px] text-zinc-600">
           Importe les activités loggées directement dans NutriTracker (hors celles déjà poussées par cette app).
+        </p>
+        <button
+          onClick={syncGoogleFitNow}
+          disabled={gfSyncing}
+          className="flex w-full items-center justify-center gap-1.5 rounded-xl bg-zinc-900 py-3 text-sm font-medium active:bg-zinc-800 disabled:opacity-60"
+        >
+          <RefreshCw size={16} className={gfSyncing ? 'animate-spin' : ''} />
+          {gfSyncing ? 'Synchro en cours…' : 'Synchroniser Google Fit'}
+        </button>
+        {gfFlash && <p className="pt-1 text-center text-xs text-zinc-400">{gfFlash}</p>}
+        <p className="pt-1 text-center text-[11px] text-zinc-600">
+          Pas, calories actives et sommeil du jour — mis à jour automatiquement à l'ouverture, ce bouton force une synchro immédiate.
         </p>
       </section>
 

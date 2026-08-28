@@ -27,6 +27,7 @@ import {
   computeEnergyBalanceTrend,
   computeBodyBatteryTrend,
   computeOverviewSeries,
+  computeActivityCalendar,
   type GeneralProgression,
   type ExerciseIndex,
   type ActivityIndex,
@@ -37,6 +38,7 @@ import {
   type EnergyBalanceTrend,
   type BodyBatteryTrend,
   type OverviewPoint,
+  type ActivityCalendarDay,
 } from '../lib/progression'
 import { computeAcwr, type Acwr, type AcwrRisk } from '../lib/recovery'
 import { resolveRestingHr } from '../lib/restingHr'
@@ -47,6 +49,7 @@ import { Sparkles, Loader2 } from 'lucide-react'
 import { analyzeProgression, type ProgressionInsight } from '../lib/aiInsights'
 import StatsTab from '../components/StatsTab'
 import MuscleHeatmap from '../components/MuscleHeatmap'
+import ActivityCalendarHeatmap from '../components/ActivityCalendarHeatmap'
 
 function TrendBadge({ trendPct }: { trendPct: number }) {
   if (Math.abs(trendPct) < 1) {
@@ -104,6 +107,7 @@ export default function ProgressionPage() {
   const [muscleVolume, setMuscleVolume] = useState<MuscleGroupStat[]>([])
   const [muscleFreshness, setMuscleFreshness] = useState<MuscleGroupFreshness[]>([])
   const [overview, setOverview] = useState<OverviewPoint[]>([])
+  const [activityCalendar, setActivityCalendar] = useState<ActivityCalendarDay[]>([])
   const [loading, setLoading] = useState(true)
   const [tab, setTab] = useState<'overview' | 'stats'>('overview')
   const [aiLoading, setAiLoading] = useState(false)
@@ -150,7 +154,8 @@ export default function ProgressionPage() {
       getMuscleGroupVolume(7),
       getMuscleGroupFreshness(),
       computeOverviewSeries(settings),
-    ]).then(([g, m, c, pr, ac, vo2, pol, cl, div, eb, bb, mv, mf, ov]) => {
+      computeActivityCalendar(84),
+    ]).then(([g, m, c, pr, ac, vo2, pol, cl, div, eb, bb, mv, mf, ov, cal]) => {
       setGeneral(g)
       setMuscularList(m)
       setCardiacList(c)
@@ -165,6 +170,7 @@ export default function ProgressionPage() {
       setMuscleVolume(mv)
       setMuscleFreshness(mf)
       setOverview(ov)
+      setActivityCalendar(cal)
       setLoading(false)
     })
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -257,6 +263,15 @@ export default function ProgressionPage() {
               </div>
             )}
           </div>
+
+          {activityCalendar.length > 0 && (
+            <section className="mb-5">
+              <h2 className="mb-2 flex items-center gap-1.5 text-sm font-medium text-zinc-400">
+                <LayoutGrid size={14} className="text-orange-400" /> Régularité
+              </h2>
+              <ActivityCalendarHeatmap days={activityCalendar} />
+            </section>
+          )}
 
           {(() => {
             const firstDataIdx = overview.findIndex(

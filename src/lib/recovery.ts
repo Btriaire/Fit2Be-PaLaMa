@@ -101,7 +101,7 @@ export function enduranceSessionLoad(s: EnduranceSession, ageYears: number, labe
   let effortScore: number
   if (s.avgHeartRate) effortScore = effortFromHr(s.avgHeartRate, ageYears)
   else if (s.machineStats?.avgMets) effortScore = effortFromMet(s.machineStats.avgMets)
-  else effortScore = effortFromMet(6) // effort cardio non qualifié, hypothèse modérée
+  else effortScore = effortFromMet(ENDURANCE_ACTIVITY_META[s.activityType].met)
   return {
     source: 'endurance',
     label,

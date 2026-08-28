@@ -3,6 +3,7 @@ import { Route, Routes } from 'react-router-dom'
 import { getDb } from './lib/db'
 import { restoreFromCloudIfNeeded } from './lib/cloudSync'
 import { autoImportNutriTrackerActivitiesIfNeeded } from './lib/nutriTrackerImport'
+import { autoLogWalkFromStepsIfNeeded } from './lib/stepsActivity'
 import { getSettings } from './lib/settings'
 import BottomNav from './components/BottomNav'
 import CoverPage from './pages/CoverPage'
@@ -29,6 +30,7 @@ function App() {
     if (!entered) return
     getDb().then(restoreFromCloudIfNeeded)
     autoImportNutriTrackerActivitiesIfNeeded(getSettings())
+    autoLogWalkFromStepsIfNeeded(getSettings())
   }, [entered])
 
   useEffect(() => {
@@ -38,7 +40,10 @@ function App() {
     // NutriTracker pendant que VibeFit était en arrière-plan n'apparaît
     // qu'au prochain relancement complet.
     function onVisible() {
-      if (document.visibilityState === 'visible') autoImportNutriTrackerActivitiesIfNeeded(getSettings())
+      if (document.visibilityState === 'visible') {
+        autoImportNutriTrackerActivitiesIfNeeded(getSettings())
+        autoLogWalkFromStepsIfNeeded(getSettings())
+      }
     }
     document.addEventListener('visibilitychange', onVisible)
     return () => document.removeEventListener('visibilitychange', onVisible)
