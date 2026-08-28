@@ -224,6 +224,14 @@ export default function StatsTab() {
               {bodyComp.category} · {bodyComp.bodyFatPct}% MG estimée
             </p>
           </div>
+          <div className="rounded-xl bg-zinc-900/70 p-3">
+            <p className="text-[10px] text-zinc-500">Surface corporelle</p>
+            <p className="mt-0.5 text-xl font-bold text-indigo-300">
+              {bodyComp.bsaM2}
+              <span className="ml-1 text-[10px] font-normal text-zinc-600">m²</span>
+            </p>
+            <p className="mt-0.5 text-[10px] text-zinc-600">Formule de Mosteller</p>
+          </div>
         </div>
 
         {polarization && (

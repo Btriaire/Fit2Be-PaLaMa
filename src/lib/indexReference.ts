@@ -166,6 +166,14 @@ export const INDEX_REFERENCE: ReferenceCategory[] = [
         reference: 'Deurenberg P, Weststrate JA, Seidell JC. Br J Nutr. 1991;65(2):105-114.',
         notes: 'Dérivée de la masse grasse estimée ci-dessus.',
       },
+      {
+        name: 'Surface corporelle (BSA)',
+        formula: '√(taille(cm) × poids(kg) / 3600)',
+        unit: 'm²',
+        normalRange: '≈1.6-1.9 m² (femme) · ≈1.7-2.1 m² (homme)',
+        reference: 'Mosteller RD. N Engl J Med. 1987;317(17):1098.',
+        notes: 'Formule simplifiée, aussi fiable que Du Bois & Du Bois (1916) en usage courant — normalise certaines mesures physiologiques à la taille du corps plutôt qu\'au seul poids.',
+      },
     ],
   },
   {

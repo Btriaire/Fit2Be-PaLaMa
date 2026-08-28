@@ -108,11 +108,21 @@ export function computeLeanMassKg(settings: Settings): number {
   return Math.round(settings.bodyWeightKg * (1 - fatPct / 100) * 10) / 10
 }
 
+/** Surface corporelle (formule de Mosteller, 1987) — plus simple et tout
+ * aussi fiable que Du Bois pour un usage courant, largement utilisée en
+ * clinique pour normaliser des mesures physiologiques (ex : index cardiaque)
+ * à la taille du corps plutôt qu'au seul poids. */
+export function computeBsa(settings: Settings): number {
+  const bsa = Math.sqrt((settings.heightCm * settings.bodyWeightKg) / 3600)
+  return Math.round(bsa * 100) / 100
+}
+
 export interface BodyComposition {
   bmi: number
   category: BmiCategory
   bodyFatPct: number
   leanMassKg: number
+  bsaM2: number
 }
 
 /** Regroupe les métriques dérivées de l'IMC — recalculées à chaque appel
@@ -122,6 +132,7 @@ export function computeBodyComposition(settings: Settings): BodyComposition {
   return {
     bmi,
     category: bmiCategory(bmi),
+    bsaM2: computeBsa(settings),
     bodyFatPct: computeBodyFatPercent(settings),
     leanMassKg: computeLeanMassKg(settings),
   }
