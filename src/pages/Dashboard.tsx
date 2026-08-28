@@ -126,14 +126,14 @@ export default function Dashboard() {
 
       {scanError && <p className="mb-4 text-center text-xs text-red-400">{scanError}</p>}
 
-      <div className="mb-6 grid grid-cols-2 gap-2">
+      <div className="mb-4 grid grid-cols-2 gap-1.5">
         <StatTile label="Séances gym" value={`${todayWorkouts.length}`} color="text-orange-400" />
         <StatTile label="Calories brûlées" value={`${todayBurnedCalories}`} color="text-teal-400" />
         <StatTile label="Body Battery" value={recovery ? `${recovery.bodyBatteryScore}` : '—'} color="text-indigo-400" />
         <StatTile label="Balance kcal" value={`${balance >= 0 ? '+' : ''}${balance}`} color="text-teal-400" />
       </div>
 
-      <div className="glass mb-6 rounded-2xl border border-orange-500/20 bg-gradient-to-br from-orange-500/10 to-transparent p-4">
+      <div className="glass mb-4 rounded-2xl border border-orange-500/20 bg-gradient-to-br from-orange-500/10 to-transparent p-4">
         <div className="flex items-start gap-2.5">
           <Quote size={18} className="mt-0.5 shrink-0 text-orange-400" />
           <div>
@@ -143,17 +143,17 @@ export default function Dashboard() {
         </div>
       </div>
 
-      <div className="mb-6 grid grid-cols-2 gap-2">
+      <div className="mb-4 grid grid-cols-2 gap-1.5">
         {googleFit && (
           <>
             <StatTile
-              icon={<Footprints size={14} className="text-teal-400" />}
+              icon={<Footprints size={12} className="text-teal-400" />}
               label="Pas (Google Fit)"
               value={googleFit.steps.toLocaleString('fr-FR')}
               color="text-teal-400"
             />
             <StatTile
-              icon={<Moon size={14} className="text-indigo-400" />}
+              icon={<Moon size={12} className="text-indigo-400" />}
               label="Sommeil (Google Fit)"
               value={googleFit.sleepMinutes != null ? `${Math.floor(googleFit.sleepMinutes / 60)}h${String(googleFit.sleepMinutes % 60).padStart(2, '0')}` : '—'}
               color="text-indigo-400"
@@ -241,12 +241,12 @@ export default function Dashboard() {
 
 function StatTile({ label, value, color, icon }: { label: string; value: string; color: string; icon?: React.ReactNode }) {
   return (
-    <div className="glass rounded-2xl p-3.5">
-      <p className="flex items-center gap-1 text-xs text-zinc-500">
+    <div className="glass flex items-center justify-between gap-2 rounded-xl px-2.5 py-2">
+      <p className="flex items-center gap-1 text-[11px] text-zinc-500">
         {icon}
         {label}
       </p>
-      <p className={`mt-1 text-2xl font-bold ${color}`}>{value}</p>
+      <p className={`text-sm font-bold ${color}`}>{value}</p>
     </div>
   )
 }
