@@ -73,6 +73,60 @@ export function computeBmr(settings: Settings) {
   return Math.round(settings.sex === 'homme' ? base + 5 : base - 161)
 }
 
+export type BmiCategory = 'insuffisance pondérale' | 'corpulence normale' | 'surpoids' | 'obésité'
+
+/** IMC = poids(kg) / taille(m)² — recalculé à chaque changement de poids
+ * (settings.bodyWeightKg est déjà mis à jour par les pesées synchronisées). */
+export function computeBmi(settings: Settings): number {
+  const heightM = settings.heightCm / 100
+  return Math.round((settings.bodyWeightKg / (heightM * heightM)) * 10) / 10
+}
+
+/** Classification OMS (WHO Technical Report Series 894, 2000). */
+export function bmiCategory(bmi: number): BmiCategory {
+  if (bmi < 18.5) return 'insuffisance pondérale'
+  if (bmi < 25) return 'corpulence normale'
+  if (bmi < 30) return 'surpoids'
+  return 'obésité'
+}
+
+/** % de masse grasse estimé à partir de l'IMC (Deurenberg, Weststrate &
+ * Seidell, 1991, British Journal of Nutrition, "Body mass index as a measure
+ * of body fatness: age- and sex-specific prediction formulas") — évite
+ * d'exiger une mesure d'impédance ou de plis cutanés pour dériver la masse
+ * maigre utilisée ailleurs (charge relative, énergie de repos). */
+export function computeBodyFatPercent(settings: Settings): number {
+  const bmi = computeBmi(settings)
+  const sexTerm = settings.sex === 'homme' ? 1 : 0
+  const pct = 1.2 * bmi + 0.23 * settings.ageYears - 10.8 * sexTerm - 5.4
+  return Math.round(Math.max(3, Math.min(60, pct)) * 10) / 10
+}
+
+/** Masse maigre (kg) dérivée du poids total et du %masse grasse (Deurenberg 1991). */
+export function computeLeanMassKg(settings: Settings): number {
+  const fatPct = computeBodyFatPercent(settings)
+  return Math.round(settings.bodyWeightKg * (1 - fatPct / 100) * 10) / 10
+}
+
+export interface BodyComposition {
+  bmi: number
+  category: BmiCategory
+  bodyFatPct: number
+  leanMassKg: number
+}
+
+/** Regroupe les métriques dérivées de l'IMC — recalculées à chaque appel
+ * depuis settings.bodyWeightKg, donc toujours à jour avec la dernière pesée. */
+export function computeBodyComposition(settings: Settings): BodyComposition {
+  const bmi = computeBmi(settings)
+  return {
+    bmi,
+    category: bmiCategory(bmi),
+    bodyFatPct: computeBodyFatPercent(settings),
+    leanMassKg: computeLeanMassKg(settings),
+  }
+}
+
 /**
  * Calcul des calories à partir de la FC moyenne réelle (formule de régression
  * de Keytel et al., 2005) — plus précis qu'un MET générique par type

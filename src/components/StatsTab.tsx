@@ -11,6 +11,7 @@ import {
   type CardiacLoadUnderEffort,
 } from '../lib/workouts'
 import { getSettings } from '../lib/settings'
+import { computeBodyComposition } from '../lib/met'
 import { formatDate } from '../lib/date'
 import { computeVo2Max, computePolarization, type Vo2MaxEstimate, type Polarization } from '../lib/progression'
 import { computeMaxHr } from '../lib/heartRate'
@@ -158,6 +159,7 @@ export default function StatsTab() {
   const latestCardiac = cardiac[0] ?? null
   const maxHr = computeMaxHr(settings.ageYears)
   const latestHrPctMax = latestCardiac?.heartRateAvg != null ? Math.round((latestCardiac.heartRateAvg / maxHr) * 100) : null
+  const bodyComp = computeBodyComposition(settings)
 
   return (
     <div>
@@ -210,6 +212,16 @@ export default function StatsTab() {
             </p>
             <p className="mt-0.5 text-[10px] text-zinc-600">
               {cardiacLoad?.measuredSets ? `${cardiacLoad.measuredSets} série(s) mesurée(s)${cardiacLoad.peakBpm ? ` · pic ${cardiacLoad.peakBpm}` : ''}` : 'Mesure la FC en mode Focus'}
+            </p>
+          </div>
+          <div className="rounded-xl bg-zinc-900/70 p-3">
+            <p className="text-[10px] text-zinc-500">IMC</p>
+            <p className="mt-0.5 text-xl font-bold text-indigo-300">
+              {bodyComp.bmi}
+              <span className="ml-1 text-[10px] font-normal text-zinc-600">kg/m²</span>
+            </p>
+            <p className="mt-0.5 text-[10px] text-zinc-600 capitalize">
+              {bodyComp.category} · {bodyComp.bodyFatPct}% MG estimée
             </p>
           </div>
         </div>

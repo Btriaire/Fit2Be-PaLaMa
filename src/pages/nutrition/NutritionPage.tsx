@@ -9,7 +9,7 @@ import { getAllWorkouts, estimateWorkoutCalories } from '../../lib/workouts'
 import { getWeightLogs, logWeight, deleteWeightLog, adoptWeightFromSync } from '../../lib/weight'
 import { pushFoodToNutriTracker, pullLatestWeightFromNutriTracker, pullNutritionFromNutriTracker, MEAL_LABELS, type RemoteNutritionTotals } from '../../lib/nutriTrackerSync'
 import { getGoogleFitForDate } from '../../lib/googleFit'
-import { computeCaloriesFromSteps } from '../../lib/met'
+import { computeCaloriesFromSteps, computeBodyComposition } from '../../lib/met'
 import { computeDailyRecovery } from '../../lib/recovery'
 import { suggestDietAdjustments, type DietInsight } from '../../lib/aiInsights'
 import { Sparkles, Loader2 } from 'lucide-react'
@@ -138,6 +138,7 @@ export default function NutritionPage() {
       todayTrainingLoad: recovery.totalLoad,
       trainingBand: recovery.band,
       weeklyAvgLoad: recovery.weeklyAvgLoad,
+      bodyComposition: computeBodyComposition(settings),
     })
     setAiLoading(false)
     if (!result) setAiError(true)

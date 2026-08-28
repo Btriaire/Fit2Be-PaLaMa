@@ -21,6 +21,7 @@ import EnduranceSessionDetail from './pages/endurance/EnduranceSessionDetail'
 import ProgressionPage from './pages/ProgressionPage'
 import AddPage from './pages/AddPage'
 import PhotosPage from './pages/PhotosPage'
+import ReferencePage from './pages/ReferencePage'
 
 const ENTERED_KEY = 'vibefit_entered'
 
@@ -78,6 +79,7 @@ function App() {
           <Route path="/progression" element={<ProgressionPage />} />
           <Route path="/add" element={<AddPage />} />
           <Route path="/photos" element={<PhotosPage />} />
+          <Route path="/reference" element={<ReferencePage />} />
           <Route path="/settings" element={<SettingsPage />} />
         </Routes>
       </main>

@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { useLocation, useNavigate } from 'react-router-dom'
-import { Activity, Camera, HeartPulse, Loader2, MapPin, Pause, Plus, Route, Trash2, TrendingUp, Timer, X } from 'lucide-react'
+import { Activity, Camera, ChevronLeft, ChevronRight, HeartPulse, Loader2, MapPin, Pause, Plus, Route, Trash2, TrendingUp, Timer, X } from 'lucide-react'
 import {
   ENDURANCE_ACTIVITY_META,
   computePaceMinPerKm,
@@ -12,7 +12,7 @@ import {
 } from '../../lib/endurance'
 import { getSettings } from '../../lib/settings'
 import { HR_ZONE_META } from '../../lib/heartRate'
-import { formatDate, formatTime, isToday } from '../../lib/date'
+import { formatDate, formatTime, formatFullDate, isToday, isSameDay, todayStr, addDays } from '../../lib/date'
 import { useGeoTracking } from '../../lib/useGeoTracking'
 import { scanMachineResults, machineTypeToActivityType, toMachineStats, type ParsedMachineResult } from '../../lib/machineScan'
 import RouteMap from '../../components/RouteMap'
@@ -43,6 +43,7 @@ export default function EndurancePage() {
   const [sessions, setSessions] = useState<EnduranceSession[]>([])
   const [loggedTypes, setLoggedTypes] = useState<Array<{ activityType: EnduranceActivityType; lastDate: number }>>([])
   const [formOpen, setFormOpen] = useState(navState.openForm ?? false)
+  const [selectedDate, setSelectedDate] = useState(todayStr())
   const settings = getSettings()
 
   async function refresh() {
@@ -56,6 +57,7 @@ export default function EndurancePage() {
 
   const weekStart = startOfWeek()
   const weekSessions = useMemo(() => sessions.filter((s) => s.startedAt >= weekStart), [sessions, weekStart])
+  const daySessions = useMemo(() => sessions.filter((s) => isSameDay(s.startedAt, selectedDate)), [sessions, selectedDate])
   const weekDistance = weekSessions.reduce((s, e) => s + (e.distanceKm ?? 0), 0)
   const weekZone2Min = weekSessions.filter((s) => s.hrZone === 2).reduce((s, e) => s + e.durationMin, 0)
   const todayCalories = sessions.filter((s) => isToday(s.startedAt)).reduce((s, e) => s + e.caloriesBurned, 0)
@@ -68,6 +70,7 @@ export default function EndurancePage() {
     route?: RoutePoint[]
     caloriesBurned?: number
     machineStats?: MachineStats
+    startedAt?: number
   }) {
     await logEnduranceSession(input, settings)
     setFormOpen(false)
@@ -137,10 +140,31 @@ export default function EndurancePage() {
       )}
 
       <section>
+        <div className="glass mb-3 flex items-center justify-between rounded-2xl p-2">
+          <button
+            onClick={() => setSelectedDate((d) => addDays(d, -1))}
+            className="rounded-full p-2 text-zinc-400 active:bg-zinc-900"
+            aria-label="Jour précédent"
+          >
+            <ChevronLeft size={18} />
+          </button>
+          <button onClick={() => setSelectedDate(todayStr())} className="flex-1 text-center text-sm font-medium capitalize">
+            {formatFullDate(selectedDate)}
+          </button>
+          <button
+            onClick={() => setSelectedDate((d) => addDays(d, 1))}
+            disabled={selectedDate >= todayStr()}
+            className="rounded-full p-2 text-zinc-400 active:bg-zinc-900 disabled:opacity-30"
+            aria-label="Jour suivant"
+          >
+            <ChevronRight size={18} />
+          </button>
+        </div>
+
         <h2 className="mb-2 text-sm font-medium text-zinc-400">Historique</h2>
-        {sessions.length === 0 && <p className="text-sm text-zinc-500">Rien pour l'instant.</p>}
+        {daySessions.length === 0 && <p className="text-sm text-zinc-500">Rien ce jour-là.</p>}
         <ul className="space-y-2">
-          {sessions.map((s) => {
+          {daySessions.map((s) => {
             const meta = ENDURANCE_ACTIVITY_META[s.activityType]
             const pace = s.distanceKm ? computePaceMinPerKm(s.durationMin, s.distanceKm) : null
             const zoneMeta = s.hrZone ? HR_ZONE_META[s.hrZone] : null
@@ -211,7 +235,7 @@ export default function EndurancePage() {
       </section>
 
       {formOpen && (
-        <EnduranceForm onSubmit={addSession} onClose={() => setFormOpen(false)} initialScan={navState.scanResult} />
+        <EnduranceForm onSubmit={addSession} onClose={() => setFormOpen(false)} initialScan={navState.scanResult} initialDate={selectedDate} />
       )}
       </div>
     </div>
@@ -222,6 +246,7 @@ function EnduranceForm({
   onSubmit,
   onClose,
   initialScan,
+  initialDate,
 }: {
   onSubmit: (input: {
     activityType: EnduranceActivityType
@@ -231,9 +256,11 @@ function EnduranceForm({
     route?: RoutePoint[]
     caloriesBurned?: number
     machineStats?: MachineStats
+    startedAt?: number
   }) => void
   onClose: () => void
   initialScan?: ParsedMachineResult
+  initialDate: string
 }) {
   const [activityType, setActivityType] = useState<EnduranceActivityType>(
     initialScan ? machineTypeToActivityType(initialScan.machineType) : 'course',
@@ -241,6 +268,7 @@ function EnduranceForm({
   const [duration, setDuration] = useState(initialScan?.durationMin ? String(initialScan.durationMin) : '30')
   const [distance, setDistance] = useState(initialScan?.distanceKm ? String(initialScan.distanceKm) : '')
   const [avgHr, setAvgHr] = useState(initialScan?.avgHeartRate ? String(initialScan.avgHeartRate) : '')
+  const [date, setDate] = useState(initialDate)
   const meta = ENDURANCE_ACTIVITY_META[activityType]
   const gps = useGeoTracking()
   const gpsCapable = GPS_CAPABLE.includes(activityType)
@@ -287,6 +315,7 @@ function EnduranceForm({
       route: savedRoute ?? undefined,
       caloriesBurned: scanCalories ?? undefined,
       machineStats: scanStats ?? undefined,
+      startedAt: date === todayStr() ? Date.now() : new Date(`${date}T12:00:00`).getTime(),
     })
   }
 
@@ -432,6 +461,18 @@ function EnduranceForm({
             </div>
           </div>
         )}
+
+        <label className="mb-1 block text-xs text-zinc-500">Date de la séance</label>
+        <input
+          type="date"
+          value={date}
+          max={todayStr()}
+          onChange={(e) => setDate(e.target.value)}
+          className="mb-3 w-full rounded-lg bg-zinc-900 px-3 py-2.5 text-center outline-none focus:ring-1 focus:ring-teal-500"
+        />
+        <p className="-mt-2 mb-4 text-center text-[11px] text-zinc-600">
+          Photo prise plus tard ? Change la date pour l'attribuer au bon jour.
+        </p>
 
         {gpsCapable && (
           <button

@@ -1,9 +1,11 @@
 import { useEffect, useMemo, useState } from 'react'
+import { useNavigate } from 'react-router-dom'
 import { HeartPulse, Dumbbell, Footprints, Activity, Flame, Gauge, Moon, Flame as StreakIcon, Sunrise, Pencil, Check } from 'lucide-react'
 import { AreaChart, Area, CartesianGrid, ResponsiveContainer, Tooltip, XAxis, YAxis } from 'recharts'
 import { getDb, newId } from '../../lib/db'
 import { todayStr, formatDate } from '../../lib/date'
 import { getSettings } from '../../lib/settings'
+import { computeBodyComposition } from '../../lib/met'
 import {
   computeDailyRecovery,
   computeAcwr,
@@ -67,6 +69,7 @@ function computeSubjectiveScore(c: { sleepQuality: number; muscleFatigue: number
 }
 
 export default function RecoveryPage() {
+  const navigate = useNavigate()
   const [checkins, setCheckins] = useState<RecoveryCheckin[]>([])
   const [sleepQuality, setSleepQuality] = useState(3)
   const [muscleFatigue, setMuscleFatigue] = useState(3)
@@ -177,7 +180,14 @@ export default function RecoveryPage() {
         <div className="absolute inset-x-0 top-0 flex items-center gap-2 px-4 pt-[calc(env(safe-area-inset-top)+16px)]">
           <BackButton />
           <HeartPulse className="text-indigo-400" size={24} />
-          <h1 className="text-xl font-semibold tracking-tight text-white drop-shadow">Récupération</h1>
+          <h1 className="flex-1 text-xl font-semibold tracking-tight text-white drop-shadow">Récupération</h1>
+          <button
+            onClick={() => navigate('/reference')}
+            className="flex h-7 w-7 items-center justify-center rounded-full bg-zinc-950/40 text-xs font-bold text-zinc-200 active:bg-zinc-900"
+            aria-label="Détail des calculs et index"
+          >
+            ?
+          </button>
         </div>
       </div>
 
@@ -345,6 +355,7 @@ export default function RecoveryPage() {
             monotony,
             cardiac: cardiac.slice(0, 7),
             muscleFreshness,
+            bodyComposition: computeBodyComposition(settings),
           })
           setAiLoading(false)
           if (!result) setAiError(true)

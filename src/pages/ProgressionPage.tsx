@@ -44,6 +44,7 @@ import { computeAcwr, type Acwr, type AcwrRisk } from '../lib/recovery'
 import { resolveRestingHr } from '../lib/restingHr'
 import { getMuscleGroupVolume, getMuscleGroupFreshness, type MuscleGroupStat, type MuscleGroupFreshness } from '../lib/workouts'
 import { getSettings } from '../lib/settings'
+import { computeBodyComposition } from '../lib/met'
 import { LineChart, Line, CartesianGrid, ResponsiveContainer, Tooltip, XAxis, YAxis, Legend } from 'recharts'
 import { Sparkles, Loader2 } from 'lucide-react'
 import { analyzeProgression, type ProgressionInsight } from '../lib/aiInsights'
@@ -130,6 +131,7 @@ export default function ProgressionPage() {
       diversity,
       energyBalance,
       bodyBatteryTrend: bbTrend,
+      bodyComposition: computeBodyComposition(settings),
     })
     setAiLoading(false)
     if (!result) setAiError(true)
@@ -183,7 +185,14 @@ export default function ProgressionPage() {
           <ChevronLeft size={22} />
         </button>
         <TrendingUp className="text-zinc-300" size={20} />
-        <h1 className="text-lg font-semibold tracking-tight">Progression</h1>
+        <h1 className="flex-1 text-lg font-semibold tracking-tight">Progression</h1>
+        <button
+          onClick={() => navigate('/reference')}
+          className="flex h-7 w-7 items-center justify-center rounded-full bg-zinc-900 text-xs font-bold text-zinc-400 active:bg-zinc-800"
+          aria-label="Détail des calculs et index"
+        >
+          ?
+        </button>
       </header>
 
       <div className="mb-5 flex gap-1.5 rounded-xl bg-zinc-900 p-1">
