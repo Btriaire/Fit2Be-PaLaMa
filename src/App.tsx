@@ -20,6 +20,7 @@ import EnduranceHistory from './pages/endurance/EnduranceHistory'
 import EnduranceSessionDetail from './pages/endurance/EnduranceSessionDetail'
 import ProgressionPage from './pages/ProgressionPage'
 import AddPage from './pages/AddPage'
+import PhotosPage from './pages/PhotosPage'
 
 const ENTERED_KEY = 'vibefit_entered'
 
@@ -76,6 +77,7 @@ function App() {
           <Route path="/endurance/history/:activityType" element={<EnduranceHistory />} />
           <Route path="/progression" element={<ProgressionPage />} />
           <Route path="/add" element={<AddPage />} />
+          <Route path="/photos" element={<PhotosPage />} />
           <Route path="/settings" element={<SettingsPage />} />
         </Routes>
       </main>

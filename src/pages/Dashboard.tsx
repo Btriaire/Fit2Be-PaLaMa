@@ -169,17 +169,19 @@ export default function Dashboard() {
 
       <div className="glass mb-6 flex items-center gap-3 rounded-2xl p-3.5">
         <input ref={photoInputRef} type="file" accept="image/*" capture="user" className="hidden" onChange={handleDailyPhoto} />
-        {dailyPhoto ? (
-          <img src={dailyPhoto.dataUrl} alt="Photo du jour" className="h-14 w-14 shrink-0 rounded-xl object-cover" />
-        ) : (
-          <div className="flex h-14 w-14 shrink-0 items-center justify-center rounded-xl bg-zinc-900 text-zinc-600">
-            <ImagePlus size={22} />
+        <Link to="/photos" className="flex flex-1 items-center gap-3">
+          {dailyPhoto ? (
+            <img src={dailyPhoto.dataUrl} alt="Photo du jour" className="h-14 w-14 shrink-0 rounded-xl object-cover" />
+          ) : (
+            <div className="flex h-14 w-14 shrink-0 items-center justify-center rounded-xl bg-zinc-900 text-zinc-600">
+              <ImagePlus size={22} />
+            </div>
+          )}
+          <div className="flex-1">
+            <p className="font-semibold">Photo du jour</p>
+            <p className="text-xs text-zinc-500">{dailyPhoto ? 'Prise aujourd\'hui · voir l\'historique' : 'Aucune photo pour aujourd\'hui'}</p>
           </div>
-        )}
-        <div className="flex-1">
-          <p className="font-semibold">Photo du jour</p>
-          <p className="text-xs text-zinc-500">{dailyPhoto ? 'Prise aujourd\'hui' : 'Aucune photo pour aujourd\'hui'}</p>
-        </div>
+        </Link>
         <button
           onClick={() => photoInputRef.current?.click()}
           disabled={photoSaving}
