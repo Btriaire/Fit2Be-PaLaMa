@@ -299,10 +299,10 @@ export default function NutritionPage() {
 
       {(protein > 0 || carbs > 0 || fat > 0) && (
         <div className="mb-6 grid grid-cols-2 gap-2">
-          <MacroTile label="Protéines" value={protein} color="bg-rose-500" />
-          <MacroTile label="Glucides" value={carbs} color="bg-amber-500" />
-          <MacroTile label="dont Sucres" value={sugar} color="bg-orange-400" />
-          <MacroTile label="Lipides" value={fat} color="bg-teal-500" />
+          <MacroTile label="Protéines" value={protein} color="bg-rose-500" textColor="text-rose-400" />
+          <MacroTile label="Glucides" value={carbs} color="bg-amber-500" textColor="text-amber-400" />
+          <MacroTile label="dont Sucres" value={sugar} color="bg-orange-400" textColor="text-orange-300" />
+          <MacroTile label="Lipides" value={fat} color="bg-teal-500" textColor="text-teal-400" />
         </div>
       )}
       {!(protein > 0 || carbs > 0 || fat > 0) && <div className="mb-6" />}
@@ -468,11 +468,11 @@ function WeightTracker({
   )
 }
 
-function MacroTile({ label, value, color }: { label: string; value: number; color: string }) {
+function MacroTile({ label, value, color, textColor }: { label: string; value: number; color: string; textColor: string }) {
   return (
     <div className="glass rounded-xl p-3 text-center">
       <span className={`mx-auto mb-1.5 block h-1.5 w-6 rounded-full ${color}`} />
-      <p className="text-base font-bold">{Math.round(value)}g</p>
+      <p className={`text-xl font-bold ${textColor}`}>{Math.round(value)}g</p>
       <p className="text-[10px] text-zinc-500">{label}</p>
     </div>
   )
