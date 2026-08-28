@@ -6,8 +6,8 @@ import { getDb, newId } from '../../lib/db'
 import { getSettings } from '../../lib/settings'
 import { isSameDay, formatTime, formatDate, formatFullDate, todayStr, addDays } from '../../lib/date'
 import { getAllWorkouts, estimateWorkoutCalories } from '../../lib/workouts'
-import { getWeightLogs, logWeight, deleteWeightLog, adoptWeightFromSync } from '../../lib/weight'
-import { pushFoodToNutriTracker, pullLatestWeightFromNutriTracker, pullNutritionFromNutriTracker, MEAL_LABELS, type RemoteNutritionTotals } from '../../lib/nutriTrackerSync'
+import { getWeightLogs, logWeight, deleteWeightLog, syncLatestWeightFromNutriTracker } from '../../lib/weight'
+import { pushFoodToNutriTracker, pullNutritionFromNutriTracker, MEAL_LABELS, type RemoteNutritionTotals } from '../../lib/nutriTrackerSync'
 import { getGoogleFitForDate } from '../../lib/googleFit'
 import { computeCaloriesFromSteps, computeBodyComposition } from '../../lib/met'
 import { computeDailyRecovery } from '../../lib/recovery'
@@ -41,13 +41,10 @@ export default function NutritionPage() {
     setWeightLogs(await getWeightLogs())
     setSettings(getSettings())
 
-    const pulled = await pullLatestWeightFromNutriTracker()
-    if (pulled.weightKg && pulled.date) {
-      const adopted = await adoptWeightFromSync(pulled.weightKg, pulled.date)
-      if (adopted) {
-        setWeightLogs(await getWeightLogs())
-        setSettings(getSettings())
-      }
+    const adopted = await syncLatestWeightFromNutriTracker()
+    if (adopted) {
+      setWeightLogs(await getWeightLogs())
+      setSettings(getSettings())
     }
   }
 

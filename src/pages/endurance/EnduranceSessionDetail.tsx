@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react'
 import { useNavigate, useParams } from 'react-router-dom'
-import { ChevronLeft, Timer, Route, HeartPulse, Flame, Zap, Gauge, Mountain, Trash2, TrendingUp, Activity, Pencil, Check } from 'lucide-react'
+import { ChevronLeft, Timer, Route, HeartPulse, Flame, Zap, Gauge, Mountain, Trash2, TrendingUp, Activity, Pencil, Check, X } from 'lucide-react'
 import {
   getEnduranceSession,
   deleteEnduranceSession,
@@ -48,6 +48,7 @@ export default function EnduranceSessionDetail() {
   const navigate = useNavigate()
   const [session, setSession] = useState<EnduranceSession | null | undefined>(undefined)
   const [editingType, setEditingType] = useState(false)
+  const [photoViewerOpen, setPhotoViewerOpen] = useState(false)
   const settings = getSettings()
 
   useEffect(() => {
@@ -114,6 +115,12 @@ export default function EnduranceSessionDetail() {
       </div>
 
       <div className="px-4 pt-4">
+        {session.photoDataUrl && (
+          <button onClick={() => setPhotoViewerOpen(true)} className="glass mb-4 block w-full overflow-hidden rounded-2xl">
+            <img src={session.photoDataUrl} alt="Capture scannée" className="max-h-64 w-full object-contain" />
+          </button>
+        )}
+
         {editingType && (
           <div className="mb-4 grid grid-cols-2 gap-1.5">
             {(Object.keys(ENDURANCE_ACTIVITY_META) as EnduranceActivityType[]).map((key) => (
@@ -227,6 +234,18 @@ export default function EnduranceSessionDetail() {
           <TrendingUp size={16} /> Voir la progression sur {meta.label.toLowerCase()}
         </button>
       </div>
+
+      {photoViewerOpen && session.photoDataUrl && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/90 p-4" onClick={() => setPhotoViewerOpen(false)}>
+          <img src={session.photoDataUrl} alt="Capture scannée" className="max-h-full max-w-full rounded-xl object-contain" />
+          <button
+            onClick={() => setPhotoViewerOpen(false)}
+            className="absolute right-4 top-[calc(env(safe-area-inset-top)+16px)] rounded-full bg-zinc-950/60 p-2 text-white active:bg-zinc-900"
+          >
+            <X size={20} />
+          </button>
+        </div>
+      )}
     </div>
   )
 }

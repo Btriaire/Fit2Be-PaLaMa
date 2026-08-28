@@ -14,7 +14,7 @@ import { getSettings } from '../../lib/settings'
 import { HR_ZONE_META } from '../../lib/heartRate'
 import { formatDate, formatTime, formatFullDate, isToday, isSameDay, todayStr, addDays } from '../../lib/date'
 import { useGeoTracking } from '../../lib/useGeoTracking'
-import { scanMachineResults, machineTypeToActivityType, toMachineStats, type ParsedMachineResult } from '../../lib/machineScan'
+import { scanMachineResults, machineTypeToActivityType, toMachineStats, compressImageForDisplay, type ParsedMachineResult } from '../../lib/machineScan'
 import RouteMap from '../../components/RouteMap'
 import ActivityHero, { hasHeroImage } from '../../components/ActivityHero'
 import BackButton from '../../components/BackButton'
@@ -44,6 +44,7 @@ export default function EndurancePage() {
   const [loggedTypes, setLoggedTypes] = useState<Array<{ activityType: EnduranceActivityType; lastDate: number }>>([])
   const [formOpen, setFormOpen] = useState(navState.openForm ?? false)
   const [selectedDate, setSelectedDate] = useState(todayStr())
+  const [viewerPhoto, setViewerPhoto] = useState<string | null>(null)
   const settings = getSettings()
 
   async function refresh() {
@@ -71,6 +72,7 @@ export default function EndurancePage() {
     caloriesBurned?: number
     machineStats?: MachineStats
     startedAt?: number
+    photoDataUrl?: string
   }) {
     await logEnduranceSession(input, settings)
     setFormOpen(false)
@@ -175,7 +177,20 @@ export default function EndurancePage() {
                 className="glass rounded-xl p-3 active:bg-zinc-900/80"
               >
                 <div className="mb-1 flex items-center justify-between">
-                  <p className="text-sm font-medium">{meta.label}</p>
+                  <div className="flex items-center gap-2">
+                    {s.photoDataUrl && (
+                      <button
+                        onClick={(e) => {
+                          e.stopPropagation()
+                          setViewerPhoto(s.photoDataUrl!)
+                        }}
+                        className="shrink-0"
+                      >
+                        <img src={s.photoDataUrl} alt="Capture scannée" className="h-9 w-9 rounded-lg object-cover" />
+                      </button>
+                    )}
+                    <p className="text-sm font-medium">{meta.label}</p>
+                  </div>
                   <div className="flex items-center gap-2">
                     <p className="text-xs text-zinc-500">
                       {formatDate(s.startedAt)} · {formatTime(s.startedAt)}
@@ -237,6 +252,18 @@ export default function EndurancePage() {
       {formOpen && (
         <EnduranceForm onSubmit={addSession} onClose={() => setFormOpen(false)} initialScan={navState.scanResult} initialDate={selectedDate} />
       )}
+
+      {viewerPhoto && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/90 p-4" onClick={() => setViewerPhoto(null)}>
+          <img src={viewerPhoto} alt="Capture scannée" className="max-h-full max-w-full rounded-xl object-contain" />
+          <button
+            onClick={() => setViewerPhoto(null)}
+            className="absolute right-4 top-[calc(env(safe-area-inset-top)+16px)] rounded-full bg-zinc-950/60 p-2 text-white active:bg-zinc-900"
+          >
+            <X size={20} />
+          </button>
+        </div>
+      )}
       </div>
     </div>
   )
@@ -257,6 +284,7 @@ function EnduranceForm({
     caloriesBurned?: number
     machineStats?: MachineStats
     startedAt?: number
+    photoDataUrl?: string
   }) => void
   onClose: () => void
   initialScan?: ParsedMachineResult
@@ -277,6 +305,8 @@ function EnduranceForm({
   const [scanStats, setScanStats] = useState<MachineStats | null>(initialScan ? toMachineStats(initialScan) : null)
   const [scanning, setScanning] = useState(false)
   const [scanError, setScanError] = useState<string | null>(null)
+  const [photoDataUrl, setPhotoDataUrl] = useState<string | null>(null)
+  const [photoViewerOpen, setPhotoViewerOpen] = useState(false)
   const fileInputRef = useRef<HTMLInputElement>(null)
 
   function applyScanResult(result: ParsedMachineResult) {
@@ -295,6 +325,7 @@ function EnduranceForm({
     setScanning(true)
     setScanError(null)
     try {
+      compressImageForDisplay(files[0]).then(setPhotoDataUrl)
       applyScanResult(await scanMachineResults(files))
     } catch (err) {
       const detail = err instanceof Error ? err.message : ''
@@ -316,6 +347,7 @@ function EnduranceForm({
       caloriesBurned: scanCalories ?? undefined,
       machineStats: scanStats ?? undefined,
       startedAt: date === todayStr() ? Date.now() : new Date(`${date}T12:00:00`).getTime(),
+      photoDataUrl: photoDataUrl ?? undefined,
     })
   }
 
@@ -448,7 +480,14 @@ function EnduranceForm({
         {scanError && <p className="mb-3 text-center text-xs text-red-400">{scanError}</p>}
         {scanStats && !scanError && (
           <div className="mb-3 rounded-xl border border-orange-500/30 bg-orange-500/5 p-3">
-            <p className="mb-1.5 text-center text-xs font-medium text-orange-400">Photo(s) analysée(s)</p>
+            <div className="mb-1.5 flex items-center justify-center gap-2">
+              {photoDataUrl && (
+                <button type="button" onClick={() => setPhotoViewerOpen(true)} className="shrink-0">
+                  <img src={photoDataUrl} alt="Capture scannée" className="h-10 w-10 rounded-lg object-cover" />
+                </button>
+              )}
+              <p className="text-center text-xs font-medium text-orange-400">Photo(s) analysée(s)</p>
+            </div>
             <div className="flex flex-wrap justify-center gap-x-3 gap-y-1 text-[11px] text-zinc-400">
               {scanCalories != null && <span>{scanCalories} kcal</span>}
               {scanStats.avgWatts != null && <span>{scanStats.avgWatts} W moy.</span>}
@@ -532,6 +571,18 @@ function EnduranceForm({
           </button>
         </div>
       </div>
+
+      {photoViewerOpen && photoDataUrl && (
+        <div className="fixed inset-0 z-[60] flex items-center justify-center bg-black/90 p-4" onClick={() => setPhotoViewerOpen(false)}>
+          <img src={photoDataUrl} alt="Capture scannée" className="max-h-full max-w-full rounded-xl object-contain" />
+          <button
+            onClick={() => setPhotoViewerOpen(false)}
+            className="absolute right-4 top-[calc(env(safe-area-inset-top)+16px)] rounded-full bg-zinc-950/60 p-2 text-white active:bg-zinc-900"
+          >
+            <X size={20} />
+          </button>
+        </div>
+      )}
     </div>
   )
 }

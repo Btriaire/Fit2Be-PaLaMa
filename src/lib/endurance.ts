@@ -57,6 +57,8 @@ export async function logEnduranceSession(
     caloriesBurned?: number
     /** Métriques complètes lues sur l'écran de la machine (watts, pics, dénivelé...). */
     machineStats?: MachineStats
+    /** Capture de l'écran machine scannée, conservée avec la sortie. */
+    photoDataUrl?: string
   },
   settings: Settings,
 ): Promise<EnduranceSession> {
@@ -80,6 +82,7 @@ export async function logEnduranceSession(
     caloriesBurned,
     ...(input.route && input.route.length > 0 ? { route: input.route } : {}),
     ...(input.machineStats ? { machineStats: input.machineStats } : {}),
+    ...(input.photoDataUrl ? { photoDataUrl: input.photoDataUrl } : {}),
   }
   const db = await getDb()
   await db.put('endurance', session)

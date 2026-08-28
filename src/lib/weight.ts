@@ -1,6 +1,6 @@
 import { getDb, newId } from './db'
 import { saveSettings } from './settings'
-import { pushWeightToNutriTracker } from './nutriTrackerSync'
+import { pushWeightToNutriTracker, pullLatestWeightFromNutriTracker } from './nutriTrackerSync'
 import { pushRecord, deleteRecord } from './cloudSync'
 import type { WeightLog } from '../types'
 
@@ -45,4 +45,19 @@ export async function adoptWeightFromSync(weightKg: number, dateStr: string): Pr
   pushRecord('weightLogs', entry.id, entry)
   saveSettings({ bodyWeightKg: weightKg })
   return entry
+}
+
+/**
+ * Tire la dernière pesée connue de NutriTracker Palama et met à jour le
+ * profil si elle n'est pas déjà connue localement — sans ça, settings.bodyWeightKg
+ * (utilisé par tous les calculs dérivés du poids : IMC, BMR, calories) ne
+ * restait à jour que si l'utilisateur passait par la page Diet, qui seule
+ * appelait ce pull. Appelé globalement au démarrage/premier plan (App.tsx)
+ * pour que l'IMC etc. soient toujours corrects, page Diet visitée ou non.
+ */
+export async function syncLatestWeightFromNutriTracker(): Promise<boolean> {
+  const pulled = await pullLatestWeightFromNutriTracker()
+  if (!pulled.weightKg || !pulled.date) return false
+  const adopted = await adoptWeightFromSync(pulled.weightKg, pulled.date)
+  return adopted != null
 }

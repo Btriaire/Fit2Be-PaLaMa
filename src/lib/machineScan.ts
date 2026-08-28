@@ -71,6 +71,34 @@ function compressImage(file: File, maxDim = 1600, quality = 0.82): Promise<strin
   })
 }
 
+/** Même downscale que compressImage() mais renvoie une dataURL complète
+ * (utilisable directement en <img src>) plutôt que le payload base64 nu — la
+ * capture est conservée avec la sortie (miniature en liste, plein écran au
+ * tap) plutôt que jetée après l'OCR. 960px reste net en plein écran sur un
+ * téléphone tout en restant raisonnable pour le stockage local/la sync cloud. */
+export function compressImageForDisplay(file: File, maxDim = 960, quality = 0.78): Promise<string> {
+  return new Promise((resolve, reject) => {
+    const img = new Image()
+    const url = URL.createObjectURL(file)
+    img.onload = () => {
+      URL.revokeObjectURL(url)
+      const scale = Math.min(1, maxDim / Math.max(img.width, img.height))
+      const canvas = document.createElement('canvas')
+      canvas.width = Math.round(img.width * scale)
+      canvas.height = Math.round(img.height * scale)
+      const ctx = canvas.getContext('2d')
+      if (!ctx) return reject(new Error('canvas unavailable'))
+      ctx.drawImage(img, 0, 0, canvas.width, canvas.height)
+      resolve(canvas.toDataURL('image/jpeg', quality))
+    }
+    img.onerror = () => {
+      URL.revokeObjectURL(url)
+      reject(new Error('image load failed'))
+    }
+    img.src = url
+  })
+}
+
 export async function scanMachineResult(file: File): Promise<ParsedMachineResult> {
   const image = await compressImage(file)
   const r = await fetch('/api/parse-machine-result', {

@@ -122,6 +122,8 @@ export interface EnduranceSession {
   notes?: string
   route?: RoutePoint[]
   machineStats?: MachineStats
+  /** Capture de l'écran machine scanné (miniature en liste, plein écran au tap). */
+  photoDataUrl?: string
   /** id de l'entrée côté NutriTracker si importée de là-bas — sert à ne
    * jamais réimporter deux fois la même activité. */
   externalId?: string

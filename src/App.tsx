@@ -4,6 +4,7 @@ import { getDb } from './lib/db'
 import { restoreFromCloudIfNeeded } from './lib/cloudSync'
 import { autoImportNutriTrackerActivitiesIfNeeded } from './lib/nutriTrackerImport'
 import { autoLogWalkFromStepsIfNeeded } from './lib/stepsActivity'
+import { syncLatestWeightFromNutriTracker } from './lib/weight'
 import { getSettings } from './lib/settings'
 import BottomNav from './components/BottomNav'
 import CoverPage from './pages/CoverPage'
@@ -33,6 +34,7 @@ function App() {
     getDb().then(restoreFromCloudIfNeeded)
     autoImportNutriTrackerActivitiesIfNeeded(getSettings())
     autoLogWalkFromStepsIfNeeded(getSettings())
+    void syncLatestWeightFromNutriTracker()
   }, [entered])
 
   useEffect(() => {
@@ -40,11 +42,14 @@ function App() {
     // Reprend l'import dès que l'app revient au premier plan (pas seulement
     // au tout premier chargement) — sinon une marche loggée dans
     // NutriTracker pendant que VibeFit était en arrière-plan n'apparaît
-    // qu'au prochain relancement complet.
+    // qu'au prochain relancement complet. Idem pour le poids : sans ce
+    // rafraîchissement global, l'IMC/BMR (calculés depuis settings.bodyWeightKg)
+    // restaient figés sur l'ancien poids tant qu'on ne rouvrait pas Diet.
     function onVisible() {
       if (document.visibilityState === 'visible') {
         autoImportNutriTrackerActivitiesIfNeeded(getSettings())
         autoLogWalkFromStepsIfNeeded(getSettings())
+        void syncLatestWeightFromNutriTracker()
       }
     }
     document.addEventListener('visibilitychange', onVisible)
