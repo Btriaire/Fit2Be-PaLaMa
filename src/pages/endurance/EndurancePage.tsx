@@ -380,13 +380,13 @@ function EnduranceForm({
   return (
     <div className="fixed inset-0 z-50 flex items-end justify-center bg-black/60" onClick={onClose}>
       <div
-        className={`max-h-[85vh] w-full max-w-md overflow-y-auto rounded-t-2xl border-t border-zinc-800 bg-zinc-950 ${
+        className={`flex max-h-[85vh] w-full max-w-md flex-col overflow-hidden rounded-t-2xl border-t border-zinc-800 bg-zinc-950 ${
           hasHeroImage(activityType) ? '' : 'mesh-backdrop'
         }`}
         onClick={(e) => e.stopPropagation()}
       >
         {hasHeroImage(activityType) ? (
-          <div className="relative">
+          <div className="relative shrink-0">
             <ActivityHero heroKey={activityType} className="h-32 rounded-t-2xl" />
             <div className="absolute inset-x-0 top-0 flex items-center justify-between p-4">
               <h2 className="font-semibold text-white drop-shadow">Nouvelle sortie</h2>
@@ -396,7 +396,7 @@ function EnduranceForm({
             </div>
           </div>
         ) : (
-          <div className="mb-3 flex items-center justify-between p-4 pb-0">
+          <div className="mb-3 flex shrink-0 items-center justify-between p-4 pb-0">
             <h2 className="font-semibold">Nouvelle sortie</h2>
             <button onClick={onClose} className="rounded-full p-1 active:bg-zinc-900">
               <X size={18} />
@@ -404,7 +404,7 @@ function EnduranceForm({
           </div>
         )}
 
-        <div className="p-4 pt-3">
+        <div className="flex-1 overflow-y-auto p-4 pt-3">
         <div className="mb-4 grid grid-cols-2 gap-1.5">
           {(Object.keys(ENDURANCE_ACTIVITY_META) as EnduranceActivityType[]).map((key) => (
             <button
@@ -519,15 +519,17 @@ function EnduranceForm({
           value={avgHr}
           onChange={(e) => setAvgHr(e.target.value)}
           placeholder="ex: 145"
-          className="mb-4 w-full rounded-lg bg-zinc-900 px-3 py-2.5 text-center outline-none focus:ring-1 focus:ring-teal-500"
+          className="w-full rounded-lg bg-zinc-900 px-3 py-2.5 text-center outline-none focus:ring-1 focus:ring-teal-500"
         />
+        </div>
 
-        <button
-          onClick={submit}
-          className="w-full rounded-xl bg-teal-500 py-3 text-sm font-semibold text-zinc-950 active:bg-teal-400"
-        >
-          Enregistrer
-        </button>
+        <div className="shrink-0 border-t border-zinc-800 p-4" style={{ paddingBottom: 'calc(env(safe-area-inset-bottom) + 16px)' }}>
+          <button
+            onClick={submit}
+            className="w-full rounded-xl bg-teal-500 py-3 text-sm font-semibold text-zinc-950 active:bg-teal-400"
+          >
+            Enregistrer
+          </button>
         </div>
       </div>
     </div>
