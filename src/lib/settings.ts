@@ -18,6 +18,8 @@ export interface Settings {
   sleepTargetMin: number
   /** Photo de profil, compressée en petite miniature (data URL). */
   profilePhotoDataUrl?: string
+  /** Voix de motivation générée à la volée (musculation + cardio) — 'off' désactive. */
+  motivationVoice: 'off' | 'coach' | 'calme'
 }
 
 const DEFAULTS: Settings = {
@@ -31,6 +33,7 @@ const DEFAULTS: Settings = {
   restTimerDefaultSec: 90,
   restingHeartRateBpm: 60,
   sleepTargetMin: 480,
+  motivationVoice: 'off',
 }
 
 export function getSettings(): Settings {

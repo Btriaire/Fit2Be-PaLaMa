@@ -17,6 +17,7 @@ import { ALL_EXERCISES, MUSCLE_GROUPS } from '../../lib/exercises'
 import { getSettings } from '../../lib/settings'
 import { getTodayGoogleFit, syncGoogleFit } from '../../lib/googleFit'
 import { saveCustomTemplate, exercisesFromWorkout, compressImageToDataUrl } from '../../lib/customTemplates'
+import { playMotivation } from '../../lib/motivationVoice'
 import RestTimer from '../../components/RestTimer'
 import MuscleBodyMap from '../../components/MuscleBodyMap'
 import HeartRateMeter from '../../components/HeartRateMeter'
@@ -79,7 +80,7 @@ export default function WorkoutRunner() {
     }
     await persist(next)
     if (!set.isWarmup) setRestToken((t) => t + 1)
-    return entry.id
+    return { id: entry.id, isPr }
   }
 
   async function applyDifficultyToSets(exerciseId: string, setIds: string[], rpe: number) {
@@ -606,7 +607,9 @@ function FocusExerciseView({
   onClose,
 }: {
   we: WorkoutExercise
-  onAddSet: (set: Omit<SetEntry, 'id' | 'exerciseId' | 'completedAt' | 'isPr'>) => Promise<string | null | undefined>
+  onAddSet: (
+    set: Omit<SetEntry, 'id' | 'exerciseId' | 'completedAt' | 'isPr'>,
+  ) => Promise<{ id: string; isPr: boolean } | null | undefined>
   onFinish: (setIds: string[], rpe: number) => void
   onHeartRate: (setId: string, bpm: number) => void
   onClose: () => void
@@ -655,10 +658,20 @@ function FocusExerciseView({
     const w = parseFloat(weight)
     const r = parseInt(reps, 10)
     if (!w || !r) return
-    const id = await onAddSet({ weightKg: w, reps: r, isWarmup: false })
-    if (id) {
-      setSessionSetIds((ids) => [...ids, id])
-      setLastLoggedSetId(id)
+    const result = await onAddSet({ weightKg: w, reps: r, isWarmup: false })
+    if (result) {
+      setSessionSetIds((ids) => [...ids, result.id])
+      setLastLoggedSetId(result.id)
+      const settings = getSettings()
+      if (settings.motivationVoice !== 'off') {
+        void playMotivation(settings.motivationVoice, {
+          kind: 'set',
+          exercise: exercise?.name ?? we.exerciseId,
+          weightKg: w,
+          reps: r,
+          isPr: result.isPr,
+        })
+      }
     }
     // Garde les valeurs pré-remplies pour la série suivante — souvent identiques.
   }

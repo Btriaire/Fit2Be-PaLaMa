@@ -14,6 +14,7 @@ import { getSettings } from '../../lib/settings'
 import { HR_ZONE_META } from '../../lib/heartRate'
 import { formatDate, formatTime, formatFullDate, isToday, isSameDay, todayStr, addDays } from '../../lib/date'
 import { useGeoTracking } from '../../lib/useGeoTracking'
+import { playMotivation } from '../../lib/motivationVoice'
 import { scanMachineResults, machineTypeToActivityType, toMachineStats, compressImageForDisplay, type ParsedMachineResult } from '../../lib/machineScan'
 import RouteMap from '../../components/RouteMap'
 import ActivityHero, { hasHeroImage } from '../../components/ActivityHero'
@@ -27,6 +28,11 @@ interface NavState {
 
 // Activités où un suivi GPS a du sens (extérieur, mouvement continu).
 const GPS_CAPABLE: EnduranceActivityType[] = ['course', 'velo', 'marche']
+// Machines d'intérieur — pas de GPS, mais un chrono live avec voix de
+// motivation périodique a quand même du sens (tapis, vélo de salle).
+const INDOOR_TYPES: EnduranceActivityType[] = ['tapis', 'velo-appart']
+// Fréquence des relances vocales pendant une séance live (indoor ou GPS).
+const MOTIVATION_INTERVAL_SEC = 180
 
 function startOfWeek(): number {
   const d = new Date()
@@ -300,6 +306,18 @@ function EnduranceForm({
   const meta = ENDURANCE_ACTIVITY_META[activityType]
   const gps = useGeoTracking()
   const gpsCapable = GPS_CAPABLE.includes(activityType)
+  const indoorCapable = INDOOR_TYPES.includes(activityType)
+  const [indoorRunning, setIndoorRunning] = useState(false)
+  const [indoorElapsedSec, setIndoorElapsedSec] = useState(0)
+  const indoorStartRef = useRef(0)
+  const indoorIntervalRef = useRef<number | null>(null)
+  const settings = getSettings()
+
+  useEffect(() => {
+    return () => {
+      if (indoorIntervalRef.current != null) window.clearInterval(indoorIntervalRef.current)
+    }
+  }, [])
   const [savedRoute, setSavedRoute] = useState<RoutePoint[] | null>(null)
   const [scanCalories, setScanCalories] = useState<number | null>(initialScan?.calories ?? null)
   const [scanStats, setScanStats] = useState<MachineStats | null>(initialScan ? toMachineStats(initialScan) : null)
@@ -356,6 +374,54 @@ function EnduranceForm({
     setDuration(String(Math.max(1, Math.round(final.elapsedSec / 60))))
     setDistance(final.distanceKm.toFixed(2))
     setSavedRoute(final.route)
+  }
+
+  function startIndoorChrono() {
+    indoorStartRef.current = Date.now()
+    setIndoorElapsedSec(0)
+    setIndoorRunning(true)
+    let lastFiredAt = 0
+    indoorIntervalRef.current = window.setInterval(() => {
+      const elapsed = Math.round((Date.now() - indoorStartRef.current) / 1000)
+      setIndoorElapsedSec(elapsed)
+      if (settings.motivationVoice !== 'off' && elapsed - lastFiredAt >= MOTIVATION_INTERVAL_SEC) {
+        lastFiredAt = elapsed
+        void playMotivation(settings.motivationVoice, {
+          kind: 'cardio',
+          activityType: meta.label,
+          elapsedMin: Math.round(elapsed / 60),
+        })
+      }
+    }, 1000)
+  }
+
+  function stopIndoorChrono() {
+    if (indoorIntervalRef.current != null) window.clearInterval(indoorIntervalRef.current)
+    indoorIntervalRef.current = null
+    setIndoorRunning(false)
+    setDuration(String(Math.max(1, Math.round(indoorElapsedSec / 60))))
+  }
+
+  if (indoorRunning) {
+    const mm = Math.floor(indoorElapsedSec / 60)
+    const ss = indoorElapsedSec % 60
+    return (
+      <div className="fixed inset-0 z-50 flex flex-col items-center justify-center bg-zinc-950 px-6">
+        <p className="mb-2 text-sm font-semibold uppercase tracking-wide text-orange-400">{meta.label} en direct</p>
+        <p className="mb-10 font-mono text-6xl font-bold tabular-nums">
+          {mm}:{String(ss).padStart(2, '0')}
+        </p>
+        {settings.motivationVoice !== 'off' && (
+          <p className="mb-10 text-center text-xs text-zinc-500">Une relance vocale toutes les {MOTIVATION_INTERVAL_SEC / 60} min</p>
+        )}
+        <button
+          onClick={stopIndoorChrono}
+          className="flex items-center justify-center gap-2 rounded-2xl bg-red-500 px-8 py-4 text-sm font-semibold text-white active:bg-red-400"
+        >
+          <Pause size={16} fill="currentColor" /> Terminer la séance
+        </button>
+      </div>
+    )
   }
 
   if (gps.tracking) {
@@ -522,6 +588,15 @@ function EnduranceForm({
             className="mb-4 flex w-full items-center justify-center gap-1.5 rounded-xl border border-teal-500/40 bg-teal-500/10 py-3 text-sm font-semibold text-teal-400 active:bg-teal-500/20"
           >
             <MapPin size={16} /> Suivre en direct (GPS)
+          </button>
+        )}
+
+        {indoorCapable && (
+          <button
+            onClick={startIndoorChrono}
+            className="mb-4 flex w-full items-center justify-center gap-1.5 rounded-xl border border-teal-500/40 bg-teal-500/10 py-3 text-sm font-semibold text-teal-400 active:bg-teal-500/20"
+          >
+            <Timer size={16} /> Démarrer le chrono en direct
           </button>
         )}
 

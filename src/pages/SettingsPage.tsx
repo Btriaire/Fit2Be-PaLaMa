@@ -8,6 +8,7 @@ import { consolidateData, totalDuplicates, type ConsolidationResult } from '../l
 import { compressImageToDataUrl } from '../lib/image'
 import { syncGoogleFit, getTodayGoogleFit } from '../lib/googleFit'
 import { autoLogWalkFromStepsIfNeeded } from '../lib/stepsActivity'
+import { playMotivation, type MotivationVoiceId } from '../lib/motivationVoice'
 
 export default function SettingsPage() {
   const navigate = useNavigate()
@@ -24,6 +25,8 @@ export default function SettingsPage() {
   const [restTimerDefaultSec, setRestTimerDefaultSec] = useState(String(initial.restTimerDefaultSec))
   const [restingHeartRateBpm, setRestingHeartRateBpm] = useState(String(initial.restingHeartRateBpm))
   const [sleepTargetMin, setSleepTargetMin] = useState(String(initial.sleepTargetMin))
+  const [motivationVoice, setMotivationVoice] = useState(initial.motivationVoice)
+  const [testingVoice, setTestingVoice] = useState<MotivationVoiceId | null>(null)
   const [savedFlash, setSavedFlash] = useState(false)
   const [importFlash, setImportFlash] = useState<string | null>(null)
   const [ntImporting, setNtImporting] = useState(false)
@@ -59,6 +62,17 @@ export default function SettingsPage() {
     setBodyWeightKg(saved.bodyWeightKg)
     setProfileSavedFlash(true)
     setTimeout(() => setProfileSavedFlash(false), 1500)
+  }
+
+  function selectMotivationVoice(voice: 'off' | 'coach' | 'calme') {
+    setMotivationVoice(voice)
+    saveSettings({ motivationVoice: voice })
+  }
+
+  async function testMotivationVoice(voice: MotivationVoiceId) {
+    setTestingVoice(voice)
+    await playMotivation(voice, { kind: 'set', exercise: 'Développé couché', weightKg: 80, reps: 8, isPr: true })
+    setTestingVoice(null)
   }
 
   async function importFromNutriTracker() {
@@ -241,6 +255,41 @@ export default function SettingsPage() {
         >
           {savedFlash ? 'Enregistré ✓' : 'Enregistrer'}
         </button>
+      </section>
+
+      <section className="glass mb-4 space-y-2 rounded-2xl p-4">
+        <h2 className="mb-1 text-sm font-medium text-zinc-400">Voix de motivation</h2>
+        <p className="mb-2 text-[11px] text-zinc-600">
+          Une phrase générée et dite à voix haute après chaque série (et pendant les séances tapis/vélo de salle) — désactivée par défaut.
+        </p>
+        <div className="grid grid-cols-3 gap-1.5">
+          {(
+            [
+              { id: 'off', label: 'Désactivé' },
+              { id: 'coach', label: 'Coach énergique' },
+              { id: 'calme', label: 'Motivateur calme' },
+            ] as const
+          ).map((v) => (
+            <button
+              key={v.id}
+              onClick={() => selectMotivationVoice(v.id)}
+              className={`rounded-lg px-2 py-2.5 text-center text-xs font-medium ${
+                motivationVoice === v.id ? 'bg-orange-500 text-zinc-950' : 'bg-zinc-900 text-zinc-300'
+              }`}
+            >
+              {v.label}
+            </button>
+          ))}
+        </div>
+        {motivationVoice !== 'off' && (
+          <button
+            onClick={() => testMotivationVoice(motivationVoice)}
+            disabled={testingVoice != null}
+            className="mt-1 flex w-full items-center justify-center gap-1.5 rounded-xl bg-zinc-900 py-2.5 text-xs font-medium active:bg-zinc-800 disabled:opacity-60"
+          >
+            {testingVoice ? 'Génération…' : 'Tester la voix'}
+          </button>
+        )}
       </section>
 
       <section className="glass mb-4 space-y-2 rounded-2xl p-4">
