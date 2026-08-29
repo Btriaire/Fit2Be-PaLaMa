@@ -15,7 +15,11 @@ interface VercelResponse {
 }
 
 const GROQ_URL = 'https://api.groq.com/openai/v1/chat/completions'
-const MODEL = 'openai/gpt-oss-120b'
+// Modèle non-raisonneur délibérément — gpt-oss-120b (utilisé par ai-insights.ts)
+// dépense son budget de tokens en chain-of-thought caché et peut renvoyer un
+// content vide sur une petite phrase avec un max_tokens serré ; inutile ici,
+// une ligne de motivation n'a pas besoin de raisonnement.
+const MODEL = 'llama-3.3-70b-versatile'
 const MOTIVATION_VPS_URL = process.env.MOTIVATION_VPS_URL || 'https://fit2be-motivation.46.202.131.240.nip.io'
 
 type Voice = 'coach' | 'calme'
