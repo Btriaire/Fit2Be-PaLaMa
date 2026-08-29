@@ -15,11 +15,12 @@ interface VercelResponse {
 }
 
 const GROQ_URL = 'https://api.groq.com/openai/v1/chat/completions'
-// Modèle non-raisonneur délibérément — gpt-oss-120b (utilisé par ai-insights.ts)
-// dépense son budget de tokens en chain-of-thought caché et peut renvoyer un
-// content vide sur une petite phrase avec un max_tokens serré ; inutile ici,
-// une ligne de motivation n'a pas besoin de raisonnement.
-const MODEL = 'llama-3.3-70b-versatile'
+// Même modèle que ai-insights.ts (seul confirmé dispo sur cette clé — un essai
+// avec llama-3.3-70b-versatile a renvoyé 404 model_not_found). gpt-oss-120b est
+// un modèle "raisonneur" : sans reasoning_effort bas, il dépense son budget de
+// tokens en chain-of-thought caché et peut renvoyer un content vide sur une
+// petite phrase avec un max_tokens serré.
+const MODEL = 'openai/gpt-oss-120b'
 const MOTIVATION_VPS_URL = process.env.MOTIVATION_VPS_URL || 'https://fit2be-motivation.46.202.131.240.nip.io'
 
 type Voice = 'coach' | 'calme'
@@ -52,11 +53,15 @@ function buildPrompt(voice: Voice, context: Record<string, unknown>): { system: 
   return { system, user }
 }
 
-async function generateText(voice: Voice, context: Record<string, unknown>, apiKey: string): Promise<string | null> {
+async function generateText(
+  voice: Voice,
+  context: Record<string, unknown>,
+  apiKey: string,
+): Promise<{ text: string | null; debug: string }> {
   const { system, user } = buildPrompt(voice, context)
   const r = await fetch(GROQ_URL, {
     method: 'POST',
-    headers: { 'content-type': 'application/json', authorization: `Bearer ${apiKey}` },
+    headers: { 'content-type': 'application/json', authorization: `Bearer ${apiKey.trim()}` },
     body: JSON.stringify({
       model: MODEL,
       messages: [
@@ -64,14 +69,18 @@ async function generateText(voice: Voice, context: Record<string, unknown>, apiK
         { role: 'user', content: user },
       ],
       temperature: 0.9,
-      max_tokens: 60,
+      max_tokens: 200,
+      reasoning_effort: 'low',
     }),
   })
-  if (!r.ok) return null
+  if (!r.ok) {
+    const errBody = await r.text().catch(() => '')
+    return { text: null, debug: `groq http ${r.status}: ${errBody.slice(0, 300)}` }
+  }
   const data = await r.json()
   const content = data.choices?.[0]?.message?.content as string | undefined
-  if (!content) return null
-  return content.trim().replace(/^["«»]+|["«»]+$/g, '')
+  if (!content) return { text: null, debug: `groq empty content: ${JSON.stringify(data).slice(0, 300)}` }
+  return { text: content.trim().replace(/^["«»]+|["«»]+$/g, ''), debug: 'ok' }
 }
 
 async function synthesize(text: string, voice: Voice, secret: string): Promise<{ audioBase64: string; mimeType: string } | null> {
@@ -104,9 +113,9 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
   const context = body.context ?? {}
 
   try {
-    const text = await generateText(voice, context, groqKey)
+    const { text, debug } = await generateText(voice, context, groqKey)
     if (!text) {
-      res.status(200).json({ ok: false, skipped: true, reason: 'empty text' })
+      res.status(200).json({ ok: false, skipped: true, reason: 'empty text', debug })
       return
     }
     const audio = await synthesize(text, voice, vpsSecret)
@@ -115,7 +124,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       return
     }
     res.status(200).json({ ok: true, text, ...audio })
-  } catch {
-    res.status(200).json({ ok: false, skipped: true, reason: 'network error' })
+  } catch (err) {
+    res.status(200).json({ ok: false, skipped: true, reason: 'network error', debug: err instanceof Error ? err.message : String(err) })
   }
 }
