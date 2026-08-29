@@ -37,7 +37,7 @@ import { ENDURANCE_PROGRAMS, type EnduranceProgram, type ProgramPhase } from '..
 import RouteMap from '../../components/RouteMap'
 import ActivityHero, { hasHeroImage } from '../../components/ActivityHero'
 import BackButton from '../../components/BackButton'
-import type { EnduranceActivityType, EnduranceSession, MachineStats, RoutePoint } from '../../types'
+import type { EnduranceActivityType, EnduranceSession, MachineStats, PhaseLogEntry, RoutePoint } from '../../types'
 
 // Palette de l'app (index.css @theme), pas des couleurs Tailwind par défaut —
 // turquoise/indigo/orange sont les 3 seuls accents de l'identité visuelle.
@@ -133,6 +133,8 @@ export default function EndurancePage() {
     startedAt?: number
     photoDataUrl?: string
     rpe?: number
+    programId?: string
+    phaseLog?: PhaseLogEntry[]
   }) {
     await logEnduranceSession(input, settings)
     setFormOpen(false)
@@ -490,6 +492,8 @@ function EnduranceForm({
     startedAt?: number
     photoDataUrl?: string
     rpe?: number
+    programId?: string
+    phaseLog?: PhaseLogEntry[]
   }) => void
   onClose: () => void
   initialScan?: ParsedMachineResult
@@ -517,6 +521,8 @@ function EnduranceForm({
   const indoorIntervalRef = useRef<number | null>(null)
   const prevPhaseIndexRef = useRef<number | null>(null)
   const programDoneRef = useRef(false)
+  const phaseStartSecRef = useRef(0)
+  const phaseLogRef = useRef<PhaseLogEntry[]>([])
   const settings = getSettings()
 
   useEffect(() => {
@@ -581,6 +587,8 @@ function EnduranceForm({
       startedAt: date === todayStr() ? Date.now() : new Date(`${date}T12:00:00`).getTime(),
       photoDataUrl: photoDataUrl ?? undefined,
       rpe: sessionRpe ?? undefined,
+      programId: activeProgram?.id,
+      phaseLog: phaseLogRef.current.length > 0 ? phaseLogRef.current : undefined,
     })
   }
 
@@ -591,6 +599,16 @@ function EnduranceForm({
     setSavedRoute(final.route)
   }
 
+  /** Clôt la phase en cours dans le journal (durée réelle, pas planifiée) et
+   * repart d'ici pour la suivante — appelé aux transitions naturelles, à un
+   * "Passer", et à l'arrêt de la séance (phase alors partielle). */
+  function recordPhaseCompletion(program: EnduranceProgram, phaseIndex: number, endedAtElapsedSec: number) {
+    const phase = program.phases[phaseIndex]
+    const actualSec = Math.max(0, endedAtElapsedSec - phaseStartSecRef.current)
+    phaseLogRef.current.push({ label: phase.label, intensity: phase.intensity, plannedSec: phase.durationSec, actualSec })
+    phaseStartSecRef.current = endedAtElapsedSec
+  }
+
   function startIndoorChrono(program?: EnduranceProgram) {
     indoorStartRef.current = Date.now()
     setIndoorElapsedSec(0)
@@ -598,6 +616,8 @@ function EnduranceForm({
     setActiveProgram(program ?? null)
     prevPhaseIndexRef.current = null
     programDoneRef.current = false
+    phaseStartSecRef.current = 0
+    phaseLogRef.current = []
     let lastFiredAt = 0
     indoorIntervalRef.current = window.setInterval(() => {
       const elapsed = Math.round((Date.now() - indoorStartRef.current) / 1000)
@@ -611,12 +631,14 @@ function EnduranceForm({
             // libellé (synthèse directe, sans Groq : voir playAnnouncement).
             navigator.vibrate?.(current.phase.intensity === 'dur' ? [120, 60, 120] : 120)
             if (settings.motivationVoice !== 'off') void playAnnouncement(settings.motivationVoice, current.phase.label)
+            recordPhaseCompletion(program, prevPhaseIndexRef.current, elapsed)
           }
           prevPhaseIndexRef.current = current.index
         } else if (!programDoneRef.current) {
           programDoneRef.current = true
           navigator.vibrate?.([200, 100, 200, 100, 200])
           if (settings.motivationVoice !== 'off') void playAnnouncement(settings.motivationVoice, 'Programme terminé, bravo')
+          if (prevPhaseIndexRef.current !== null) recordPhaseCompletion(program, prevPhaseIndexRef.current, elapsed)
         }
       }
 
@@ -634,8 +656,14 @@ function EnduranceForm({
   function stopIndoorChrono() {
     if (indoorIntervalRef.current != null) window.clearInterval(indoorIntervalRef.current)
     indoorIntervalRef.current = null
+    const nowElapsed = Math.round((Date.now() - indoorStartRef.current) / 1000)
+    if (activeProgram && !programDoneRef.current) {
+      const current = getPhaseAt(activeProgram, nowElapsed)
+      if (current) recordPhaseCompletion(activeProgram, current.index, nowElapsed)
+    }
     setIndoorRunning(false)
-    setDuration(String(Math.max(1, Math.round(indoorElapsedSec / 60))))
+    setIndoorElapsedSec(nowElapsed)
+    setDuration(String(Math.max(1, Math.round(nowElapsed / 60))))
     setAwaitingDifficulty(true)
   }
 
@@ -651,9 +679,14 @@ function EnduranceForm({
    * courante d'une seule source de vérité (le temps écoulé). */
   function skipPhase() {
     if (!activeProgram) return
-    const current = getPhaseAt(activeProgram, indoorElapsedSec)
+    // Lit le temps réel écoulé depuis la ref (source de vérité), pas depuis
+    // indoorElapsedSec — un "Passer" tapé deux fois avant le prochain rendu
+    // verrait sinon un state React périmé et lograit deux fois la même phase.
+    const nowElapsed = Math.round((Date.now() - indoorStartRef.current) / 1000)
+    const current = getPhaseAt(activeProgram, nowElapsed)
     if (!current) return
-    const jumpTo = indoorElapsedSec + current.remainingSec
+    recordPhaseCompletion(activeProgram, current.index, nowElapsed)
+    const jumpTo = nowElapsed + current.remainingSec
     indoorStartRef.current = Date.now() - jumpTo * 1000
     setIndoorElapsedSec(jumpTo)
     const next = getPhaseAt(activeProgram, jumpTo)

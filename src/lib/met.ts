@@ -156,6 +156,32 @@ export function computeCaloriesFromHr(avgHeartRate: number, durationMin: number,
   return Math.max(0, Math.round(kcalPerMin * durationMin))
 }
 
+// MET repère par palier d'intensité de phase de programme coaching (Compendium
+// of Physical Activities — facile ≈ marche/pédalage léger, modéré ≈ zone 2,
+// dur ≈ effort proche du seuil/sprint). Plus fin qu'un MET unique pour toute
+// la séance : une séance fractionnée alterne des phases d'intensité très
+// différente, les moyenner masque l'essentiel du coût énergétique réel.
+const PHASE_INTENSITY_MET: Record<'facile' | 'modéré' | 'dur', number> = {
+  facile: 4,
+  modéré: 7,
+  dur: 11,
+}
+
+/** Calories intégrées phase par phase (durée réelle, pas la durée planifiée —
+ * une phase passée avec "Passer" ou une séance arrêtée en cours de phase ne
+ * doit pas être comptée sur sa durée prévue). */
+export function computeCaloriesFromPhaseLog(
+  phaseLog: Array<{ intensity: 'facile' | 'modéré' | 'dur'; actualSec: number }>,
+  settings: Settings,
+): number {
+  const sexFactor = settings.sex === 'femme' ? 0.95 : 1
+  const total = phaseLog.reduce(
+    (sum, p) => sum + PHASE_INTENSITY_MET[p.intensity] * settings.bodyWeightKg * (p.actualSec / 3600) * sexFactor,
+    0,
+  )
+  return Math.round(total)
+}
+
 /**
  * Calories NEAT (Non-Exercise Activity Thermogenesis) à partir du nombre de
  * pas — l'activité "non sportive" de la journée (marcher au bureau, monter

@@ -1,13 +1,14 @@
 import { useEffect, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { Dumbbell, Plus, ChevronRight, Flame, TrendingUp, Trash2, Target, X, Check, Bookmark } from 'lucide-react'
-import { getAllWorkouts, saveWorkout, deleteWorkout, getLoggedExerciseIds } from '../../lib/workouts'
+import { getAllWorkouts, saveWorkout, deleteWorkout, getLoggedExerciseIds, estimateWorkoutCalories } from '../../lib/workouts'
 import { newId } from '../../lib/db'
 import { formatDate, formatTime } from '../../lib/date'
 import { ALL_EXERCISES } from '../../lib/exercises'
 import { TRAINING_TEMPLATES, COACHING_TEMPLATES, type TrainingTemplate } from '../../lib/trainingTemplates'
 import { getCustomTemplates, deleteCustomTemplate } from '../../lib/customTemplates'
 import { getLastExclusions, saveLastExclusions } from '../../lib/templateExclusions'
+import { getSettings } from '../../lib/settings'
 import ActivityHero from '../../components/ActivityHero'
 import BackButton from '../../components/BackButton'
 import type { CustomTemplate, Workout, WorkoutExercise } from '../../types'
@@ -60,7 +61,7 @@ export default function GymHome() {
         targetReps: te.targetReps,
         note: te.note,
       }))
-    const workout: Workout = { id: newId(), name: tpl.name, startedAt: Date.now(), exercises }
+    const workout: Workout = { id: newId(), name: tpl.name, startedAt: Date.now(), exercises, templateId: tpl.id }
     await saveWorkout(workout)
     setPreviewTemplate(null)
     navigate(`/gym/workout/${workout.id}`)
@@ -430,6 +431,19 @@ function TemplatePreview({
     return new Set([...saved].filter((id) => validIds.has(id)))
   })
   const selectedCount = template.exercises.length - excluded.size
+  const [history, setHistory] = useState<Array<{ workout: Workout; kcal: number }>>([])
+
+  useEffect(() => {
+    const settings = getSettings()
+    getAllWorkouts().then((all) =>
+      setHistory(
+        all
+          .filter((w) => w.templateId === template.id && w.finishedAt)
+          .slice(0, 5)
+          .map((w) => ({ workout: w, kcal: estimateWorkoutCalories(w, settings) })),
+      ),
+    )
+  }, [template.id])
 
   function toggle(exerciseId: string) {
     setExcluded((prev) => {
@@ -463,6 +477,22 @@ function TemplatePreview({
                 <Flame size={13} /> {template.cardioBlock.label}
               </p>
               <p className="text-xs leading-relaxed text-zinc-400">{template.cardioBlock.description}</p>
+            </div>
+          )}
+
+          {history.length > 0 && (
+            <div className="mb-3 rounded-xl border border-zinc-800 bg-zinc-900/50 p-3">
+              <p className="mb-1.5 flex items-center gap-1.5 text-xs font-semibold uppercase tracking-wide text-indigo-300">
+                <TrendingUp size={13} /> Progression sur ce programme
+              </p>
+              <ul className="space-y-1">
+                {history.map(({ workout, kcal }) => (
+                  <li key={workout.id} className="flex items-center justify-between text-xs">
+                    <span className="text-zinc-400">{formatDate(workout.startedAt)}</span>
+                    <span className="font-mono text-zinc-500">{kcal} kcal</span>
+                  </li>
+                ))}
+              </ul>
             </div>
           )}
 

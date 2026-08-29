@@ -47,6 +47,10 @@ export interface Workout {
   finishedAt?: number
   exercises: WorkoutExercise[]
   notes?: string
+  /** Template (trainingTemplates.ts, coaching ou par chef musculaire) dont
+   * cette séance est issue — permet de suivre la progression sur CE
+   * programme précis dans le temps. */
+  templateId?: string
 }
 
 export interface CustomTemplateExercise {
@@ -110,6 +114,17 @@ export interface MachineStats {
   elevationGainM?: number
 }
 
+/** Détail réel d'une phase de programme coaching une fois la séance
+ * terminée — actualSec peut différer de plannedSec (phase passée via
+ * "Passer", ou séance arrêtée en cours de phase). Sert au suivi de
+ * progression sur CE programme précis et au calcul fin des calories. */
+export interface PhaseLogEntry {
+  label: string
+  intensity: 'facile' | 'modéré' | 'dur'
+  plannedSec: number
+  actualSec: number
+}
+
 export interface EnduranceSession {
   id: string
   activityType: EnduranceActivityType
@@ -127,6 +142,11 @@ export interface EnduranceSession {
   /** Difficulté ressentie (0-10, session-RPE) — saisie après une séance live
    * (chrono indoor), prioritaire sur la FC/MET pour l'estimation de charge. */
   rpe?: number
+  /** Programme coaching (endurancePrograms.ts) dont cette séance est issue —
+   * permet de suivre la progression sur ce programme précis dans le temps. */
+  programId?: string
+  /** Détail réel phase par phase, si un programme a été utilisé. */
+  phaseLog?: PhaseLogEntry[]
   /** id de l'entrée côté NutriTracker si importée de là-bas — sert à ne
    * jamais réimporter deux fois la même activité. */
   externalId?: string

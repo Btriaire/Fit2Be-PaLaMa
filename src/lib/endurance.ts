@@ -1,10 +1,10 @@
 import { getDb, newId } from './db'
-import { computeCaloriesForUser, computeCaloriesFromHr } from './met'
+import { computeCaloriesForUser, computeCaloriesFromHr, computeCaloriesFromPhaseLog } from './met'
 import { computeHrZone } from './heartRate'
 import { pushActivityToNutriTracker } from './nutriTrackerSync'
 import { pushRecord, deleteRecord } from './cloudSync'
 import type { Settings } from './settings'
-import type { EnduranceActivityType, EnduranceSession, MachineStats, RoutePoint } from '../types'
+import type { EnduranceActivityType, EnduranceSession, MachineStats, PhaseLogEntry, RoutePoint } from '../types'
 
 // googleFitType : code d'activité Google Fit repris par NutriTracker Palama
 // (app/lib/google-fit.ts:ACTIVITY_LABELS) pour le libellé/icône de son flux
@@ -61,16 +61,21 @@ export async function logEnduranceSession(
     photoDataUrl?: string
     /** Difficulté ressentie (0-10), saisie après une séance live. */
     rpe?: number
+    /** Programme coaching suivi, et détail réel phase par phase. */
+    programId?: string
+    phaseLog?: PhaseLogEntry[]
   },
   settings: Settings,
 ): Promise<EnduranceSession> {
   const meta = ENDURANCE_ACTIVITY_META[input.activityType]
   // Priorité de précision : calories réelles de la machine > formule FC
-  // (Keytel, reflète l'effort physiologique réel) > MET générique du type
-  // d'activité (dernier recours, aucune mesure individuelle disponible).
+  // (Keytel, reflète l'effort physiologique réel) > intégration phase par
+  // phase d'un programme coaching (plus fin qu'un MET unique moyenné sur
+  // toute la séance) > MET générique du type d'activité (dernier recours).
   const caloriesBurned =
     input.caloriesBurned ??
     (input.avgHeartRate ? computeCaloriesFromHr(input.avgHeartRate, input.durationMin, settings) : null) ??
+    (input.phaseLog && input.phaseLog.length > 0 ? computeCaloriesFromPhaseLog(input.phaseLog, settings) : null) ??
     computeCaloriesForUser(meta.met, input.durationMin, settings)
   const hrZone = input.avgHeartRate ? computeHrZone(input.avgHeartRate, settings.ageYears) : undefined
   const session: EnduranceSession = {
@@ -86,6 +91,8 @@ export async function logEnduranceSession(
     ...(input.machineStats ? { machineStats: input.machineStats } : {}),
     ...(input.photoDataUrl ? { photoDataUrl: input.photoDataUrl } : {}),
     ...(input.rpe != null ? { rpe: input.rpe } : {}),
+    ...(input.programId ? { programId: input.programId } : {}),
+    ...(input.phaseLog && input.phaseLog.length > 0 ? { phaseLog: input.phaseLog } : {}),
   }
   const db = await getDb()
   await db.put('endurance', session)

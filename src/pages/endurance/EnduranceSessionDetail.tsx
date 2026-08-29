@@ -3,6 +3,7 @@ import { useNavigate, useParams } from 'react-router-dom'
 import { ChevronLeft, Timer, Route, HeartPulse, Flame, Zap, Gauge, Mountain, Trash2, TrendingUp, Activity, Pencil, Check, X } from 'lucide-react'
 import {
   getEnduranceSession,
+  getEnduranceSessions,
   deleteEnduranceSession,
   updateEnduranceActivityType,
   computePaceMinPerKm,
@@ -10,13 +11,21 @@ import {
   ENDURANCE_ACTIVITY_META,
 } from '../../lib/endurance'
 import { getSettings } from '../../lib/settings'
+import { computeCaloriesFromPhaseLog } from '../../lib/met'
 import { HR_ZONE_META, computeMaxHr } from '../../lib/heartRate'
 import { enduranceSessionLoad } from '../../lib/recovery'
 import { sessionEfficiency } from '../../lib/progression'
 import { formatDate, formatTime } from '../../lib/date'
+import { ENDURANCE_PROGRAMS } from '../../lib/endurancePrograms'
 import RouteMap from '../../components/RouteMap'
 import ActivityHero from '../../components/ActivityHero'
 import type { EnduranceActivityType, EnduranceSession } from '../../types'
+
+const PHASE_INTENSITY_COLOR: Record<'facile' | 'modéré' | 'dur', string> = {
+  facile: 'var(--color-turquoise)',
+  modéré: 'var(--color-indigo)',
+  dur: 'var(--color-orange)',
+}
 
 /** Une métrique individuelle, taguée avec la ou les catégories d'index
  * qu'elle alimente — c'est ce tag qui répond au "pourquoi c'est là". */
@@ -49,12 +58,23 @@ export default function EnduranceSessionDetail() {
   const [session, setSession] = useState<EnduranceSession | null | undefined>(undefined)
   const [editingType, setEditingType] = useState(false)
   const [photoViewerOpen, setPhotoViewerOpen] = useState(false)
+  const [programHistory, setProgramHistory] = useState<EnduranceSession[]>([])
   const settings = getSettings()
 
   useEffect(() => {
     if (!sessionId) return
     getEnduranceSession(sessionId).then((s) => setSession(s ?? null))
   }, [sessionId])
+
+  useEffect(() => {
+    if (!session?.programId) {
+      setProgramHistory([])
+      return
+    }
+    getEnduranceSessions().then((all) =>
+      setProgramHistory(all.filter((s) => s.programId === session.programId && s.id !== session.id).slice(0, 5)),
+    )
+  }, [session])
 
   async function remove() {
     if (!session || !confirm('Supprimer cette sortie ?')) return
@@ -197,6 +217,54 @@ export default function EnduranceSessionDetail() {
                 <Metric icon={<Mountain size={13} />} label="Dénivelé" value={`+${session.machineStats.elevationGainM} m`} />
               )}
             </div>
+          </section>
+        )}
+
+        {session.programId && session.phaseLog && session.phaseLog.length > 0 && (
+          <section className="glass mb-4 rounded-2xl p-4">
+            <h2 className="mb-1 flex items-center gap-1.5 text-xs font-medium uppercase tracking-wide text-zinc-500">
+              <Flame size={13} className="text-orange-400" />
+              {ENDURANCE_PROGRAMS.find((p) => p.id === session.programId)?.name ?? 'Programme coaching'}
+            </h2>
+            <p className="mb-3 text-[10px] text-zinc-600">Détail réel phase par phase — calories intégrées sur la durée effective, pas planifiée.</p>
+            <ul className="space-y-1.5">
+              {session.phaseLog.map((p, i) => {
+                const kcal = computeCaloriesFromPhaseLog([p], settings)
+                const skipped = p.actualSec < p.plannedSec - 5
+                return (
+                  <li key={i} className="flex items-center justify-between rounded-lg bg-zinc-900/70 px-3 py-2 text-xs">
+                    <span className="flex items-center gap-2">
+                      <span className="h-2 w-2 shrink-0 rounded-full" style={{ backgroundColor: PHASE_INTENSITY_COLOR[p.intensity] }} />
+                      {p.label}
+                      {skipped && <span className="text-[10px] text-zinc-600">(écourtée)</span>}
+                    </span>
+                    <span className="flex items-center gap-2 font-mono text-zinc-500">
+                      {Math.round(p.actualSec / 60)} min
+                      <span className="text-orange-400">{kcal} kcal</span>
+                    </span>
+                  </li>
+                )
+              })}
+            </ul>
+          </section>
+        )}
+
+        {programHistory.length > 0 && (
+          <section className="glass mb-4 rounded-2xl p-4">
+            <h2 className="mb-3 flex items-center gap-1.5 text-xs font-medium uppercase tracking-wide text-zinc-500">
+              <TrendingUp size={13} className="text-indigo-300" /> Progression sur ce programme
+            </h2>
+            <ul className="space-y-1.5">
+              {programHistory.map((s) => (
+                <li key={s.id} className="flex items-center justify-between text-xs">
+                  <span className="text-zinc-400">{formatDate(s.startedAt)}</span>
+                  <span className="flex items-center gap-2 font-mono text-zinc-500">
+                    {s.caloriesBurned} kcal
+                    {s.rpe != null && <span className="text-zinc-600">· RPE {s.rpe}</span>}
+                  </span>
+                </li>
+              ))}
+            </ul>
           </section>
         )}
 
