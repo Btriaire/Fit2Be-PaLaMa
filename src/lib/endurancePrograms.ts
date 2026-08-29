@@ -113,4 +113,62 @@ export const ENDURANCE_PROGRAMS: EnduranceProgram[] = [
       { label: 'Retour au calme', durationSec: 300, intensity: 'facile', target: '5-6 km/h · 0% incl.' },
     ],
   },
+  {
+    id: 'velo-facile',
+    name: 'Vélo Facile — Récupération active',
+    activityType: 'velo-appart',
+    focus: 'Très léger, ~15 min — jour de récup ou reprise',
+    description:
+      "Effort minimal, juste de quoi faire circuler le sang sans ajouter de fatigue — pour un lendemain de grosse séance, ou une reprise après une pause.",
+    fallbackNote: FALLBACK_NOTE,
+    phases: [
+      { label: 'Pédalage facile', durationSec: 900, intensity: 'facile', target: '60-70 RPM · résistance très légère' },
+    ],
+  },
+  {
+    id: 'velo-difficile',
+    name: 'Vélo Difficile — Sprints Courts',
+    activityType: 'velo-appart',
+    focus: 'Sprints maximaux, ~20 min — niveau confirmé',
+    description:
+      "10 sprints de 30s à effort maximal / 90s de récup — plus court et plus intense que le HIIT classique, sollicite la filière anaérobie. Échauffement obligatoire avant de sprinter.",
+    fallbackNote: FALLBACK_NOTE,
+    phases: [
+      { label: 'Échauffement', durationSec: 300, intensity: 'facile', target: '70-80 RPM · résistance légère' },
+      ...intervals(
+        10,
+        { label: 'Sprint', durationSec: 30, intensity: 'dur', target: '100+ RPM · résistance forte (effort max)' },
+        { label: 'Récup', durationSec: 90, intensity: 'facile', target: '60-65 RPM · résistance très légère' },
+      ),
+      { label: 'Retour au calme', durationSec: 180, intensity: 'facile', target: '60-70 RPM · résistance légère' },
+    ],
+  },
+  {
+    id: 'tapis-facile',
+    name: 'Tapis Facile — Marche active',
+    activityType: 'tapis',
+    focus: 'Marche continue, ~20 min — récup ou débutant',
+    description:
+      "Marche à allure soutenue mais sans effort respiratoire — bon point d'entrée si tu débutes le tapis, ou séance de récup entre deux sorties plus dures.",
+    fallbackNote: FALLBACK_NOTE,
+    phases: [{ label: 'Marche continue', durationSec: 1200, intensity: 'facile', target: '5-6 km/h · 0% incl.' }],
+  },
+  {
+    id: 'tapis-difficile',
+    name: 'Tapis Difficile — Fractionné Intense',
+    activityType: 'tapis',
+    focus: "Fractionné court et rapide, ~26 min — niveau confirmé",
+    description:
+      "8 répétitions de 400m environ (90s à allure rapide) / 90s de récup — travaille la VMA, plus exigeant que le fractionné tempo. Réservé à ceux qui courent déjà régulièrement.",
+    fallbackNote: FALLBACK_NOTE,
+    phases: [
+      { label: 'Échauffement', durationSec: 480, intensity: 'facile', target: '6-7 km/h · 0% incl.' },
+      ...intervals(
+        8,
+        { label: 'Rapide', durationSec: 90, intensity: 'dur', target: '13-14 km/h · 0-1% incl.' },
+        { label: 'Récup', durationSec: 90, intensity: 'facile', target: '6-7 km/h · 0% incl.' },
+      ),
+      { label: 'Retour au calme', durationSec: 300, intensity: 'facile', target: '5-6 km/h · 0% incl.' },
+    ],
+  },
 ]

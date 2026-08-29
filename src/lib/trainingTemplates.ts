@@ -518,4 +518,72 @@ export const COACHING_TEMPLATES: TrainingTemplate[] = [
       },
     ],
   },
+  {
+    id: 'coaching-debutant',
+    name: 'Circuit Débutant — Prise en main',
+    focus: 'Facile — reprise ou premier contact avec le cardio+muscu',
+    description:
+      "Volume volontairement réduit, mouvements au poids du corps, cardio court derrière — l'objectif est d'apprendre les mouvements et de tenir la séance en entier, pas de tout donner.",
+    cardioBlock: {
+      label: 'Cardio — fin de séance',
+      description: "10-15 min de marche rapide, vélo ou tapis à allure confortable (tu dois pouvoir parler). Log-le dans Endurance.",
+    },
+    exercises: [
+      {
+        exerciseId: 'chair-squat',
+        targetSets: 2,
+        targetReps: '10-12',
+        note: "Squat assisté (chaise derrière toi) — apprend le mouvement en toute sécurité, pas besoin de charge.",
+      },
+      {
+        exerciseId: 'incline-push-up',
+        targetSets: 2,
+        targetReps: '8-10',
+        note: "Pompes inclinées (mains sur banc/table) — bien plus accessible que la pompe au sol tout en travaillant le même schéma.",
+      },
+      {
+        exerciseId: 'plank',
+        targetSets: 2,
+        targetReps: '20-30s',
+        note: "Gainage — arrête dès que la forme se dégrade, pas besoin de viser une durée précise.",
+      },
+    ],
+  },
+  {
+    id: 'coaching-avance',
+    name: 'Circuit Avancé — Intensif',
+    focus: 'Difficile — niveau confirmé, peu de repos',
+    description:
+      "Volume et intensité élevés, mouvements explosifs et charge, cardio HIIT en finisher — prévois une vraie récupération après cette séance, elle est exigeante.",
+    cardioBlock: {
+      label: 'Cardio — finisher HIIT',
+      description: "12-15 min de fractionné intense (vélo ou tapis) juste après le circuit, quand tu es déjà fatigué. Log-le dans Endurance.",
+    },
+    exercises: [
+      {
+        exerciseId: 'freehand-jump-squat',
+        targetSets: 4,
+        targetReps: '12-15',
+        note: "Squat sauté — explosif, atterris genoux légèrement fléchis. Arrête une série si la réception devient instable.",
+      },
+      {
+        exerciseId: 'kettlebell-thruster',
+        targetSets: 4,
+        targetReps: '10-12',
+        note: "Mouvement complet squat + poussée au-dessus de la tête — très exigeant en cardio en plus de la force.",
+      },
+      {
+        exerciseId: 'pull-up',
+        targetSets: 4,
+        targetReps: 'max',
+        note: "Tractions jusqu'à l'échec technique (pas jusqu'à te tortiller pour en sortir une de plus).",
+      },
+      {
+        exerciseId: 'russian-twist',
+        targetSets: 3,
+        targetReps: '25',
+        note: "Rotation gainée, talons décollés pour l'intensité maximale.",
+      },
+    ],
+  },
 ]

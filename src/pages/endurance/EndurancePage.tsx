@@ -38,10 +38,12 @@ import ActivityHero, { hasHeroImage } from '../../components/ActivityHero'
 import BackButton from '../../components/BackButton'
 import type { EnduranceActivityType, EnduranceSession, MachineStats, RoutePoint } from '../../types'
 
+// Palette de l'app (index.css @theme), pas des couleurs Tailwind par défaut —
+// turquoise/indigo/orange sont les 3 seuls accents de l'identité visuelle.
 const INTENSITY_COLOR: Record<ProgramPhase['intensity'], string> = {
-  facile: '#2dd4bf',
-  modéré: '#f59e0b',
-  dur: '#ef4444',
+  facile: 'var(--color-turquoise)',
+  modéré: 'var(--color-indigo)',
+  dur: 'var(--color-orange)',
 }
 
 /** Phase active à un instant donné du programme, ou null si le programme est terminé. */
