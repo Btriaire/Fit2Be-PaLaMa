@@ -22,10 +22,17 @@ export async function logWeight(weightKg: number, loggedAt = Date.now()): Promis
   return entry
 }
 
+/** Supprime une pesée et recale settings.bodyWeightKg sur la plus récente
+ * restante — sans ça, supprimer un point faux (le plus récent) laissait le
+ * poids courant (utilisé partout : IMC, BMR, calories) figé sur la valeur
+ * erronée qu'on venait pourtant de supprimer. */
 export async function deleteWeightLog(id: string) {
   const db = await getDb()
   await db.delete('weightLogs', id)
   deleteRecord('weightLogs', id)
+
+  const remaining = await getWeightLogs()
+  if (remaining.length > 0) saveSettings({ bodyWeightKg: remaining[0].weightKg })
 }
 
 /**

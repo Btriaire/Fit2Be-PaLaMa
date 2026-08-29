@@ -118,6 +118,30 @@ export default function GymHome() {
       )}
 
       <section className="mb-6">
+        <h2 className="mb-2 flex items-center gap-1.5 text-sm font-medium text-zinc-400">
+          <Flame size={14} className="text-teal-400" /> Séances Coaching — cardio & muscu
+        </h2>
+        <div className="space-y-2">
+          {COACHING_TEMPLATES.map((tpl) => (
+            <button
+              key={tpl.id}
+              onClick={() => setPreviewTemplate(tpl)}
+              className="glass flex w-full items-center gap-3 rounded-xl p-3.5 text-left active:scale-[0.98] transition-transform"
+            >
+              <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-teal-500/15 text-teal-400">
+                <Flame size={18} />
+              </span>
+              <div className="min-w-0 flex-1">
+                <p className="text-sm font-semibold">{tpl.name}</p>
+                <p className="truncate text-xs text-zinc-500">{tpl.focus}</p>
+              </div>
+              <ChevronRight size={16} className="shrink-0 text-zinc-600" />
+            </button>
+          ))}
+        </div>
+      </section>
+
+      <section className="mb-6">
         <h2 className="mb-2 text-sm font-medium text-zinc-400">Démarrer une séance</h2>
         <div className="grid grid-cols-2 gap-2">
           {QUICK_NAMES.map((name) => (
@@ -139,28 +163,6 @@ export default function GymHome() {
         >
           <Plus size={16} /> Séance personnalisée
         </button>
-      </section>
-
-      <section className="mb-6">
-        <h2 className="mb-2 text-sm font-medium text-zinc-400">Séances Coaching — cardio & muscu</h2>
-        <div className="space-y-2">
-          {COACHING_TEMPLATES.map((tpl) => (
-            <button
-              key={tpl.id}
-              onClick={() => setPreviewTemplate(tpl)}
-              className="glass flex w-full items-center gap-3 rounded-xl p-3.5 text-left active:scale-[0.98] transition-transform"
-            >
-              <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-teal-500/15 text-teal-400">
-                <Flame size={18} />
-              </span>
-              <div className="min-w-0 flex-1">
-                <p className="text-sm font-semibold">{tpl.name}</p>
-                <p className="truncate text-xs text-zinc-500">{tpl.focus}</p>
-              </div>
-              <ChevronRight size={16} className="shrink-0 text-zinc-600" />
-            </button>
-          ))}
-        </div>
       </section>
 
       <section className="mb-6">
