@@ -366,6 +366,36 @@ function formatPhaseDuration(sec: number): string {
   return `${min} min`
 }
 
+/** Profil d'intervalles façon appli de fractionné — un bloc par phase, largeur
+ * proportionnelle à sa durée, couleur = intensité, curseur = position réelle.
+ * Donne une vue d'ensemble du programme (passé/en cours/à venir) qu'un simple
+ * % de progression ne montre pas. */
+function IntervalProfile({ program, elapsedSec, currentIndex }: { program: EnduranceProgram; elapsedSec: number; currentIndex: number }) {
+  const total = programTotalSec(program)
+  return (
+    <div className="relative mb-2 w-full max-w-sm">
+      <div className="flex h-7 w-full overflow-hidden rounded-lg bg-zinc-900">
+        {program.phases.map((p, i) => (
+          <div
+            key={i}
+            className="h-full border-r border-black/30 last:border-r-0"
+            style={{
+              flexGrow: p.durationSec,
+              flexBasis: 0,
+              backgroundColor: INTENSITY_COLOR[p.intensity],
+              opacity: i === currentIndex ? 1 : i < currentIndex ? 0.3 : 0.55,
+            }}
+          />
+        ))}
+      </div>
+      <div
+        className="absolute top-0 h-7 w-0.5 bg-white transition-all"
+        style={{ left: `${Math.min(100, (elapsedSec / total) * 100)}%`, boxShadow: '0 0 4px rgba(255,255,255,0.8)' }}
+      />
+    </div>
+  )
+}
+
 function ProgramPreview({ program, onClose, onStart }: { program: EnduranceProgram; onClose: () => void; onStart: () => void }) {
   const meta = ENDURANCE_ACTIVITY_META[program.activityType]
   const totalMin = Math.round(programTotalSec(program) / 60)
@@ -609,12 +639,7 @@ function EnduranceForm({
               {Math.floor(current.remainingSec / 60)}:{String(current.remainingSec % 60).padStart(2, '0')}
             </p>
             <p className="mb-6 text-sm text-zinc-400">{current.phase.target ?? ' '}</p>
-            <div className="mb-2 h-1.5 w-full max-w-xs overflow-hidden rounded-full bg-zinc-800">
-              <div
-                className="h-full rounded-full bg-teal-500 transition-all"
-                style={{ width: totalSec ? `${Math.min(100, (indoorElapsedSec / totalSec) * 100)}%` : '0%' }}
-              />
-            </div>
+            <IntervalProfile program={activeProgram} elapsedSec={indoorElapsedSec} currentIndex={current.index} />
             <p className="mb-10 text-xs text-zinc-600">
               {mm}:{String(ss).padStart(2, '0')} écoulées {totalSec ? `sur ${Math.round(totalSec / 60)} min` : ''}
             </p>
