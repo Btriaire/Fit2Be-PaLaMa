@@ -53,6 +53,15 @@ export const INDEX_REFERENCE: ReferenceCategory[] = [
         notes: 'Compense la surconsommation d\'oxygène post-effort (EPOC), significative en musculation et absente d\'un simple MET×durée.',
       },
       {
+        name: 'Calories de marche (net du BMR)',
+        formula: 'MET marche(4.3) × poids × durée − (BMR journalier × durée / 1440)',
+        unit: 'kcal',
+        normalRange: 'n/a — dépend du poids et de la durée de marche',
+        reference: null,
+        notes:
+          "La formule MET donne une dépense brute qui inclut la part déjà comptée par le métabolisme de base — négligeable sur une séance courte, mais notable sur une marche de plusieurs heures (randonnée, journée de marche). On retire cette part uniquement pour la marche.",
+      },
+      {
         name: 'NEAT (calories des pas)',
         formula: '0.0005 × pas × poids(kg)',
         unit: 'kcal',

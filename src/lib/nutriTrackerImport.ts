@@ -9,7 +9,7 @@ import { getDb, newId } from './db'
 import { pullActivityHistoryFromNutriTracker, type RemoteActivity } from './nutriTrackerSync'
 import { pushRecord } from './cloudSync'
 import { ENDURANCE_ACTIVITY_META } from './endurance'
-import { computeCaloriesForUser, computeCaloriesFromHr } from './met'
+import { computeCaloriesForUser, computeCaloriesFromHr, bmrShareForDuration } from './met'
 import type { Settings } from './settings'
 import type { ActivityLog, EnduranceActivityType, EnduranceSession, MachineStats } from '../types'
 
@@ -94,10 +94,14 @@ export async function importNutriTrackerActivityHistory(days: number, settings: 
       const meta = ENDURANCE_ACTIVITY_META[enduranceType]
       // Même priorité de précision que le reste de l'app : calories connues >
       // formule FC (Keytel) > MET générique du type d'activité.
-      const caloriesBurned =
-        a.caloriesBurned ??
+      const estimatedCalories =
         (a.heartRateAvg ? computeCaloriesFromHr(a.heartRateAvg, a.durationMin, settings) : null) ??
         computeCaloriesForUser(meta.met, a.durationMin, settings)
+      // Marche/randonnée importées peuvent durer plusieurs heures — retire la
+      // part de BMR déjà comptée par ailleurs sur la journée (voir endurance.ts).
+      const caloriesBurned =
+        a.caloriesBurned ??
+        (enduranceType === 'marche' ? Math.max(0, estimatedCalories - bmrShareForDuration(a.durationMin, settings)) : estimatedCalories)
       const machineStats: MachineStats | undefined =
         a.avgSpeedKmh != null || a.elevationGainM != null
           ? { machineType: 'other', avgSpeedKph: a.avgSpeedKmh ?? undefined, elevationGainM: a.elevationGainM ?? undefined }

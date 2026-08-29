@@ -1,5 +1,5 @@
 import { getDb, newId } from './db'
-import { computeCaloriesForUser, computeCaloriesFromHr, computeCaloriesFromPhaseLog } from './met'
+import { computeCaloriesForUser, computeCaloriesFromHr, computeCaloriesFromPhaseLog, bmrShareForDuration } from './met'
 import { computeHrZone } from './heartRate'
 import { pushActivityToNutriTracker } from './nutriTrackerSync'
 import { pushRecord, deleteRecord } from './cloudSync'
@@ -74,11 +74,18 @@ export async function logEnduranceSession(
   // (Keytel, reflète l'effort physiologique réel) > intégration phase par
   // phase d'un programme coaching (plus fin qu'un MET unique moyenné sur
   // toute la séance) > MET générique du type d'activité (dernier recours).
-  const caloriesBurned =
-    input.caloriesBurned ??
+  const estimatedCalories =
     (input.avgHeartRate ? computeCaloriesFromHr(input.avgHeartRate, input.durationMin, settings) : null) ??
     (input.phaseLog && input.phaseLog.length > 0 ? computeCaloriesFromPhaseLog(input.phaseLog, settings) : null) ??
     computeCaloriesForUser(meta.met, input.durationMin, settings)
+  // La marche peut durer plusieurs heures (randonnée, journée de marche) —
+  // sur une telle durée, la part de métabolisme de base déjà incluse dans
+  // l'estimation MET/FC devient non négligeable et fausse le bilan si le BMR
+  // est déjà compté séparément sur la journée. On la retire pour la marche
+  // seulement (les autres activités durent rarement assez pour que ça compte).
+  const caloriesBurned =
+    input.caloriesBurned ??
+    (input.activityType === 'marche' ? Math.max(0, estimatedCalories - bmrShareForDuration(input.durationMin, settings)) : estimatedCalories)
   const hrZone = input.avgHeartRate ? computeHrZone(input.avgHeartRate, settings.ageYears) : undefined
   const session: EnduranceSession = {
     id: newId(),
@@ -135,7 +142,9 @@ export async function updateEnduranceActivityType(
   const hadMeasuredCalories = !!session.avgHeartRate || !!session.machineStats
   const caloriesBurned = hadMeasuredCalories
     ? session.caloriesBurned
-    : computeCaloriesForUser(meta.met, session.durationMin, settings)
+    : activityType === 'marche'
+      ? Math.max(0, computeCaloriesForUser(meta.met, session.durationMin, settings) - bmrShareForDuration(session.durationMin, settings))
+      : computeCaloriesForUser(meta.met, session.durationMin, settings)
 
   const updated: EnduranceSession = { ...session, activityType, caloriesBurned }
   await db.put('endurance', updated)

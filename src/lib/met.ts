@@ -73,6 +73,20 @@ export function computeBmr(settings: Settings) {
   return Math.round(settings.sex === 'homme' ? base + 5 : base - 161)
 }
 
+/**
+ * Part du métabolisme de base (BMR) correspondant à une durée donnée, en
+ * kcal — la formule MET standard donne une dépense BRUTE (elle inclut la
+ * part que le corps aurait de toute façon brûlée au repos sur cette même
+ * durée). Pour une marche, qui peut durer plusieurs heures (randonnée,
+ * journée de marche), cette part devient non négligeable — potentiellement
+ * plusieurs centaines de kcal — et fausse le bilan si le BMR est déjà compté
+ * séparément sur la journée entière. Sert à "nettoyer" une estimation MET de
+ * marche de cette part, pour ne pas la compter deux fois.
+ */
+export function bmrShareForDuration(durationMin: number, settings: Settings): number {
+  return Math.round(computeBmr(settings) * (durationMin / 1440))
+}
+
 export type BmiCategory = 'insuffisance pondérale' | 'corpulence normale' | 'surpoids' | 'obésité'
 
 /** IMC = poids(kg) / taille(m)² — recalculé à chaque changement de poids
