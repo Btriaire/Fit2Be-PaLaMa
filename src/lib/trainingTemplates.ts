@@ -21,6 +21,12 @@ export interface TrainingTemplate {
    * seulement : le lancement du template ne crée que la partie musculation
    * (Workout), le cardio se logue séparément dans Endurance si on veut le suivre. */
   cardioBlock?: { label: string; description: string }
+  /** Renseignés uniquement pour les séances Coaching (voir COACHING_TEMPLATES
+   * plus bas) — servent au filtre "état de forme + temps dispo" avant la
+   * proposition. Pas nécessaires pour les templates par chef musculaire, qui
+   * ne passent pas par ce filtre. */
+  difficulty?: 'facile' | 'modéré' | 'dur'
+  estimatedMin?: number
 }
 
 export const TRAINING_TEMPLATES: TrainingTemplate[] = [
@@ -402,6 +408,8 @@ export const COACHING_TEMPLATES: TrainingTemplate[] = [
     id: 'coaching-fat-burn',
     name: 'Circuit Brûle-graisse',
     focus: 'Cardio prioritaire (~70%) + circuit full-body (~30%)',
+    difficulty: 'modéré',
+    estimatedMin: 40,
     description:
       "Le cardio fait le gros du travail calorique, le circuit muscu (peu de repos, reps hautes) maintient la masse maigre pendant la perte de poids. À faire dans l'ordre : échauffement, circuit, puis finisher cardio à chaud.",
     cardioBlock: {
@@ -446,6 +454,8 @@ export const COACHING_TEMPLATES: TrainingTemplate[] = [
     id: 'coaching-balanced',
     name: 'Full Body Équilibré',
     focus: 'Cardio et muscu à parts égales (~50/50)',
+    difficulty: 'modéré',
+    estimatedMin: 45,
     description:
       "Format généraliste pour l'entretien de la forme : les fondamentaux poly-articulaires en muscu, un cardio modéré en fin de séance pour la santé cardiovasculaire sans épuiser la récupération.",
     cardioBlock: {
@@ -484,6 +494,8 @@ export const COACHING_TEMPLATES: TrainingTemplate[] = [
     id: 'coaching-runner',
     name: 'Renfo Coureur',
     focus: "Préparation d'objectif course — renfo léger, jambes fraîches",
+    difficulty: 'facile',
+    estimatedMin: 20,
     description:
       "La séance principale reste la course (fractionné ou sortie longue selon ton plan). Ce renfo est volontairement court et à faible fatigue résiduelle — jambes/gainage seulement, pour ne jamais compromettre la sortie clé qui suit.",
     cardioBlock: {
@@ -522,6 +534,8 @@ export const COACHING_TEMPLATES: TrainingTemplate[] = [
     id: 'coaching-debutant',
     name: 'Circuit Débutant — Prise en main',
     focus: 'Facile — reprise ou premier contact avec le cardio+muscu',
+    difficulty: 'facile',
+    estimatedMin: 25,
     description:
       "Volume volontairement réduit, mouvements au poids du corps, cardio court derrière — l'objectif est d'apprendre les mouvements et de tenir la séance en entier, pas de tout donner.",
     cardioBlock: {
@@ -553,6 +567,8 @@ export const COACHING_TEMPLATES: TrainingTemplate[] = [
     id: 'coaching-avance',
     name: 'Circuit Avancé — Intensif',
     focus: 'Difficile — niveau confirmé, peu de repos',
+    difficulty: 'dur',
+    estimatedMin: 50,
     description:
       "Volume et intensité élevés, mouvements explosifs et charge, cardio HIIT en finisher — prévois une vraie récupération après cette séance, elle est exigeante.",
     cardioBlock: {

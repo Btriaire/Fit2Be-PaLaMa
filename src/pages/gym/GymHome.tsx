@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { Dumbbell, Plus, ChevronRight, Flame, TrendingUp, Trash2, Target, X, Check, Bookmark } from 'lucide-react'
+import { Dumbbell, Plus, ChevronRight, ChevronDown, Flame, TrendingUp, Trash2, Target, X, Check, Bookmark } from 'lucide-react'
 import { getAllWorkouts, saveWorkout, deleteWorkout, getLoggedExerciseIds, estimateWorkoutCalories } from '../../lib/workouts'
 import { newId } from '../../lib/db'
 import { formatDate, formatTime } from '../../lib/date'
@@ -9,6 +9,8 @@ import { TRAINING_TEMPLATES, COACHING_TEMPLATES, type TrainingTemplate } from '.
 import { getCustomTemplates, deleteCustomTemplate } from '../../lib/customTemplates'
 import { getLastExclusions, saveLastExclusions } from '../../lib/templateExclusions'
 import { getSettings } from '../../lib/settings'
+import { fitsTimeBudget, readinessMatchScore, type Readiness, type TimeBudget } from '../../lib/coachingFilter'
+import CoachingQuestions from '../../components/CoachingQuestions'
 import ActivityHero from '../../components/ActivityHero'
 import BackButton from '../../components/BackButton'
 import type { CustomTemplate, Workout, WorkoutExercise } from '../../types'
@@ -23,6 +25,9 @@ export default function GymHome() {
   const [previewTemplate, setPreviewTemplate] = useState<TrainingTemplate | null>(null)
   const [customTemplates, setCustomTemplates] = useState<CustomTemplate[]>([])
   const [previewCustom, setPreviewCustom] = useState<CustomTemplate | null>(null)
+  const [coachingOpen, setCoachingOpen] = useState(false)
+  const [readiness, setReadiness] = useState<Readiness | null>(null)
+  const [timeBudget, setTimeBudget] = useState<TimeBudget | null>(null)
 
   function refreshCustomTemplates() {
     getCustomTemplates().then(setCustomTemplates)
@@ -49,6 +54,10 @@ export default function GymHome() {
   }
 
   const inProgress = workouts.find((w) => !w.finishedAt)
+
+  const visibleCoachingTemplates = COACHING_TEMPLATES.filter(
+    (tpl) => timeBudget == null || tpl.estimatedMin == null || fitsTimeBudget(tpl.estimatedMin, timeBudget),
+  ).sort((a, b) => (readiness ? readinessMatchScore(a.difficulty, readiness) - readinessMatchScore(b.difficulty, readiness) : 0))
 
   async function startFromTemplate(tpl: TrainingTemplate, excludedIds: Set<string>) {
     const exercises: WorkoutExercise[] = tpl.exercises
@@ -119,27 +128,50 @@ export default function GymHome() {
       )}
 
       <section className="mb-6">
-        <h2 className="mb-2 flex items-center gap-1.5 text-sm font-medium text-zinc-400">
-          <Flame size={14} className="text-teal-400" /> Séances Coaching — cardio & muscu
-        </h2>
-        <div className="space-y-1.5">
-          {COACHING_TEMPLATES.map((tpl) => (
-            <button
-              key={tpl.id}
-              onClick={() => setPreviewTemplate(tpl)}
-              className="glass flex w-full items-center gap-2.5 rounded-lg px-3 py-2 text-left active:scale-[0.98] transition-transform"
-            >
-              <span className="flex h-7 w-7 shrink-0 items-center justify-center rounded-md bg-teal-500/15 text-teal-400">
-                <Flame size={14} />
-              </span>
-              <div className="min-w-0 flex-1">
-                <p className="text-sm font-medium leading-tight">{tpl.name}</p>
-                <p className="truncate text-[11px] leading-tight text-zinc-500">{tpl.focus}</p>
-              </div>
-              <ChevronRight size={14} className="shrink-0 text-zinc-600" />
-            </button>
-          ))}
-        </div>
+        <button
+          onClick={() => setCoachingOpen((v) => !v)}
+          className="mb-2 flex w-full items-center justify-between text-sm font-medium text-zinc-400"
+        >
+          <span className="flex items-center gap-1.5">
+            <Flame size={14} className="text-teal-400" /> Séances Coaching — cardio & muscu
+          </span>
+          <ChevronDown size={16} className={`text-zinc-600 transition-transform ${coachingOpen ? 'rotate-180' : ''}`} />
+        </button>
+        {coachingOpen && (
+          <>
+            <CoachingQuestions
+              readiness={readiness}
+              onReadiness={setReadiness}
+              timeBudget={timeBudget}
+              onTimeBudget={setTimeBudget}
+              accentClass="bg-teal-500"
+            />
+            <div className="space-y-1.5">
+              {visibleCoachingTemplates.length === 0 && (
+                <p className="text-xs text-zinc-600">Aucune séance ne rentre dans ce temps — essaie un budget plus large.</p>
+              )}
+              {visibleCoachingTemplates.map((tpl) => (
+                <button
+                  key={tpl.id}
+                  onClick={() => setPreviewTemplate(tpl)}
+                  className="glass flex w-full items-center gap-2.5 rounded-lg px-3 py-2 text-left active:scale-[0.98] transition-transform"
+                >
+                  <span className="flex h-7 w-7 shrink-0 items-center justify-center rounded-md bg-teal-500/15 text-teal-400">
+                    <Flame size={14} />
+                  </span>
+                  <div className="min-w-0 flex-1">
+                    <p className="text-sm font-medium leading-tight">{tpl.name}</p>
+                    <p className="truncate text-[11px] leading-tight text-zinc-500">
+                      {tpl.focus}
+                      {tpl.estimatedMin != null ? ` · ~${tpl.estimatedMin} min` : ''}
+                    </p>
+                  </div>
+                  <ChevronRight size={14} className="shrink-0 text-zinc-600" />
+                </button>
+              ))}
+            </div>
+          </>
+        )}
       </section>
 
       <section className="mb-6">

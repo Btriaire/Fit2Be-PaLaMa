@@ -3,6 +3,7 @@ import { useLocation, useNavigate } from 'react-router-dom'
 import {
   Activity,
   Camera,
+  ChevronDown,
   ChevronLeft,
   ChevronRight,
   Flame,
@@ -34,7 +35,9 @@ import { useGeoTracking } from '../../lib/useGeoTracking'
 import { playMotivation, playAnnouncement } from '../../lib/motivationVoice'
 import { scanMachineResults, machineTypeToActivityType, toMachineStats, compressImageForDisplay, type ParsedMachineResult } from '../../lib/machineScan'
 import { scanHealthScreen, computeHrr1min } from '../../lib/healthScreenScan'
-import { ENDURANCE_PROGRAMS, type EnduranceProgram, type ProgramPhase } from '../../lib/endurancePrograms'
+import { ENDURANCE_PROGRAMS, programDurationMin, type EnduranceProgram, type ProgramPhase } from '../../lib/endurancePrograms'
+import { fitsTimeBudget, readinessMatchScore, type Readiness, type TimeBudget } from '../../lib/coachingFilter'
+import CoachingQuestions from '../../components/CoachingQuestions'
 import RouteMap from '../../components/RouteMap'
 import ActivityHero, { hasHeroImage } from '../../components/ActivityHero'
 import BackButton from '../../components/BackButton'
@@ -105,6 +108,9 @@ export default function EndurancePage() {
   const [viewerPhoto, setViewerPhoto] = useState<string | null>(null)
   const [previewProgram, setPreviewProgram] = useState<EnduranceProgram | null>(null)
   const [pendingProgram, setPendingProgram] = useState<EnduranceProgram | null>(null)
+  const [coachingOpen, setCoachingOpen] = useState(false)
+  const [readiness, setReadiness] = useState<Readiness | null>(null)
+  const [timeBudget, setTimeBudget] = useState<TimeBudget | null>(null)
   const settings = getSettings()
 
   async function refresh() {
@@ -115,6 +121,14 @@ export default function EndurancePage() {
   useEffect(() => {
     refresh()
   }, [])
+
+  const visibleCoachingPrograms = useMemo(
+    () =>
+      ENDURANCE_PROGRAMS.filter((p) => timeBudget == null || fitsTimeBudget(programDurationMin(p), timeBudget)).sort((a, b) =>
+        readiness ? readinessMatchScore(a.difficulty, readiness) - readinessMatchScore(b.difficulty, readiness) : 0,
+      ),
+    [readiness, timeBudget],
+  )
 
   const weekStart = startOfWeek()
   const weekSessions = useMemo(() => sessions.filter((s) => s.startedAt >= weekStart), [sessions, weekStart])
@@ -181,27 +195,47 @@ export default function EndurancePage() {
       )}
 
       <section className="mb-6">
-        <h2 className="mb-2 flex items-center gap-1.5 text-sm font-medium text-zinc-400">
-          <Flame size={14} className="text-orange-400" /> Programmes Coaching — vélo & tapis
-        </h2>
-        <div className="space-y-1.5">
-          {ENDURANCE_PROGRAMS.map((p) => (
-            <button
-              key={p.id}
-              onClick={() => setPreviewProgram(p)}
-              className="glass flex w-full items-center gap-2.5 rounded-lg px-3 py-2 text-left active:scale-[0.98] transition-transform"
-            >
-              <span className="flex h-7 w-7 shrink-0 items-center justify-center rounded-md bg-orange-500/15 text-orange-400">
-                <Timer size={14} />
-              </span>
-              <div className="min-w-0 flex-1">
-                <p className="text-sm font-medium leading-tight">{p.name}</p>
-                <p className="truncate text-[11px] leading-tight text-zinc-500">{p.focus}</p>
-              </div>
-              <ChevronRight size={14} className="shrink-0 text-zinc-600" />
-            </button>
-          ))}
-        </div>
+        <button
+          onClick={() => setCoachingOpen((v) => !v)}
+          className="mb-2 flex w-full items-center justify-between text-sm font-medium text-zinc-400"
+        >
+          <span className="flex items-center gap-1.5">
+            <Flame size={14} className="text-orange-400" /> Programmes Coaching — vélo & tapis
+          </span>
+          <ChevronDown size={16} className={`text-zinc-600 transition-transform ${coachingOpen ? 'rotate-180' : ''}`} />
+        </button>
+        {coachingOpen && (
+          <>
+            <CoachingQuestions
+              readiness={readiness}
+              onReadiness={setReadiness}
+              timeBudget={timeBudget}
+              onTimeBudget={setTimeBudget}
+              accentClass="bg-orange-500"
+            />
+            <div className="space-y-1.5">
+              {visibleCoachingPrograms.length === 0 && (
+                <p className="text-xs text-zinc-600">Aucun programme ne rentre dans ce temps — essaie un budget plus large.</p>
+              )}
+              {visibleCoachingPrograms.map((p) => (
+                <button
+                  key={p.id}
+                  onClick={() => setPreviewProgram(p)}
+                  className="glass flex w-full items-center gap-2.5 rounded-lg px-3 py-2 text-left active:scale-[0.98] transition-transform"
+                >
+                  <span className="flex h-7 w-7 shrink-0 items-center justify-center rounded-md bg-orange-500/15 text-orange-400">
+                    <Timer size={14} />
+                  </span>
+                  <div className="min-w-0 flex-1">
+                    <p className="text-sm font-medium leading-tight">{p.name}</p>
+                    <p className="truncate text-[11px] leading-tight text-zinc-500">{p.focus}</p>
+                  </div>
+                  <ChevronRight size={14} className="shrink-0 text-zinc-600" />
+                </button>
+              ))}
+            </div>
+          </>
+        )}
       </section>
 
       <button

@@ -26,11 +26,20 @@ export interface EnduranceProgram {
   activityType: Extract<EnduranceActivityType, 'velo-appart' | 'tapis'>
   focus: string
   description: string
+  /** Niveau global du programme — sert à le proposer en priorité selon
+   * l'état de forme déclaré avant la séance (voir coachingFilter.ts). */
+  difficulty: PhaseIntensity
   phases: ProgramPhase[]
   muscuAddOn?: { label: string; description: string }
   /** Rappel qu'on peut décrocher des repères chiffrés proposés sans perdre la
    * séance — affiché dans l'aperçu ET pendant le chrono live. */
   fallbackNote: string
+}
+
+/** Durée totale du programme en minutes, dérivée de ses phases — sert au
+ * filtre "temps disponible" avant la proposition d'un programme. */
+export function programDurationMin(program: EnduranceProgram): number {
+  return Math.round(program.phases.reduce((sum, p) => sum + p.durationSec, 0) / 60)
 }
 
 const FALLBACK_NOTE =
@@ -46,6 +55,7 @@ export const ENDURANCE_PROGRAMS: EnduranceProgram[] = [
     name: 'Vélo Zone 2 — Fondamentale',
     activityType: 'velo-appart',
     focus: 'Endurance fondamentale, ~30 min',
+    difficulty: 'modéré',
     description:
       "Effort continu et modéré (tu dois pouvoir parler sans être essoufflé) — construit la base aérobie sans fatigue résiduelle, à répéter souvent.",
     fallbackNote: FALLBACK_NOTE,
@@ -64,6 +74,7 @@ export const ENDURANCE_PROGRAMS: EnduranceProgram[] = [
     name: 'Vélo HIIT — Brûle-graisse',
     activityType: 'velo-appart',
     focus: 'Fractionné haute intensité, ~24 min',
+    difficulty: 'dur',
     description:
       "8 répétitions d'1 min à fond / 1 min de récup active — le format le plus efficace pour la dépense calorique et le cardio en peu de temps. Exigeant : hydrate-toi avant.",
     fallbackNote: FALLBACK_NOTE,
@@ -82,6 +93,7 @@ export const ENDURANCE_PROGRAMS: EnduranceProgram[] = [
     name: 'Tapis Fractionné — Préparation course',
     activityType: 'tapis',
     focus: 'Tempo par intervalles, ~30 min',
+    difficulty: 'modéré',
     description:
       "6 blocs de 3 min à allure tempo (soutenue mais tenable) entrecoupés de 2 min faciles — développe la vitesse au seuil, utile pour préparer un objectif chronométré.",
     fallbackNote: FALLBACK_NOTE,
@@ -104,6 +116,7 @@ export const ENDURANCE_PROGRAMS: EnduranceProgram[] = [
     name: 'Tapis Endurance — Zone 2',
     activityType: 'tapis',
     focus: 'Endurance fondamentale, ~35 min',
+    difficulty: 'modéré',
     description:
       "Footing continu à allure confortable — la base du volume d'entraînement course à pied, ce sur quoi repose tout le reste de la préparation.",
     fallbackNote: FALLBACK_NOTE,
@@ -118,6 +131,7 @@ export const ENDURANCE_PROGRAMS: EnduranceProgram[] = [
     name: 'Vélo Facile — Récupération active',
     activityType: 'velo-appart',
     focus: 'Très léger, ~15 min — jour de récup ou reprise',
+    difficulty: 'facile',
     description:
       "Effort minimal, juste de quoi faire circuler le sang sans ajouter de fatigue — pour un lendemain de grosse séance, ou une reprise après une pause.",
     fallbackNote: FALLBACK_NOTE,
@@ -130,6 +144,7 @@ export const ENDURANCE_PROGRAMS: EnduranceProgram[] = [
     name: 'Vélo Difficile — Sprints Courts',
     activityType: 'velo-appart',
     focus: 'Sprints maximaux, ~20 min — niveau confirmé',
+    difficulty: 'dur',
     description:
       "10 sprints de 30s à effort maximal / 90s de récup — plus court et plus intense que le HIIT classique, sollicite la filière anaérobie. Échauffement obligatoire avant de sprinter.",
     fallbackNote: FALLBACK_NOTE,
@@ -148,6 +163,7 @@ export const ENDURANCE_PROGRAMS: EnduranceProgram[] = [
     name: 'Tapis Facile — Marche active',
     activityType: 'tapis',
     focus: 'Marche continue, ~20 min — récup ou débutant',
+    difficulty: 'facile',
     description:
       "Marche à allure soutenue mais sans effort respiratoire — bon point d'entrée si tu débutes le tapis, ou séance de récup entre deux sorties plus dures.",
     fallbackNote: FALLBACK_NOTE,
@@ -158,6 +174,7 @@ export const ENDURANCE_PROGRAMS: EnduranceProgram[] = [
     name: 'Tapis Difficile — Fractionné Intense',
     activityType: 'tapis',
     focus: "Fractionné court et rapide, ~26 min — niveau confirmé",
+    difficulty: 'dur',
     description:
       "8 répétitions de 400m environ (90s à allure rapide) / 90s de récup — travaille la VMA, plus exigeant que le fractionné tempo. Réservé à ceux qui courent déjà régulièrement.",
     fallbackNote: FALLBACK_NOTE,
@@ -176,6 +193,7 @@ export const ENDURANCE_PROGRAMS: EnduranceProgram[] = [
     name: 'Tapis Pyramide — Vitesse progressive',
     activityType: 'tapis',
     focus: 'Paliers en pyramide, ~40 min',
+    difficulty: 'modéré',
     description:
       "La vitesse monte palier par palier jusqu'à un pic, puis redescend symétriquement — inspiré d'un programme tapis pré-réglé classique. Plus varié qu'un tempo continu, sans la difficulté du fractionné court.",
     fallbackNote: FALLBACK_NOTE,
@@ -196,6 +214,7 @@ export const ENDURANCE_PROGRAMS: EnduranceProgram[] = [
     name: 'Tapis Pyramide Douce — Marche/Trot',
     activityType: 'tapis',
     focus: 'Paliers en pyramide, léger, ~24 min — débutant ou reprise',
+    difficulty: 'facile',
     description:
       "Même principe que la pyramide vitesse, mais entre marche rapide et trot léger — garde le côté varié et motivant d'un profil qui monte puis redescend, sans jamais sortir du confortable.",
     fallbackNote: FALLBACK_NOTE,
@@ -214,6 +233,7 @@ export const ENDURANCE_PROGRAMS: EnduranceProgram[] = [
     name: 'Tapis Pyramide Inclinaison — Marche active',
     activityType: 'tapis',
     focus: 'Paliers d\'inclinaison, vitesse constante, ~24 min',
+    difficulty: 'facile',
     description:
       "La vitesse ne bouge pas (marche active) — c'est l'inclinaison qui monte en pyramide jusqu'à une petite côte, puis redescend. Sollicite bien les jambes et le cardio sans le choc de la course, et reste varié grâce au profil de côte.",
     fallbackNote: FALLBACK_NOTE,
@@ -232,6 +252,7 @@ export const ENDURANCE_PROGRAMS: EnduranceProgram[] = [
     name: 'Tapis Pyramide Intense — Double pic',
     activityType: 'tapis',
     focus: 'Deux pics de vitesse, ~33 min — niveau confirmé',
+    difficulty: 'dur',
     description:
       "Une première pyramide jusqu'à un pic soutenu, une courte récup active, puis un second pic encore plus rapide avec un peu d'inclinaison — plus exigeant que la pyramide simple, sur la filière aérobie haute.",
     fallbackNote: FALLBACK_NOTE,
@@ -252,6 +273,7 @@ export const ENDURANCE_PROGRAMS: EnduranceProgram[] = [
     name: 'Tapis Pyramide Vitesse + Côte',
     activityType: 'tapis',
     focus: 'Vitesse ET inclinaison en pyramide, ~27 min — niveau avancé',
+    difficulty: 'dur',
     description:
       "Vitesse et inclinaison montent ensemble jusqu'à un pic en côte à allure rapide — la version la plus exigeante de la pyramide, proche d'un travail de VMA en côte. Réservé à ceux qui courent déjà régulièrement.",
     fallbackNote: FALLBACK_NOTE,
