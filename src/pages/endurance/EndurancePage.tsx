@@ -391,15 +391,22 @@ function ProgramPreview({ program, onClose, onStart }: { program: EnduranceProgr
           <p className="mb-2 text-[11px] text-zinc-600">Déroulé</p>
           <ul className="mb-3 space-y-1.5">
             {program.phases.map((p, i) => (
-              <li key={i} className="glass flex items-center justify-between rounded-lg px-3 py-2 text-xs">
-                <span className="flex items-center gap-2">
-                  <span className="h-2 w-2 shrink-0 rounded-full" style={{ backgroundColor: INTENSITY_COLOR[p.intensity] }} />
-                  {p.label}
-                </span>
-                <span className="font-mono text-zinc-500">{formatPhaseDuration(p.durationSec)}</span>
+              <li key={i} className="glass rounded-lg px-3 py-2 text-xs">
+                <div className="flex items-center justify-between">
+                  <span className="flex items-center gap-2">
+                    <span className="h-2 w-2 shrink-0 rounded-full" style={{ backgroundColor: INTENSITY_COLOR[p.intensity] }} />
+                    {p.label}
+                  </span>
+                  <span className="font-mono text-zinc-500">{formatPhaseDuration(p.durationSec)}</span>
+                </div>
+                {p.target && <p className="mt-0.5 pl-4 text-[11px] text-zinc-500">{p.target}</p>}
               </li>
             ))}
           </ul>
+
+          <div className="mb-3 rounded-xl border border-zinc-800 bg-zinc-900/50 p-3">
+            <p className="text-[11px] leading-relaxed text-zinc-500">{program.fallbackNote}</p>
+          </div>
 
           {program.muscuAddOn && (
             <div className="mb-3 rounded-xl border border-orange-500/30 bg-orange-500/5 p-3">
@@ -598,9 +605,10 @@ function EnduranceForm({
             <p className="mb-1 text-lg font-semibold" style={{ color: INTENSITY_COLOR[current.phase.intensity] }}>
               {current.phase.label}
             </p>
-            <p className="mb-6 font-mono text-6xl font-bold tabular-nums" style={{ color: INTENSITY_COLOR[current.phase.intensity] }}>
+            <p className="mb-1 font-mono text-6xl font-bold tabular-nums" style={{ color: INTENSITY_COLOR[current.phase.intensity] }}>
               {Math.floor(current.remainingSec / 60)}:{String(current.remainingSec % 60).padStart(2, '0')}
             </p>
+            <p className="mb-6 text-sm text-zinc-400">{current.phase.target ?? ' '}</p>
             <div className="mb-2 h-1.5 w-full max-w-xs overflow-hidden rounded-full bg-zinc-800">
               <div
                 className="h-full rounded-full bg-teal-500 transition-all"
