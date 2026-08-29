@@ -90,6 +90,14 @@ export const INDEX_REFERENCE: ReferenceCategory[] = [
         notes: 'FC repos résolue par priorité NutriTracker (mesure réelle) > FC mesurée en app > valeur saisie en Réglages.',
       },
       {
+        name: 'FC de récupération (HRR)',
+        formula: 'FC à la fin de l\'effort − FC 1 minute après',
+        unit: 'bpm',
+        normalRange: '≥12 bpm = récupération normale · <12 bpm = à surveiller',
+        reference: 'Cole CR, Blackstone EH, Pashkow FJ, Snader CE, Lauer MS. N Engl J Med. 1999;341(18):1351-1357.',
+        notes: 'Importée d\'une capture d\'écran Apple Health/Google Fit ("Fréquence cardiaque après exercice") — l\'app n\'a pas de capteur FC continu propre.',
+      },
+      {
         name: 'Polarisation cardio',
         formula: '% de temps passé en Z1-2 (facile) / Z3 (modéré) / Z4-5 (dur) sur 28 jours',
         unit: '%',

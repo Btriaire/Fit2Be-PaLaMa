@@ -33,11 +33,12 @@ import { formatDate, formatTime, formatFullDate, isToday, isSameDay, todayStr, a
 import { useGeoTracking } from '../../lib/useGeoTracking'
 import { playMotivation, playAnnouncement } from '../../lib/motivationVoice'
 import { scanMachineResults, machineTypeToActivityType, toMachineStats, compressImageForDisplay, type ParsedMachineResult } from '../../lib/machineScan'
+import { scanHealthScreen, computeHrr1min } from '../../lib/healthScreenScan'
 import { ENDURANCE_PROGRAMS, type EnduranceProgram, type ProgramPhase } from '../../lib/endurancePrograms'
 import RouteMap from '../../components/RouteMap'
 import ActivityHero, { hasHeroImage } from '../../components/ActivityHero'
 import BackButton from '../../components/BackButton'
-import type { EnduranceActivityType, EnduranceSession, MachineStats, PhaseLogEntry, RoutePoint } from '../../types'
+import type { EnduranceActivityType, EnduranceSession, HealthScreenCapture, MachineStats, PhaseLogEntry, RoutePoint } from '../../types'
 
 // Palette de l'app (index.css @theme), pas des couleurs Tailwind par défaut —
 // turquoise/indigo/orange sont les 3 seuls accents de l'identité visuelle.
@@ -135,6 +136,7 @@ export default function EndurancePage() {
     rpe?: number
     programId?: string
     phaseLog?: PhaseLogEntry[]
+    healthCapture?: HealthScreenCapture
   }) {
     await logEnduranceSession(input, settings)
     setFormOpen(false)
@@ -494,6 +496,7 @@ function EnduranceForm({
     rpe?: number
     programId?: string
     phaseLog?: PhaseLogEntry[]
+    healthCapture?: HealthScreenCapture
   }) => void
   onClose: () => void
   initialScan?: ParsedMachineResult
@@ -545,7 +548,11 @@ function EnduranceForm({
   const [scanError, setScanError] = useState<string | null>(null)
   const [photoDataUrl, setPhotoDataUrl] = useState<string | null>(null)
   const [photoViewerOpen, setPhotoViewerOpen] = useState(false)
+  const [healthCapture, setHealthCapture] = useState<HealthScreenCapture | null>(null)
+  const [healthScanning, setHealthScanning] = useState(false)
+  const [healthScanError, setHealthScanError] = useState<string | null>(null)
   const fileInputRef = useRef<HTMLInputElement>(null)
+  const healthFileInputRef = useRef<HTMLInputElement>(null)
 
   function applyScanResult(result: ParsedMachineResult) {
     setActivityType(machineTypeToActivityType(result.machineType))
@@ -573,6 +580,24 @@ function EnduranceForm({
     }
   }
 
+  async function handleHealthScan(e: React.ChangeEvent<HTMLInputElement>) {
+    const file = e.target.files?.[0]
+    e.target.value = ''
+    if (!file) return
+    setHealthScanning(true)
+    setHealthScanError(null)
+    try {
+      const capture = await scanHealthScreen(file)
+      setHealthCapture(capture)
+      if (capture.avgBpm) setAvgHr(String(capture.avgBpm))
+    } catch (err) {
+      const detail = err instanceof Error ? err.message : ''
+      setHealthScanError(`Impossible de lire cette capture${detail ? ` (${detail})` : ''}.`)
+    } finally {
+      setHealthScanning(false)
+    }
+  }
+
   function submit() {
     const dur = parseInt(duration, 10)
     if (!dur) return
@@ -589,6 +614,7 @@ function EnduranceForm({
       rpe: sessionRpe ?? undefined,
       programId: activeProgram?.id,
       phaseLog: phaseLogRef.current.length > 0 ? phaseLogRef.current : undefined,
+      healthCapture: healthCapture ?? undefined,
     })
   }
 
@@ -943,6 +969,51 @@ function EnduranceForm({
               {scanStats.peakWatts != null && <span>pic {scanStats.peakWatts} W</span>}
               {scanStats.peakSpeedKph != null && <span>pic {scanStats.peakSpeedKph} km/h</span>}
               {scanStats.elevationGainM != null && <span>+{scanStats.elevationGainM} m dénivelé</span>}
+            </div>
+          </div>
+        )}
+
+        <input
+          ref={healthFileInputRef}
+          type="file"
+          accept="image/*"
+          className="hidden"
+          onChange={handleHealthScan}
+        />
+        <button
+          onClick={() => healthFileInputRef.current?.click()}
+          disabled={healthScanning}
+          className="mb-2 flex w-full items-center justify-center gap-1.5 rounded-xl border border-indigo-500/40 bg-indigo-500/10 py-3 text-sm font-semibold text-indigo-400 active:bg-indigo-500/20 disabled:opacity-60"
+        >
+          {healthScanning ? (
+            <>
+              <Loader2 size={16} className="animate-spin" /> Analyse de la capture…
+            </>
+          ) : (
+            <>
+              <HeartPulse size={16} /> Importer Apple Health / Google Fit
+            </>
+          )}
+        </button>
+        <p className="mb-2 text-center text-[11px] text-zinc-600">
+          Capture d'écran du détail "Fréquence cardiaque" de ta séance — zones et récupération.
+        </p>
+        {healthScanError && <p className="mb-3 text-center text-xs text-red-400">{healthScanError}</p>}
+        {healthCapture && !healthScanError && (
+          <div className="mb-3 rounded-xl border border-indigo-500/30 bg-indigo-500/5 p-3">
+            <div className="mb-1.5 flex items-center justify-center gap-2">
+              {healthCapture.screenshotDataUrl && (
+                <img src={healthCapture.screenshotDataUrl} alt="Capture Apple Health" className="h-10 w-10 rounded-lg object-cover" />
+              )}
+              <p className="text-center text-xs font-medium text-indigo-400">Données cardiaques importées</p>
+            </div>
+            <div className="flex flex-wrap justify-center gap-x-3 gap-y-1 text-[11px] text-zinc-400">
+              {healthCapture.avgBpm != null && <span>{healthCapture.avgBpm} bpm moy.</span>}
+              {healthCapture.zoneBreakdown.length > 0 && <span>{healthCapture.zoneBreakdown.length} zones FC</span>}
+              {(() => {
+                const hrr = computeHrr1min(healthCapture.recoveryPoints)
+                return hrr != null ? <span>récup 1min : -{hrr} bpm</span> : null
+              })()}
             </div>
           </div>
         )}

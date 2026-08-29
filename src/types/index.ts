@@ -114,6 +114,34 @@ export interface MachineStats {
   elevationGainM?: number
 }
 
+/** Temps passé dans une zone de FC (1-5), lu depuis une capture Apple
+ * Health/Google Fit — bpmMax=null pour la zone la plus haute ("&gt;151"). */
+export interface HrZoneMinutes {
+  zone: 1 | 2 | 3 | 4 | 5
+  bpmMin: number
+  bpmMax: number | null
+  minutes: number
+}
+
+/** Point de la courbe de récupération cardiaque après effort (Apple Health
+ * "Fréquence cardiaque après exercice" / Google Fit équivalent) — sert au
+ * calcul de la FC de récupération (HRR), un indicateur reconnu de forme
+ * cardiovasculaire (Cole et al. 1999, NEJM). */
+export interface HrRecoveryPoint {
+  minutesAfter: number
+  bpm: number
+}
+
+/** Données extraites d'une capture d'écran Apple Health/Google Fit — bien
+ * plus précises que ce que l'app peut mesurer elle-même (pas de capteur FC
+ * continu propre), gardées avec la sortie pour la reproduire visuellement. */
+export interface HealthScreenCapture {
+  avgBpm: number | null
+  zoneBreakdown: HrZoneMinutes[]
+  recoveryPoints: HrRecoveryPoint[]
+  screenshotDataUrl?: string
+}
+
 /** Détail réel d'une phase de programme coaching une fois la séance
  * terminée — actualSec peut différer de plannedSec (phase passée via
  * "Passer", ou séance arrêtée en cours de phase). Sert au suivi de
@@ -147,6 +175,9 @@ export interface EnduranceSession {
   programId?: string
   /** Détail réel phase par phase, si un programme a été utilisé. */
   phaseLog?: PhaseLogEntry[]
+  /** Données FC importées d'une capture Apple Health/Google Fit (zones,
+   * récupération) — bien plus précises que l'estimation MET/FC seule. */
+  healthCapture?: HealthScreenCapture
   /** id de l'entrée côté NutriTracker si importée de là-bas — sert à ne
    * jamais réimporter deux fois la même activité. */
   externalId?: string

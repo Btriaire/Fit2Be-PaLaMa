@@ -17,6 +17,7 @@ import { computeVo2Max, computePolarization, type Vo2MaxEstimate, type Polarizat
 import { computeMaxHr } from '../lib/heartRate'
 import { resolveRestingHr } from '../lib/restingHr'
 import { pullCardiacRangeFromNutriTracker, type RemoteCardiacDay } from '../lib/nutriTrackerSync'
+import { computeHrr1min } from '../lib/healthScreenScan'
 import type { ActivityLog, EnduranceSession, NutritionEntry, RecoveryCheckin, WeightLog, Workout } from '../types'
 
 function bpCategory(systolic: number, diastolic: number): { label: string; color: string } {
@@ -160,6 +161,12 @@ export default function StatsTab() {
   const maxHr = computeMaxHr(settings.ageYears)
   const latestHrPctMax = latestCardiac?.heartRateAvg != null ? Math.round((latestCardiac.heartRateAvg / maxHr) * 100) : null
   const bodyComp = computeBodyComposition(settings)
+  const latestHrr = useMemo(() => {
+    const withCapture = endurance
+      .filter((e) => e.healthCapture && e.healthCapture.recoveryPoints.length > 0)
+      .sort((a, b) => b.startedAt - a.startedAt)
+    return withCapture.length > 0 ? computeHrr1min(withCapture[0].healthCapture!.recoveryPoints) : null
+  }, [endurance])
 
   return (
     <div>
@@ -231,6 +238,16 @@ export default function StatsTab() {
               <span className="ml-1 text-[10px] font-normal text-zinc-600">m²</span>
             </p>
             <p className="mt-0.5 text-[10px] text-zinc-600">Formule de Mosteller</p>
+          </div>
+          <div className="rounded-xl bg-zinc-900/70 p-3">
+            <p className="text-[10px] text-zinc-500">FC récupération (HRR)</p>
+            <p className="mt-0.5 text-xl font-bold text-indigo-300">
+              {latestHrr ?? '—'}
+              {latestHrr != null && <span className="ml-1 text-[10px] font-normal text-zinc-600">bpm / 1min</span>}
+            </p>
+            <p className="mt-0.5 text-[10px] text-zinc-600">
+              {latestHrr != null ? (latestHrr >= 12 ? 'Bonne récupération' : 'Récupération à surveiller') : 'Importe une capture Apple Health'}
+            </p>
           </div>
         </div>
 

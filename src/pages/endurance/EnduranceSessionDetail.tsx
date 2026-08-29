@@ -14,6 +14,7 @@ import { getSettings } from '../../lib/settings'
 import { computeCaloriesFromPhaseLog } from '../../lib/met'
 import { HR_ZONE_META, computeMaxHr } from '../../lib/heartRate'
 import { enduranceSessionLoad } from '../../lib/recovery'
+import { computeHrr1min } from '../../lib/healthScreenScan'
 import { sessionEfficiency } from '../../lib/progression'
 import { formatDate, formatTime } from '../../lib/date'
 import { ENDURANCE_PROGRAMS } from '../../lib/endurancePrograms'
@@ -26,6 +27,16 @@ const PHASE_INTENSITY_COLOR: Record<'facile' | 'modéré' | 'dur', string> = {
   modéré: 'var(--color-indigo)',
   dur: 'var(--color-orange)',
 }
+
+/** Dégradé zone 1 (effort léger) → zone 5 (effort max), dérivé des trois
+ * couleurs du thème de l'app plutôt que des couleurs zone Apple/Google. */
+const HR_ZONE_GRADIENT = [
+  'var(--color-turquoise)',
+  'color-mix(in srgb, var(--color-turquoise), var(--color-indigo))',
+  'var(--color-indigo)',
+  'color-mix(in srgb, var(--color-indigo), var(--color-orange))',
+  'var(--color-orange)',
+]
 
 /** Une métrique individuelle, taguée avec la ou les catégories d'index
  * qu'elle alimente — c'est ce tag qui répond au "pourquoi c'est là". */
@@ -104,6 +115,8 @@ export default function EnduranceSessionDetail() {
   const peakHrPct = session.machineStats?.peakHeartRate ? Math.round((session.machineStats.peakHeartRate / maxHr) * 100) : null
   const load = enduranceSessionLoad(session, settings.ageYears, meta.label)
   const efficiency = sessionEfficiency(session)
+  const hrr = session.healthCapture ? computeHrr1min(session.healthCapture.recoveryPoints) : null
+  const zoneTotalMin = session.healthCapture?.zoneBreakdown.reduce((s, z) => s + z.minutes, 0) ?? 0
 
   return (
     <div>
@@ -194,6 +207,45 @@ export default function EnduranceSessionDetail() {
                   Zone {session.hrZone} · {zoneMeta.label}
                 </span>
               </p>
+            )}
+          </section>
+        )}
+
+        {session.healthCapture && (session.healthCapture.zoneBreakdown.length > 0 || session.healthCapture.recoveryPoints.length > 0) && (
+          <section className="glass mb-4 rounded-2xl p-4">
+            <h2 className="mb-3 flex items-center gap-1.5 text-xs font-medium uppercase tracking-wide text-zinc-500">
+              <HeartPulse size={13} className="text-indigo-300" /> Apple Health / Google Fit
+            </h2>
+            {session.healthCapture.zoneBreakdown.length > 0 && (
+              <div className="mb-3 space-y-1.5">
+                {session.healthCapture.zoneBreakdown.map((z) => {
+                  const pct = zoneTotalMin > 0 ? Math.round((z.minutes / zoneTotalMin) * 100) : 0
+                  return (
+                    <div key={z.zone} className="flex items-center gap-2 text-[11px]">
+                      <span className="w-12 shrink-0 text-zinc-500">Zone {z.zone}</span>
+                      <div className="h-2 flex-1 overflow-hidden rounded-full bg-zinc-900">
+                        <div className="h-full rounded-full" style={{ width: `${pct}%`, backgroundColor: HR_ZONE_GRADIENT[z.zone - 1] }} />
+                      </div>
+                      <span className="w-16 shrink-0 text-right font-mono text-zinc-500">{z.minutes.toFixed(1)} min</span>
+                    </div>
+                  )
+                })}
+              </div>
+            )}
+            {session.healthCapture.recoveryPoints.length > 0 && (
+              <div>
+                <p className="mb-1.5 text-[10px] text-zinc-600">
+                  Récupération après effort{hrr != null ? ` · HRR 1min : -${hrr} bpm` : ''}
+                </p>
+                <div className="flex items-end gap-3">
+                  {session.healthCapture.recoveryPoints.map((p, i) => (
+                    <div key={i} className="flex flex-col items-center gap-1">
+                      <span className="text-[11px] font-mono text-zinc-300">{p.bpm}</span>
+                      <span className="text-[9px] text-zinc-600">{p.minutesAfter === 0 ? 'fin' : `+${p.minutesAfter}min`}</span>
+                    </div>
+                  ))}
+                </div>
+              </div>
             )}
           </section>
         )}

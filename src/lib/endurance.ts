@@ -4,7 +4,7 @@ import { computeHrZone } from './heartRate'
 import { pushActivityToNutriTracker } from './nutriTrackerSync'
 import { pushRecord, deleteRecord } from './cloudSync'
 import type { Settings } from './settings'
-import type { EnduranceActivityType, EnduranceSession, MachineStats, PhaseLogEntry, RoutePoint } from '../types'
+import type { EnduranceActivityType, EnduranceSession, HealthScreenCapture, MachineStats, PhaseLogEntry, RoutePoint } from '../types'
 
 // googleFitType : code d'activité Google Fit repris par NutriTracker Palama
 // (app/lib/google-fit.ts:ACTIVITY_LABELS) pour le libellé/icône de son flux
@@ -64,6 +64,8 @@ export async function logEnduranceSession(
     /** Programme coaching suivi, et détail réel phase par phase. */
     programId?: string
     phaseLog?: PhaseLogEntry[]
+    /** Zones/récupération importées d'une capture Apple Health/Google Fit. */
+    healthCapture?: HealthScreenCapture
   },
   settings: Settings,
 ): Promise<EnduranceSession> {
@@ -93,6 +95,7 @@ export async function logEnduranceSession(
     ...(input.rpe != null ? { rpe: input.rpe } : {}),
     ...(input.programId ? { programId: input.programId } : {}),
     ...(input.phaseLog && input.phaseLog.length > 0 ? { phaseLog: input.phaseLog } : {}),
+    ...(input.healthCapture ? { healthCapture: input.healthCapture } : {}),
   }
   const db = await getDb()
   await db.put('endurance', session)

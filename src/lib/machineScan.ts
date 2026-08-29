@@ -46,8 +46,9 @@ export function toMachineStats(result: ParsedMachineResult): MachineStats {
 /** Downscale + recompresse en JPEG côté client — les photos de téléphone
  * dépassent facilement la limite de 4.5 Mo du body des fonctions Vercel une
  * fois encodées en base64 ; 1600px/qualité 0.82 reste largement lisible pour
- * un écran de résultats et tient sous la limite. */
-function compressImage(file: File, maxDim = 1600, quality = 0.82): Promise<string> {
+ * un écran de résultats et tient sous la limite. Exportée : réutilisée par
+ * healthScreenScan.ts pour l'OCR des captures Apple Health/Google Fit. */
+export function compressImage(file: File, maxDim = 1600, quality = 0.82): Promise<string> {
   return new Promise((resolve, reject) => {
     const img = new Image()
     const url = URL.createObjectURL(file)

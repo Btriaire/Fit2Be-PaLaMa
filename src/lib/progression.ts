@@ -250,13 +250,23 @@ export interface Polarization {
  * meilleurs gains d'endurance que l'entraînement à effort moyen constant. */
 export async function computePolarization(days = 28): Promise<Polarization | null> {
   const cutoff = Date.now() - days * 86_400_000
-  const sessions = (await getEnduranceSessions()).filter((s) => s.startedAt >= cutoff && s.hrZone != null)
+  const sessions = (await getEnduranceSessions()).filter(
+    (s) => s.startedAt >= cutoff && (s.hrZone != null || (s.healthCapture?.zoneBreakdown.length ?? 0) > 0),
+  )
   if (sessions.length === 0) return null
   let easy = 0
   let moderate = 0
   let hard = 0
   for (const s of sessions) {
-    if (s.hrZone! <= 2) easy += s.durationMin
+    // Répartition réelle minute par minute (capture Apple Health/Google Fit)
+    // quand disponible — bien plus fine que la zone moyenne de toute la séance.
+    if (s.healthCapture && s.healthCapture.zoneBreakdown.length > 0) {
+      for (const z of s.healthCapture.zoneBreakdown) {
+        if (z.zone <= 2) easy += z.minutes
+        else if (z.zone === 3) moderate += z.minutes
+        else hard += z.minutes
+      }
+    } else if (s.hrZone! <= 2) easy += s.durationMin
     else if (s.hrZone === 3) moderate += s.durationMin
     else hard += s.durationMin
   }
