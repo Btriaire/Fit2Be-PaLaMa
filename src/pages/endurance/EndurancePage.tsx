@@ -12,6 +12,7 @@ import {
   Pause,
   Plus,
   Route,
+  SkipForward,
   Trash2,
   TrendingUp,
   Timer,
@@ -30,7 +31,7 @@ import { getSettings } from '../../lib/settings'
 import { HR_ZONE_META } from '../../lib/heartRate'
 import { formatDate, formatTime, formatFullDate, isToday, isSameDay, todayStr, addDays } from '../../lib/date'
 import { useGeoTracking } from '../../lib/useGeoTracking'
-import { playMotivation } from '../../lib/motivationVoice'
+import { playMotivation, playAnnouncement } from '../../lib/motivationVoice'
 import { scanMachineResults, machineTypeToActivityType, toMachineStats, compressImageForDisplay, type ParsedMachineResult } from '../../lib/machineScan'
 import { ENDURANCE_PROGRAMS, type EnduranceProgram, type ProgramPhase } from '../../lib/endurancePrograms'
 import RouteMap from '../../components/RouteMap'
@@ -45,6 +46,16 @@ const INTENSITY_COLOR: Record<ProgramPhase['intensity'], string> = {
   modéré: 'var(--color-indigo)',
   dur: 'var(--color-orange)',
 }
+
+// Même échelle session-RPE que le mode Focus musculation (WorkoutRunner) —
+// cohérence de vocabulaire entre les deux modules.
+const DIFFICULTY_LEVELS: Array<{ label: string; rpe: number; color: string }> = [
+  { label: 'Facile', rpe: 3, color: 'bg-teal-500/15 text-teal-400' },
+  { label: 'Modéré', rpe: 5, color: 'bg-teal-500/15 text-teal-400' },
+  { label: 'Difficile', rpe: 7, color: 'bg-orange-500/15 text-orange-400' },
+  { label: 'Très difficile', rpe: 8.5, color: 'bg-orange-500/15 text-orange-400' },
+  { label: 'Effort maximal', rpe: 10, color: 'bg-red-500/15 text-red-400' },
+]
 
 /** Phase active à un instant donné du programme, ou null si le programme est terminé. */
 function getPhaseAt(program: EnduranceProgram, elapsedSec: number): { index: number; phase: ProgramPhase; remainingSec: number } | null {
@@ -121,6 +132,7 @@ export default function EndurancePage() {
     machineStats?: MachineStats
     startedAt?: number
     photoDataUrl?: string
+    rpe?: number
   }) {
     await logEnduranceSession(input, settings)
     setFormOpen(false)
@@ -168,21 +180,21 @@ export default function EndurancePage() {
         <h2 className="mb-2 flex items-center gap-1.5 text-sm font-medium text-zinc-400">
           <Flame size={14} className="text-orange-400" /> Programmes Coaching — vélo & tapis
         </h2>
-        <div className="space-y-2">
+        <div className="space-y-1.5">
           {ENDURANCE_PROGRAMS.map((p) => (
             <button
               key={p.id}
               onClick={() => setPreviewProgram(p)}
-              className="glass flex w-full items-center gap-3 rounded-xl p-3.5 text-left active:scale-[0.98] transition-transform"
+              className="glass flex w-full items-center gap-2.5 rounded-lg px-3 py-2 text-left active:scale-[0.98] transition-transform"
             >
-              <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-orange-500/15 text-orange-400">
-                <Timer size={18} />
+              <span className="flex h-7 w-7 shrink-0 items-center justify-center rounded-md bg-orange-500/15 text-orange-400">
+                <Timer size={14} />
               </span>
               <div className="min-w-0 flex-1">
-                <p className="text-sm font-semibold">{p.name}</p>
-                <p className="truncate text-xs text-zinc-500">{p.focus}</p>
+                <p className="text-sm font-medium leading-tight">{p.name}</p>
+                <p className="truncate text-[11px] leading-tight text-zinc-500">{p.focus}</p>
               </div>
-              <ChevronRight size={16} className="shrink-0 text-zinc-600" />
+              <ChevronRight size={14} className="shrink-0 text-zinc-600" />
             </button>
           ))}
         </div>
@@ -477,6 +489,7 @@ function EnduranceForm({
     machineStats?: MachineStats
     startedAt?: number
     photoDataUrl?: string
+    rpe?: number
   }) => void
   onClose: () => void
   initialScan?: ParsedMachineResult
@@ -497,6 +510,9 @@ function EnduranceForm({
   const [indoorRunning, setIndoorRunning] = useState(false)
   const [indoorElapsedSec, setIndoorElapsedSec] = useState(0)
   const [activeProgram, setActiveProgram] = useState<EnduranceProgram | null>(null)
+  const [awaitingDifficulty, setAwaitingDifficulty] = useState(false)
+  const [sessionRpe, setSessionRpe] = useState<number | null>(null)
+  const [suggestScan, setSuggestScan] = useState(false)
   const indoorStartRef = useRef(0)
   const indoorIntervalRef = useRef<number | null>(null)
   const prevPhaseIndexRef = useRef<number | null>(null)
@@ -564,6 +580,7 @@ function EnduranceForm({
       machineStats: scanStats ?? undefined,
       startedAt: date === todayStr() ? Date.now() : new Date(`${date}T12:00:00`).getTime(),
       photoDataUrl: photoDataUrl ?? undefined,
+      rpe: sessionRpe ?? undefined,
     })
   }
 
@@ -590,15 +607,16 @@ function EnduranceForm({
         const current = getPhaseAt(program, elapsed)
         if (current) {
           if (prevPhaseIndexRef.current !== null && prevPhaseIndexRef.current !== current.index) {
-            // Changement de phase — retour haptique court, pas d'appel réseau
-            // (trop de transitions sur un programme fractionné pour justifier
-            // une voix générée à chaque fois).
+            // Changement de phase — retour haptique + annonce vocale du
+            // libellé (synthèse directe, sans Groq : voir playAnnouncement).
             navigator.vibrate?.(current.phase.intensity === 'dur' ? [120, 60, 120] : 120)
+            if (settings.motivationVoice !== 'off') void playAnnouncement(settings.motivationVoice, current.phase.label)
           }
           prevPhaseIndexRef.current = current.index
         } else if (!programDoneRef.current) {
           programDoneRef.current = true
           navigator.vibrate?.([200, 100, 200, 100, 200])
+          if (settings.motivationVoice !== 'off') void playAnnouncement(settings.motivationVoice, 'Programme terminé, bravo')
         }
       }
 
@@ -618,6 +636,35 @@ function EnduranceForm({
     indoorIntervalRef.current = null
     setIndoorRunning(false)
     setDuration(String(Math.max(1, Math.round(indoorElapsedSec / 60))))
+    setAwaitingDifficulty(true)
+  }
+
+  function pickDifficulty(rpe: number | null) {
+    setSessionRpe(rpe)
+    setAwaitingDifficulty(false)
+    setSuggestScan(true)
+  }
+
+  /** Saute directement à la phase suivante du programme — recule l'heure de
+   * départ perçue plutôt que de gérer un état séparé, pour que le reste du
+   * chrono (getPhaseAt, profil d'intervalles) continue de dériver la phase
+   * courante d'une seule source de vérité (le temps écoulé). */
+  function skipPhase() {
+    if (!activeProgram) return
+    const current = getPhaseAt(activeProgram, indoorElapsedSec)
+    if (!current) return
+    const jumpTo = indoorElapsedSec + current.remainingSec
+    indoorStartRef.current = Date.now() - jumpTo * 1000
+    setIndoorElapsedSec(jumpTo)
+    const next = getPhaseAt(activeProgram, jumpTo)
+    if (next) {
+      prevPhaseIndexRef.current = next.index
+      navigator.vibrate?.(next.phase.intensity === 'dur' ? [120, 60, 120] : 120)
+      if (settings.motivationVoice !== 'off') void playAnnouncement(settings.motivationVoice, next.phase.label)
+    } else {
+      programDoneRef.current = true
+      navigator.vibrate?.([200, 100, 200, 100, 200])
+    }
   }
 
   if (indoorRunning) {
@@ -666,11 +713,42 @@ function EnduranceForm({
         {settings.motivationVoice !== 'off' && (
           <p className="mb-10 text-center text-xs text-zinc-500">Une relance vocale toutes les {MOTIVATION_INTERVAL_SEC / 60} min</p>
         )}
-        <button
-          onClick={stopIndoorChrono}
-          className="flex items-center justify-center gap-2 rounded-2xl bg-red-500 px-8 py-4 text-sm font-semibold text-white active:bg-red-400"
-        >
-          <Pause size={16} fill="currentColor" /> Terminer la séance
+        <div className="flex items-center gap-2.5">
+          {activeProgram && current && (
+            <button
+              onClick={skipPhase}
+              className="flex items-center justify-center gap-1.5 rounded-2xl bg-zinc-800 px-5 py-4 text-sm font-semibold text-zinc-300 active:bg-zinc-700"
+            >
+              <SkipForward size={16} /> Passer
+            </button>
+          )}
+          <button
+            onClick={stopIndoorChrono}
+            className="flex items-center justify-center gap-2 rounded-2xl bg-red-500 px-8 py-4 text-sm font-semibold text-white active:bg-red-400"
+          >
+            <Pause size={16} fill="currentColor" /> Terminer la séance
+          </button>
+        </div>
+      </div>
+    )
+  }
+
+  if (awaitingDifficulty) {
+    return (
+      <div className="fixed inset-0 z-50 flex flex-col items-center justify-center gap-3 bg-zinc-950 px-6">
+        <p className="mb-2 text-lg font-semibold">Difficulté ressentie ?</p>
+        <p className="mb-4 text-center text-xs text-zinc-500">Aide à calculer ta charge d'entraînement réelle.</p>
+        {DIFFICULTY_LEVELS.map((lvl) => (
+          <button
+            key={lvl.label}
+            onClick={() => pickDifficulty(lvl.rpe)}
+            className={`w-full max-w-xs rounded-xl py-3 text-sm font-semibold active:opacity-80 ${lvl.color}`}
+          >
+            {lvl.label}
+          </button>
+        ))}
+        <button onClick={() => pickDifficulty(null)} className="mt-2 text-xs text-zinc-600 active:text-zinc-400">
+          Passer cette évaluation
         </button>
       </div>
     )
@@ -755,6 +833,23 @@ function EnduranceForm({
         )}
 
         <div className="flex-1 overflow-y-auto p-4 pt-3">
+        {suggestScan && !scanStats && (
+          <div className="mb-4 flex items-start gap-2.5 rounded-xl border border-orange-500/30 bg-orange-500/5 p-3">
+            <Camera size={16} className="mt-0.5 shrink-0 text-orange-400" />
+            <div className="min-w-0 flex-1">
+              <p className="text-xs font-medium text-orange-400">Machine indoor ?</p>
+              <p className="mt-0.5 text-[11px] leading-relaxed text-zinc-400">
+                Prends l'écran de la machine en photo pour récupérer les calories et stats exactes, plutôt que les estimer.
+              </p>
+              <button onClick={() => fileInputRef.current?.click()} className="mt-1.5 text-[11px] font-semibold text-orange-400 active:text-orange-300">
+                Scanner maintenant
+              </button>
+            </div>
+            <button onClick={() => setSuggestScan(false)} className="shrink-0 rounded-full p-0.5 text-zinc-600 active:bg-zinc-800">
+              <X size={14} />
+            </button>
+          </div>
+        )}
         <div className="mb-4 grid grid-cols-2 gap-1.5">
           {(Object.keys(ENDURANCE_ACTIVITY_META) as EnduranceActivityType[]).map((key) => (
             <button

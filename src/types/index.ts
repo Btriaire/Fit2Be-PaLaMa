@@ -124,6 +124,9 @@ export interface EnduranceSession {
   machineStats?: MachineStats
   /** Capture de l'écran machine scanné (miniature en liste, plein écran au tap). */
   photoDataUrl?: string
+  /** Difficulté ressentie (0-10, session-RPE) — saisie après une séance live
+   * (chrono indoor), prioritaire sur la FC/MET pour l'estimation de charge. */
+  rpe?: number
   /** id de l'entrée côté NutriTracker si importée de là-bas — sert à ne
    * jamais réimporter deux fois la même activité. */
   externalId?: string

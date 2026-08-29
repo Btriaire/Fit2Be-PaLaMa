@@ -100,6 +100,7 @@ export function enduranceSessionLoad(s: EnduranceSession, ageYears: number, labe
   const hrPct = peakHr ? Math.round((peakHr / maxHr) * 100) : null
   let effortScore: number
   if (s.avgHeartRate) effortScore = effortFromHr(s.avgHeartRate, ageYears)
+  else if (s.rpe != null) effortScore = effortFromRpe(s.rpe)
   else if (s.machineStats?.avgMets) effortScore = effortFromMet(s.machineStats.avgMets)
   else effortScore = effortFromMet(ENDURANCE_ACTIVITY_META[s.activityType].met)
   return {

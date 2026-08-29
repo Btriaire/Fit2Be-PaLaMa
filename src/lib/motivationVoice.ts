@@ -1,7 +1,8 @@
-// Client pour /api/motivation — voix de motivation générées à la volée
-// (texte Groq + synthèse Piper sur le VPS) après chaque série/pendant une
-// séance cardio. Best-effort comme le reste de l'IA : un échec réseau ne
-// doit jamais interrompre l'entraînement, juste rester silencieux.
+// Client pour /api/motivation (texte Groq + synthèse Piper) et /api/announce
+// (synthèse directe, sans Groq, pour un texte déjà connu — ex: le libellé
+// d'une phase de programme cardio). Best-effort comme le reste de l'IA : un
+// échec réseau ne doit jamais interrompre l'entraînement, juste rester
+// silencieux.
 
 export type MotivationVoiceId = 'coach' | 'calme'
 
@@ -25,17 +26,19 @@ export type MotivationContext = SetContext | CardioContext
 let playing: HTMLAudioElement | null = null
 
 /** Ignore l'appel si un clip est déjà en cours de chargement/lecture — évite
- * un empilement de requêtes si plusieurs séries sont validées coup sur coup. */
+ * un empilement de requêtes si plusieurs séries/changements de phase
+ * arrivent coup sur coup. Partagé entre motivation et annonces de phase :
+ * elles ne doivent jamais se chevaucher. */
 let inFlight = false
 
-export async function playMotivation(voice: MotivationVoiceId, context: MotivationContext): Promise<void> {
+async function fetchAndPlay(url: string, body: unknown): Promise<void> {
   if (inFlight) return
   inFlight = true
   try {
-    const r = await fetch('/api/motivation', {
+    const r = await fetch(url, {
       method: 'POST',
       headers: { 'content-type': 'application/json' },
-      body: JSON.stringify({ voice, context }),
+      body: JSON.stringify(body),
     })
     if (!r.ok) return
     const data = await r.json()
@@ -52,4 +55,14 @@ export async function playMotivation(voice: MotivationVoiceId, context: Motivati
   } finally {
     inFlight = false
   }
+}
+
+export function playMotivation(voice: MotivationVoiceId, context: MotivationContext): Promise<void> {
+  return fetchAndPlay('/api/motivation', { voice, context })
+}
+
+/** Annonce un texte court tel quel (ex: le libellé d'une phase — "Effort",
+ * "Récupération") — pas de génération Groq, juste la synthèse vocale. */
+export function playAnnouncement(voice: MotivationVoiceId, text: string): Promise<void> {
+  return fetchAndPlay('/api/announce', { voice, text })
 }

@@ -59,6 +59,8 @@ export async function logEnduranceSession(
     machineStats?: MachineStats
     /** Capture de l'écran machine scannée, conservée avec la sortie. */
     photoDataUrl?: string
+    /** Difficulté ressentie (0-10), saisie après une séance live. */
+    rpe?: number
   },
   settings: Settings,
 ): Promise<EnduranceSession> {
@@ -83,6 +85,7 @@ export async function logEnduranceSession(
     ...(input.route && input.route.length > 0 ? { route: input.route } : {}),
     ...(input.machineStats ? { machineStats: input.machineStats } : {}),
     ...(input.photoDataUrl ? { photoDataUrl: input.photoDataUrl } : {}),
+    ...(input.rpe != null ? { rpe: input.rpe } : {}),
   }
   const db = await getDb()
   await db.put('endurance', session)
