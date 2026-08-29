@@ -17,6 +17,10 @@ export interface TrainingTemplate {
   focus: string
   description: string
   exercises: TemplateExercise[]
+  /** Bloc cardio suggéré (échauffement/finisher/séance principale) — informatif
+   * seulement : le lancement du template ne crée que la partie musculation
+   * (Workout), le cardio se logue séparément dans Endurance si on veut le suivre. */
+  cardioBlock?: { label: string; description: string }
 }
 
 export const TRAINING_TEMPLATES: TrainingTemplate[] = [
@@ -383,6 +387,134 @@ export const TRAINING_TEMPLATES: TrainingTemplate[] = [
         targetSets: 3,
         targetReps: '15-20',
         note: "Soléaire (genou fléchi). Amplitude complète, pause en haut.",
+      },
+    ],
+  },
+]
+
+// Séances hybrides cardio + muscu — la partie muscu est courte et
+// full-body/circuit (peu de fatigue résiduelle), le cardio fait l'essentiel
+// du travail. Le bloc cardio reste descriptif (pas de session Endurance
+// créée automatiquement) : l'app n'a pas de modèle de données unique pour
+// une séance qui mélange séries de muscu et durée/distance cardio.
+export const COACHING_TEMPLATES: TrainingTemplate[] = [
+  {
+    id: 'coaching-fat-burn',
+    name: 'Circuit Brûle-graisse',
+    focus: 'Cardio prioritaire (~70%) + circuit full-body (~30%)',
+    description:
+      "Le cardio fait le gros du travail calorique, le circuit muscu (peu de repos, reps hautes) maintient la masse maigre pendant la perte de poids. À faire dans l'ordre : échauffement, circuit, puis finisher cardio à chaud.",
+    cardioBlock: {
+      label: 'Cardio — avant/après le circuit',
+      description:
+        "Échauffement 5 min vélo/rameur confort avant le circuit. Puis finisher 15-20 min à intervalles (ex: 1 min soutenu / 1 min facile) sur tapis, vélo ou rameur — log-le dans Endurance pour qu'il compte dans tes calories et ta charge d'entraînement.",
+    },
+    exercises: [
+      {
+        exerciseId: 'goblet-squat',
+        targetSets: 3,
+        targetReps: '15-20',
+        note: "Circuit complet, peu de repos entre les exercices (30-45s). Tempo contrôlé, descends jusqu'aux hanches sous parallèle.",
+      },
+      {
+        exerciseId: 'pushups',
+        targetSets: 3,
+        targetReps: '12-15',
+        note: "Corps gainé, coudes à ~45° du buste. Sur les genoux si besoin pour tenir les 3 séries.",
+      },
+      {
+        exerciseId: 'bodyweight-walking-lunge',
+        targetSets: 3,
+        targetReps: '12 par jambe',
+        note: "Fentes marchées, buste droit, genou arrière frôle le sol sans le toucher.",
+      },
+      {
+        exerciseId: 'russian-twist',
+        targetSets: 3,
+        targetReps: '20',
+        note: "Gainage rotatif. Talons décollés pour plus d'intensité, pieds au sol si trop difficile.",
+      },
+      {
+        exerciseId: 'plank',
+        targetSets: 3,
+        targetReps: '40-45s',
+        note: "Gainage statique. Bassin aligné, ne pas creuser le bas du dos.",
+      },
+    ],
+  },
+  {
+    id: 'coaching-balanced',
+    name: 'Full Body Équilibré',
+    focus: 'Cardio et muscu à parts égales (~50/50)',
+    description:
+      "Format généraliste pour l'entretien de la forme : les fondamentaux poly-articulaires en muscu, un cardio modéré en fin de séance pour la santé cardiovasculaire sans épuiser la récupération.",
+    cardioBlock: {
+      label: 'Cardio — fin de séance',
+      description:
+        "20 min en endurance fondamentale (Zone 2, ~60-70% FC max) — vélo, rameur, marche rapide ou tapis, au choix. Log-le dans Endurance juste après la séance de muscu.",
+    },
+    exercises: [
+      {
+        exerciseId: 'squat',
+        targetSets: 3,
+        targetReps: '10',
+        note: "Base du bas du corps. Amplitude complète, barre stable sur le haut du dos.",
+      },
+      {
+        exerciseId: 'bench-press',
+        targetSets: 3,
+        targetReps: '8-10',
+        note: "Base du haut du corps (poussée). Omoplates serrées, trajectoire stable.",
+      },
+      {
+        exerciseId: 'barbell-row',
+        targetSets: 3,
+        targetReps: '10',
+        note: "Base du haut du corps (tirage) — équilibre la poussée du développé couché. Dos plat, tire vers le nombril.",
+      },
+      {
+        exerciseId: 'plank',
+        targetSets: 3,
+        targetReps: '40s',
+        note: "Gainage — stabilité pour le reste des mouvements.",
+      },
+    ],
+  },
+  {
+    id: 'coaching-runner',
+    name: 'Renfo Coureur',
+    focus: "Préparation d'objectif course — renfo léger, jambes fraîches",
+    description:
+      "La séance principale reste la course (fractionné ou sortie longue selon ton plan). Ce renfo est volontairement court et à faible fatigue résiduelle — jambes/gainage seulement, pour ne jamais compromettre la sortie clé qui suit.",
+    cardioBlock: {
+      label: 'Séance principale — course',
+      description:
+        "À faire un jour SANS séance de course clé, ou après un footing léger. La course (fractionné, tempo ou sortie longue selon ton planning) reste l'essentiel du travail — log-la dans Endurance comme d'habitude, ce renfo n'est qu'un complément.",
+    },
+    exercises: [
+      {
+        exerciseId: 'leg-press',
+        targetSets: 3,
+        targetReps: '12',
+        note: "Force jambes sans l'impact axial du squat — bon complément running, moins de fatigue résiduelle.",
+      },
+      {
+        exerciseId: 'dumbbell-step-ups',
+        targetSets: 3,
+        targetReps: '10 par jambe',
+        note: "Unilatéral, proche du geste de course. Pousse dans le talon, ne te propulse pas avec l'autre jambe.",
+      },
+      {
+        exerciseId: 'deadlift',
+        targetSets: 2,
+        targetReps: '8',
+        note: "Chaîne postérieure (ischios/fessiers) — clé pour l'économie de course. Charge modérée, technique irréprochable.",
+      },
+      {
+        exerciseId: 'plank',
+        targetSets: 2,
+        targetReps: '45s',
+        note: "Gainage — posture stable en fin de sortie longue.",
       },
     ],
   },

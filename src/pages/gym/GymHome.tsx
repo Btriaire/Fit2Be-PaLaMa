@@ -5,7 +5,7 @@ import { getAllWorkouts, saveWorkout, deleteWorkout, getLoggedExerciseIds } from
 import { newId } from '../../lib/db'
 import { formatDate, formatTime } from '../../lib/date'
 import { ALL_EXERCISES } from '../../lib/exercises'
-import { TRAINING_TEMPLATES, type TrainingTemplate } from '../../lib/trainingTemplates'
+import { TRAINING_TEMPLATES, COACHING_TEMPLATES, type TrainingTemplate } from '../../lib/trainingTemplates'
 import { getCustomTemplates, deleteCustomTemplate } from '../../lib/customTemplates'
 import { getLastExclusions, saveLastExclusions } from '../../lib/templateExclusions'
 import ActivityHero from '../../components/ActivityHero'
@@ -139,6 +139,28 @@ export default function GymHome() {
         >
           <Plus size={16} /> Séance personnalisée
         </button>
+      </section>
+
+      <section className="mb-6">
+        <h2 className="mb-2 text-sm font-medium text-zinc-400">Séances Coaching — cardio & muscu</h2>
+        <div className="space-y-2">
+          {COACHING_TEMPLATES.map((tpl) => (
+            <button
+              key={tpl.id}
+              onClick={() => setPreviewTemplate(tpl)}
+              className="glass flex w-full items-center gap-3 rounded-xl p-3.5 text-left active:scale-[0.98] transition-transform"
+            >
+              <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-teal-500/15 text-teal-400">
+                <Flame size={18} />
+              </span>
+              <div className="min-w-0 flex-1">
+                <p className="text-sm font-semibold">{tpl.name}</p>
+                <p className="truncate text-xs text-zinc-500">{tpl.focus}</p>
+              </div>
+              <ChevronRight size={16} className="shrink-0 text-zinc-600" />
+            </button>
+          ))}
+        </div>
       </section>
 
       <section className="mb-6">
@@ -432,6 +454,16 @@ function TemplatePreview({
           </div>
           <p className="mb-1 text-xs font-medium uppercase tracking-wide text-orange-400">{template.focus}</p>
           <p className="mb-3 text-sm text-zinc-400">{template.description}</p>
+
+          {template.cardioBlock && (
+            <div className="mb-3 rounded-xl border border-teal-500/30 bg-teal-500/5 p-3">
+              <p className="mb-1 flex items-center gap-1.5 text-xs font-semibold uppercase tracking-wide text-teal-400">
+                <Flame size={13} /> {template.cardioBlock.label}
+              </p>
+              <p className="text-xs leading-relaxed text-zinc-400">{template.cardioBlock.description}</p>
+            </div>
+          )}
+
           <p className="mb-2 text-[11px] text-zinc-600">Décoche ce que tu ne veux pas faire aujourd'hui.</p>
 
           <ul className="space-y-2.5">
