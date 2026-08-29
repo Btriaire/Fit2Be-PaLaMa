@@ -318,8 +318,9 @@ function ExerciseBlock({
     const r = parseInt(reps, 10)
     if (!w || !r) return
     onAddSet({ weightKg: w, reps: r, rpe: rpe ? parseFloat(rpe) : undefined, isWarmup: warmup })
-    setWeight('')
-    setReps('')
+    // Garde poids/reps pré-remplis pour la série suivante (souvent identiques,
+    // même logique que le mode Focus) — seuls RPE et warmup sont propres à
+    // chaque série et doivent repartir de zéro.
     setRpe('')
     setWarmup(false)
   }
