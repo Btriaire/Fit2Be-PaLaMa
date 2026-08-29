@@ -1,6 +1,22 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { useLocation, useNavigate } from 'react-router-dom'
-import { Activity, Camera, ChevronLeft, ChevronRight, HeartPulse, Loader2, MapPin, Pause, Plus, Route, Trash2, TrendingUp, Timer, X } from 'lucide-react'
+import {
+  Activity,
+  Camera,
+  ChevronLeft,
+  ChevronRight,
+  Flame,
+  HeartPulse,
+  Loader2,
+  MapPin,
+  Pause,
+  Plus,
+  Route,
+  Trash2,
+  TrendingUp,
+  Timer,
+  X,
+} from 'lucide-react'
 import {
   ENDURANCE_ACTIVITY_META,
   computePaceMinPerKm,
@@ -16,10 +32,32 @@ import { formatDate, formatTime, formatFullDate, isToday, isSameDay, todayStr, a
 import { useGeoTracking } from '../../lib/useGeoTracking'
 import { playMotivation } from '../../lib/motivationVoice'
 import { scanMachineResults, machineTypeToActivityType, toMachineStats, compressImageForDisplay, type ParsedMachineResult } from '../../lib/machineScan'
+import { ENDURANCE_PROGRAMS, type EnduranceProgram, type ProgramPhase } from '../../lib/endurancePrograms'
 import RouteMap from '../../components/RouteMap'
 import ActivityHero, { hasHeroImage } from '../../components/ActivityHero'
 import BackButton from '../../components/BackButton'
 import type { EnduranceActivityType, EnduranceSession, MachineStats, RoutePoint } from '../../types'
+
+const INTENSITY_COLOR: Record<ProgramPhase['intensity'], string> = {
+  facile: '#2dd4bf',
+  modéré: '#f59e0b',
+  dur: '#ef4444',
+}
+
+/** Phase active à un instant donné du programme, ou null si le programme est terminé. */
+function getPhaseAt(program: EnduranceProgram, elapsedSec: number): { index: number; phase: ProgramPhase; remainingSec: number } | null {
+  let acc = 0
+  for (let i = 0; i < program.phases.length; i++) {
+    const p = program.phases[i]
+    if (elapsedSec < acc + p.durationSec) return { index: i, phase: p, remainingSec: acc + p.durationSec - elapsedSec }
+    acc += p.durationSec
+  }
+  return null
+}
+
+function programTotalSec(program: EnduranceProgram): number {
+  return program.phases.reduce((s, p) => s + p.durationSec, 0)
+}
 
 interface NavState {
   openForm?: boolean
@@ -51,6 +89,8 @@ export default function EndurancePage() {
   const [formOpen, setFormOpen] = useState(navState.openForm ?? false)
   const [selectedDate, setSelectedDate] = useState(todayStr())
   const [viewerPhoto, setViewerPhoto] = useState<string | null>(null)
+  const [previewProgram, setPreviewProgram] = useState<EnduranceProgram | null>(null)
+  const [pendingProgram, setPendingProgram] = useState<EnduranceProgram | null>(null)
   const settings = getSettings()
 
   async function refresh() {
@@ -121,6 +161,30 @@ export default function EndurancePage() {
           <span className="text-orange-400">{todayCalories} kcal</span> brûlées en endurance aujourd'hui
         </p>
       )}
+
+      <section className="mb-6">
+        <h2 className="mb-2 flex items-center gap-1.5 text-sm font-medium text-zinc-400">
+          <Flame size={14} className="text-orange-400" /> Programmes Coaching — vélo & tapis
+        </h2>
+        <div className="space-y-2">
+          {ENDURANCE_PROGRAMS.map((p) => (
+            <button
+              key={p.id}
+              onClick={() => setPreviewProgram(p)}
+              className="glass flex w-full items-center gap-3 rounded-xl p-3.5 text-left active:scale-[0.98] transition-transform"
+            >
+              <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-orange-500/15 text-orange-400">
+                <Timer size={18} />
+              </span>
+              <div className="min-w-0 flex-1">
+                <p className="text-sm font-semibold">{p.name}</p>
+                <p className="truncate text-xs text-zinc-500">{p.focus}</p>
+              </div>
+              <ChevronRight size={16} className="shrink-0 text-zinc-600" />
+            </button>
+          ))}
+        </div>
+      </section>
 
       <button
         onClick={() => setFormOpen(true)}
@@ -256,7 +320,28 @@ export default function EndurancePage() {
       </section>
 
       {formOpen && (
-        <EnduranceForm onSubmit={addSession} onClose={() => setFormOpen(false)} initialScan={navState.scanResult} initialDate={selectedDate} />
+        <EnduranceForm
+          onSubmit={addSession}
+          onClose={() => {
+            setFormOpen(false)
+            setPendingProgram(null)
+          }}
+          initialScan={navState.scanResult}
+          initialDate={selectedDate}
+          initialProgram={pendingProgram}
+        />
+      )}
+
+      {previewProgram && (
+        <ProgramPreview
+          program={previewProgram}
+          onClose={() => setPreviewProgram(null)}
+          onStart={() => {
+            setPendingProgram(previewProgram)
+            setPreviewProgram(null)
+            setFormOpen(true)
+          }}
+        />
       )}
 
       {viewerPhoto && (
@@ -275,11 +360,73 @@ export default function EndurancePage() {
   )
 }
 
+function formatPhaseDuration(sec: number): string {
+  if (sec < 60) return `${sec}s`
+  const min = Math.round(sec / 60)
+  return `${min} min`
+}
+
+function ProgramPreview({ program, onClose, onStart }: { program: EnduranceProgram; onClose: () => void; onStart: () => void }) {
+  const meta = ENDURANCE_ACTIVITY_META[program.activityType]
+  const totalMin = Math.round(programTotalSec(program) / 60)
+
+  return (
+    <div className="fixed inset-0 z-50 flex items-end justify-center bg-black/60" onClick={onClose}>
+      <div
+        className="mesh-backdrop flex max-h-[85vh] w-full max-w-md flex-col rounded-t-2xl bg-zinc-950 border-t border-zinc-800"
+        onClick={(e) => e.stopPropagation()}
+      >
+        <div className="flex-1 overflow-y-auto p-4">
+          <div className="mb-1 flex items-center justify-between">
+            <h2 className="font-semibold">{program.name}</h2>
+            <button onClick={onClose} className="rounded-full p-1 active:bg-zinc-900">
+              <X size={18} />
+            </button>
+          </div>
+          <p className="mb-1 text-xs font-medium uppercase tracking-wide text-orange-400">
+            {meta.label} · {totalMin} min
+          </p>
+          <p className="mb-3 text-sm text-zinc-400">{program.description}</p>
+
+          <p className="mb-2 text-[11px] text-zinc-600">Déroulé</p>
+          <ul className="mb-3 space-y-1.5">
+            {program.phases.map((p, i) => (
+              <li key={i} className="glass flex items-center justify-between rounded-lg px-3 py-2 text-xs">
+                <span className="flex items-center gap-2">
+                  <span className="h-2 w-2 shrink-0 rounded-full" style={{ backgroundColor: INTENSITY_COLOR[p.intensity] }} />
+                  {p.label}
+                </span>
+                <span className="font-mono text-zinc-500">{formatPhaseDuration(p.durationSec)}</span>
+              </li>
+            ))}
+          </ul>
+
+          {program.muscuAddOn && (
+            <div className="mb-3 rounded-xl border border-orange-500/30 bg-orange-500/5 p-3">
+              <p className="mb-1 flex items-center gap-1.5 text-xs font-semibold uppercase tracking-wide text-orange-400">
+                <Flame size={13} /> {program.muscuAddOn.label}
+              </p>
+              <p className="text-xs leading-relaxed text-zinc-400">{program.muscuAddOn.description}</p>
+            </div>
+          )}
+        </div>
+
+        <div className="shrink-0 border-t border-zinc-800 p-4" style={{ paddingBottom: 'calc(env(safe-area-inset-bottom) + 16px)' }}>
+          <button onClick={onStart} className="w-full rounded-xl bg-teal-500 py-3 text-sm font-semibold text-zinc-950 active:bg-teal-400">
+            Démarrer
+          </button>
+        </div>
+      </div>
+    </div>
+  )
+}
+
 function EnduranceForm({
   onSubmit,
   onClose,
   initialScan,
   initialDate,
+  initialProgram,
 }: {
   onSubmit: (input: {
     activityType: EnduranceActivityType
@@ -295,9 +442,10 @@ function EnduranceForm({
   onClose: () => void
   initialScan?: ParsedMachineResult
   initialDate: string
+  initialProgram?: EnduranceProgram | null
 }) {
   const [activityType, setActivityType] = useState<EnduranceActivityType>(
-    initialScan ? machineTypeToActivityType(initialScan.machineType) : 'course',
+    initialScan ? machineTypeToActivityType(initialScan.machineType) : initialProgram ? initialProgram.activityType : 'course',
   )
   const [duration, setDuration] = useState(initialScan?.durationMin ? String(initialScan.durationMin) : '30')
   const [distance, setDistance] = useState(initialScan?.distanceKm ? String(initialScan.distanceKm) : '')
@@ -309,14 +457,25 @@ function EnduranceForm({
   const indoorCapable = INDOOR_TYPES.includes(activityType)
   const [indoorRunning, setIndoorRunning] = useState(false)
   const [indoorElapsedSec, setIndoorElapsedSec] = useState(0)
+  const [activeProgram, setActiveProgram] = useState<EnduranceProgram | null>(null)
   const indoorStartRef = useRef(0)
   const indoorIntervalRef = useRef<number | null>(null)
+  const prevPhaseIndexRef = useRef<number | null>(null)
+  const programDoneRef = useRef(false)
   const settings = getSettings()
 
   useEffect(() => {
     return () => {
       if (indoorIntervalRef.current != null) window.clearInterval(indoorIntervalRef.current)
     }
+  }, [])
+
+  // Programme lancé depuis la page Endurance ("Démarrer" dans l'aperçu) —
+  // saute directement dans le chrono guidé plutôt que de repasser par le
+  // formulaire, une fois le type d'activité déjà pré-sélectionné.
+  useEffect(() => {
+    if (initialProgram) startIndoorChrono(initialProgram)
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
   const [savedRoute, setSavedRoute] = useState<RoutePoint[] | null>(null)
   const [scanCalories, setScanCalories] = useState<number | null>(initialScan?.calories ?? null)
@@ -376,14 +535,34 @@ function EnduranceForm({
     setSavedRoute(final.route)
   }
 
-  function startIndoorChrono() {
+  function startIndoorChrono(program?: EnduranceProgram) {
     indoorStartRef.current = Date.now()
     setIndoorElapsedSec(0)
     setIndoorRunning(true)
+    setActiveProgram(program ?? null)
+    prevPhaseIndexRef.current = null
+    programDoneRef.current = false
     let lastFiredAt = 0
     indoorIntervalRef.current = window.setInterval(() => {
       const elapsed = Math.round((Date.now() - indoorStartRef.current) / 1000)
       setIndoorElapsedSec(elapsed)
+
+      if (program) {
+        const current = getPhaseAt(program, elapsed)
+        if (current) {
+          if (prevPhaseIndexRef.current !== null && prevPhaseIndexRef.current !== current.index) {
+            // Changement de phase — retour haptique court, pas d'appel réseau
+            // (trop de transitions sur un programme fractionné pour justifier
+            // une voix générée à chaque fois).
+            navigator.vibrate?.(current.phase.intensity === 'dur' ? [120, 60, 120] : 120)
+          }
+          prevPhaseIndexRef.current = current.index
+        } else if (!programDoneRef.current) {
+          programDoneRef.current = true
+          navigator.vibrate?.([200, 100, 200, 100, 200])
+        }
+      }
+
       if (settings.motivationVoice !== 'off' && elapsed - lastFiredAt >= MOTIVATION_INTERVAL_SEC) {
         lastFiredAt = elapsed
         void playMotivation(settings.motivationVoice, {
@@ -405,12 +584,50 @@ function EnduranceForm({
   if (indoorRunning) {
     const mm = Math.floor(indoorElapsedSec / 60)
     const ss = indoorElapsedSec % 60
+    const current = activeProgram ? getPhaseAt(activeProgram, indoorElapsedSec) : null
+    const totalSec = activeProgram ? programTotalSec(activeProgram) : null
+
     return (
       <div className="fixed inset-0 z-50 flex flex-col items-center justify-center bg-zinc-950 px-6">
-        <p className="mb-2 text-sm font-semibold uppercase tracking-wide text-orange-400">{meta.label} en direct</p>
-        <p className="mb-10 font-mono text-6xl font-bold tabular-nums">
-          {mm}:{String(ss).padStart(2, '0')}
+        <p className="mb-2 text-sm font-semibold uppercase tracking-wide text-orange-400">
+          {activeProgram ? activeProgram.name : `${meta.label} en direct`}
         </p>
+
+        {activeProgram && current && (
+          <>
+            <p className="mb-1 text-lg font-semibold" style={{ color: INTENSITY_COLOR[current.phase.intensity] }}>
+              {current.phase.label}
+            </p>
+            <p className="mb-6 font-mono text-6xl font-bold tabular-nums" style={{ color: INTENSITY_COLOR[current.phase.intensity] }}>
+              {Math.floor(current.remainingSec / 60)}:{String(current.remainingSec % 60).padStart(2, '0')}
+            </p>
+            <div className="mb-2 h-1.5 w-full max-w-xs overflow-hidden rounded-full bg-zinc-800">
+              <div
+                className="h-full rounded-full bg-teal-500 transition-all"
+                style={{ width: totalSec ? `${Math.min(100, (indoorElapsedSec / totalSec) * 100)}%` : '0%' }}
+              />
+            </div>
+            <p className="mb-10 text-xs text-zinc-600">
+              {mm}:{String(ss).padStart(2, '0')} écoulées {totalSec ? `sur ${Math.round(totalSec / 60)} min` : ''}
+            </p>
+          </>
+        )}
+
+        {activeProgram && !current && (
+          <>
+            <p className="mb-2 text-lg font-semibold text-teal-400">Programme terminé 🎉</p>
+            <p className="mb-10 font-mono text-4xl font-bold tabular-nums text-zinc-500">
+              {mm}:{String(ss).padStart(2, '0')}
+            </p>
+          </>
+        )}
+
+        {!activeProgram && (
+          <p className="mb-10 font-mono text-6xl font-bold tabular-nums">
+            {mm}:{String(ss).padStart(2, '0')}
+          </p>
+        )}
+
         {settings.motivationVoice !== 'off' && (
           <p className="mb-10 text-center text-xs text-zinc-500">Une relance vocale toutes les {MOTIVATION_INTERVAL_SEC / 60} min</p>
         )}
@@ -593,7 +810,7 @@ function EnduranceForm({
 
         {indoorCapable && (
           <button
-            onClick={startIndoorChrono}
+            onClick={() => startIndoorChrono()}
             className="mb-4 flex w-full items-center justify-center gap-1.5 rounded-xl border border-teal-500/40 bg-teal-500/10 py-3 text-sm font-semibold text-teal-400 active:bg-teal-500/20"
           >
             <Timer size={16} /> Démarrer le chrono en direct
