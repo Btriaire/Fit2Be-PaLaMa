@@ -11,8 +11,8 @@
 // le CLI notebooklm ajoute une source par simple URL, sans en-têtes
 // personnalisables — c'est Google qui va chercher le contenu de cette URL.
 
-import { ENDURANCE_PROGRAMS, programDurationMin } from '../src/lib/endurancePrograms'
-import { COACHING_TEMPLATES } from '../src/lib/trainingTemplates'
+import { ENDURANCE_PROGRAMS, programDurationMin } from '../src/lib/endurancePrograms.js'
+import { COACHING_TEMPLATES } from '../src/lib/trainingTemplates.js'
 
 const PROGRAM_CATALOG_HTML = `<ul>
 ${ENDURANCE_PROGRAMS.map((p) => `<li>[Endurance] ${p.name} — ${p.focus}, niveau ${p.difficulty}, ~${programDurationMin(p)} min</li>`).join('\n')}
