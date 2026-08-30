@@ -40,8 +40,26 @@ export async function autoLogWalkFromStepsIfNeeded(settings: Settings): Promise<
     return
   }
 
-  const durationMin = today.activeMinutes > 0 ? today.activeMinutes : Math.round(today.steps / 100)
-  const caloriesBurned = today.activeCaloriesBurned > 0 ? today.activeCaloriesBurned : computeCaloriesFromSteps(today.steps, settings)
+  const rawDurationMin = today.activeMinutes > 0 ? today.activeMinutes : Math.round(today.steps / 100)
+  const rawCalories = today.activeCaloriesBurned > 0 ? today.activeCaloriesBurned : computeCaloriesFromSteps(today.steps, settings)
+
+  // Le total de pas du jour inclut déjà ceux faits en jardinant, en faisant
+  // les courses, etc. — si ces activités sont loguées séparément (catégorie
+  // "quotidien"), on retire leur durée de la Marche auto-générée pour ne pas
+  // compter ces pas deux fois dans le bilan calorique.
+  const dayActivities = await db.getAllFromIndex('activities', 'byLoggedAt', IDBKeyRange.bound(dayStart, dayEnd))
+  const overlapMin = dayActivities.filter((a) => a.category === 'quotidien').reduce((s, a) => s + a.durationMin, 0)
+  const durationMin = Math.max(0, rawDurationMin - overlapMin)
+
+  if (durationMin === 0) {
+    if (existing.some((s) => s.id === id)) {
+      await db.delete('endurance', id)
+      deleteRecord('endurance', id)
+    }
+    return
+  }
+
+  const caloriesBurned = Math.round(rawCalories * (durationMin / rawDurationMin))
 
   const session: EnduranceSession = {
     id,
@@ -50,6 +68,7 @@ export async function autoLogWalkFromStepsIfNeeded(settings: Settings): Promise<
     durationMin,
     caloriesBurned,
     externalId: id,
+    ...(overlapMin > 0 ? { notes: `Ajusté : ${overlapMin} min déjà comptées dans une activité "Quotidien" loguée ce jour-là.` } : {}),
   }
   await db.put('endurance', session)
   pushRecord('endurance', id, session)

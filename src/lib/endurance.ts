@@ -4,7 +4,7 @@ import { computeHrZone } from './heartRate'
 import { pushActivityToNutriTracker } from './nutriTrackerSync'
 import { pushRecord, deleteRecord } from './cloudSync'
 import type { Settings } from './settings'
-import type { EnduranceActivityType, EnduranceSession, HealthScreenCapture, MachineStats, PhaseLogEntry, RoutePoint } from '../types'
+import type { ActivityCategory, ActivityLog, EnduranceActivityType, EnduranceSession, HealthScreenCapture, MachineStats, PhaseLogEntry, RoutePoint } from '../types'
 
 // googleFitType : code d'activité Google Fit repris par NutriTracker Palama
 // (app/lib/google-fit.ts:ACTIVITY_LABELS) pour le libellé/icône de son flux
@@ -159,6 +159,61 @@ export async function updateEnduranceActivityType(
   })
 
   return updated
+}
+
+/** Activités "quotidien" génératrices de pas (jardinage, courses, ménage...)
+ * proposées pour reclasser une partie d'une Marche — même liste que le
+ * retrait automatique dans stepsActivity.ts, pour rester cohérent. */
+export const WALK_SPLIT_ACTIVITIES: Array<{ label: string; met: number; category: ActivityCategory }> = [
+  { label: 'Jardinage', met: 4, category: 'quotidien' },
+  { label: 'Ménage', met: 3.3, category: 'quotidien' },
+  { label: 'Courses (magasins)', met: 2.3, category: 'quotidien' },
+  { label: "Montée d'escaliers", met: 8.8, category: 'quotidien' },
+  { label: 'Porter les courses', met: 4, category: 'quotidien' },
+  { label: 'Bricolage', met: 4.5, category: 'quotidien' },
+  { label: 'Laver la voiture', met: 3.5, category: 'quotidien' },
+]
+
+/** Retire X minutes d'une sortie Marche pour les reverser dans une activité
+ * "Quotidien" distincte (ex: une partie de la marche du jour était en fait
+ * du jardinage) — évite de compter ces pas à la fois en Endurance et en
+ * Activités. Supprime la sortie Marche si elle tombe à 0 minute restante. */
+export async function splitWalkIntoActivity(
+  sessionId: string,
+  activity: { label: string; met: number; category: ActivityCategory },
+  minutes: number,
+  settings: Settings,
+): Promise<ActivityLog> {
+  const db = await getDb()
+  const session = await db.get('endurance', sessionId)
+  if (!session) throw new Error('Sortie introuvable')
+
+  const movedMin = Math.min(minutes, session.durationMin)
+  const movedCalories = Math.round(session.caloriesBurned * (movedMin / session.durationMin))
+  const remainingMin = session.durationMin - movedMin
+
+  if (remainingMin <= 0) {
+    await db.delete('endurance', sessionId)
+    deleteRecord('endurance', sessionId)
+  } else {
+    const updated: EnduranceSession = { ...session, durationMin: remainingMin, caloriesBurned: Math.max(0, session.caloriesBurned - movedCalories) }
+    await db.put('endurance', updated)
+    pushRecord('endurance', sessionId, updated)
+  }
+
+  const activityLog: ActivityLog = {
+    id: newId(),
+    category: activity.category,
+    label: activity.label,
+    metValue: activity.met,
+    durationMin: movedMin,
+    caloriesBurned: computeCaloriesForUser(activity.met, movedMin, settings),
+    loggedAt: session.startedAt,
+  }
+  await db.put('activities', activityLog)
+  pushRecord('activities', activityLog.id, activityLog)
+
+  return activityLog
 }
 
 export interface EnduranceHistoryPoint {

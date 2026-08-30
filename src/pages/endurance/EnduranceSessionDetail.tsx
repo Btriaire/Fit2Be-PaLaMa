@@ -1,11 +1,13 @@
 import { useEffect, useState } from 'react'
 import { useNavigate, useParams } from 'react-router-dom'
-import { ChevronLeft, Timer, Route, HeartPulse, Flame, Zap, Gauge, Mountain, Trash2, TrendingUp, Activity, Pencil, Check, X } from 'lucide-react'
+import { ChevronLeft, Timer, Route, HeartPulse, Flame, Zap, Gauge, Mountain, Trash2, TrendingUp, Activity, Pencil, Check, X, Split } from 'lucide-react'
 import {
   getEnduranceSession,
   getEnduranceSessions,
   deleteEnduranceSession,
   updateEnduranceActivityType,
+  splitWalkIntoActivity,
+  WALK_SPLIT_ACTIVITIES,
   computePaceMinPerKm,
   formatPace,
   ENDURANCE_ACTIVITY_META,
@@ -70,6 +72,10 @@ export default function EnduranceSessionDetail() {
   const [editingType, setEditingType] = useState(false)
   const [photoViewerOpen, setPhotoViewerOpen] = useState(false)
   const [programHistory, setProgramHistory] = useState<EnduranceSession[]>([])
+  const [splitOpen, setSplitOpen] = useState(false)
+  const [splitActivity, setSplitActivity] = useState(WALK_SPLIT_ACTIVITIES[0])
+  const [splitMinutes, setSplitMinutes] = useState('15')
+  const [splitting, setSplitting] = useState(false)
   const settings = getSettings()
 
   useEffect(() => {
@@ -98,6 +104,21 @@ export default function EnduranceSessionDetail() {
     const updated = await updateEnduranceActivityType(session.id, activityType, settings)
     if (updated) setSession(updated)
     setEditingType(false)
+  }
+
+  async function confirmSplit() {
+    if (!session) return
+    const minutes = parseInt(splitMinutes, 10)
+    if (!minutes || minutes <= 0) return
+    setSplitting(true)
+    await splitWalkIntoActivity(session.id, splitActivity, minutes, settings)
+    setSplitting(false)
+    setSplitOpen(false)
+    if (minutes >= session.durationMin) {
+      navigate('/endurance')
+      return
+    }
+    getEnduranceSession(session.id).then((s) => setSession(s ?? null))
   }
 
   if (session === undefined) {
@@ -177,6 +198,55 @@ export default function EnduranceSessionDetail() {
           {pace && <Metric icon={<Gauge size={13} />} label="Allure" value={formatPace(pace)} />}
           <Metric icon={<Flame size={13} />} label="Calories" value={`${session.caloriesBurned} kcal`} tag="→ Balance kcal, indice cardiaque" />
         </div>
+
+        {session.notes && <p className="mb-4 px-1 text-[11px] text-zinc-600">ℹ️ {session.notes}</p>}
+
+        {session.activityType === 'marche' && (
+          <section className="glass mb-4 rounded-2xl p-4">
+            <button onClick={() => setSplitOpen((v) => !v)} className="flex w-full items-center gap-1.5 text-xs font-medium uppercase tracking-wide text-zinc-500">
+              <Split size={13} className="text-teal-400" /> Une partie de cette marche était une autre activité ?
+            </button>
+            {splitOpen && (
+              <div className="mt-3">
+                <p className="mb-2 text-[11px] text-zinc-600">
+                  Évite de compter ces pas deux fois : retire des minutes de cette marche pour les reverser dans une activité "Quotidien".
+                </p>
+                <div className="mb-3 grid grid-cols-2 gap-1.5">
+                  {WALK_SPLIT_ACTIVITIES.map((a) => (
+                    <button
+                      key={a.label}
+                      onClick={() => setSplitActivity(a)}
+                      className={`rounded-lg px-2.5 py-2 text-left text-xs font-medium ${
+                        splitActivity.label === a.label ? 'bg-teal-500 text-zinc-950' : 'bg-zinc-900 text-zinc-300'
+                      }`}
+                    >
+                      {a.label}
+                    </button>
+                  ))}
+                </div>
+                <div className="flex items-center gap-2">
+                  <input
+                    type="number"
+                    inputMode="numeric"
+                    value={splitMinutes}
+                    onChange={(e) => setSplitMinutes(e.target.value)}
+                    min={1}
+                    max={session.durationMin}
+                    className="w-20 rounded-lg bg-zinc-900 px-3 py-2 text-center outline-none focus:ring-1 focus:ring-teal-500"
+                  />
+                  <span className="text-xs text-zinc-500">min sur {session.durationMin} min à reclasser en "{splitActivity.label}"</span>
+                </div>
+                <button
+                  onClick={confirmSplit}
+                  disabled={splitting}
+                  className="mt-3 flex w-full items-center justify-center gap-1.5 rounded-xl bg-teal-500 py-2.5 text-sm font-semibold text-zinc-950 active:bg-teal-400 disabled:opacity-60"
+                >
+                  Confirmer
+                </button>
+              </div>
+            )}
+          </section>
+        )}
 
         {(session.avgHeartRate || zoneMeta) && (
           <section className="glass mb-4 rounded-2xl p-4">
