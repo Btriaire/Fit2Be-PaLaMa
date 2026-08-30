@@ -4,7 +4,7 @@
 // every call swallows its own errors so a sync hiccup (offline, VPS
 // restart) never blocks the local save that already succeeded.
 
-export const SYNCABLE_STORES = ['workouts', 'activities', 'recovery', 'nutrition', 'weightLogs', 'endurance', 'customTemplates', 'dailyPhotos'] as const
+export const SYNCABLE_STORES = ['workouts', 'activities', 'recovery', 'nutrition', 'weightLogs', 'endurance', 'customTemplates', 'dailyPhotos', 'customEndurancePrograms'] as const
 export type SyncableStore = (typeof SYNCABLE_STORES)[number]
 
 export function pushRecord(store: SyncableStore, id: string, data: unknown): void {

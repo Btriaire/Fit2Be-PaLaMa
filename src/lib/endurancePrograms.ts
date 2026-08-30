@@ -42,7 +42,7 @@ export function programDurationMin(program: EnduranceProgram): number {
   return Math.round(program.phases.reduce((sum, p) => sum + p.durationSec, 0) / 60)
 }
 
-const FALLBACK_NOTE =
+export const FALLBACK_NOTE =
   "Ces repères (RPM, vitesse) sont indicatifs, pas une obligation — si tu ne les tiens pas, baisse l'intensité mais garde la durée de la phase. Le ressenti (essoufflement, capacité à parler) prime toujours sur le chiffre affiché."
 
 function intervals(count: number, work: ProgramPhase, rest: ProgramPhase): ProgramPhase[] {

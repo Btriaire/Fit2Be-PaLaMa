@@ -36,8 +36,15 @@ import { playMotivation, playAnnouncement } from '../../lib/motivationVoice'
 import { scanMachineResults, machineTypeToActivityType, toMachineStats, compressImageForDisplay, type ParsedMachineResult } from '../../lib/machineScan'
 import { scanHealthScreen, computeHrr1min } from '../../lib/healthScreenScan'
 import { ENDURANCE_PROGRAMS, programDurationMin, type EnduranceProgram, type ProgramPhase } from '../../lib/endurancePrograms'
+import {
+  getCustomEndurancePrograms,
+  saveCustomEnduranceProgram,
+  deleteCustomEnduranceProgram,
+  type CustomEnduranceProgram,
+} from '../../lib/customEndurancePrograms'
 import { fitsTimeBudget, readinessMatchScore, type Readiness, type TimeBudget } from '../../lib/coachingFilter'
 import CoachingQuestions from '../../components/CoachingQuestions'
+import CustomProgramBuilder from './CustomProgramBuilder'
 import RouteMap from '../../components/RouteMap'
 import ActivityHero, { hasHeroImage } from '../../components/ActivityHero'
 import BackButton from '../../components/BackButton'
@@ -111,7 +118,13 @@ export default function EndurancePage() {
   const [coachingOpen, setCoachingOpen] = useState(false)
   const [readiness, setReadiness] = useState<Readiness | null>(null)
   const [timeBudget, setTimeBudget] = useState<TimeBudget | null>(null)
+  const [customPrograms, setCustomPrograms] = useState<CustomEnduranceProgram[]>([])
+  const [builderOpen, setBuilderOpen] = useState<'new' | CustomEnduranceProgram | null>(null)
   const settings = getSettings()
+
+  function refreshCustomPrograms() {
+    getCustomEndurancePrograms().then(setCustomPrograms)
+  }
 
   async function refresh() {
     setSessions(await getEnduranceSessions())
@@ -120,14 +133,15 @@ export default function EndurancePage() {
 
   useEffect(() => {
     refresh()
+    refreshCustomPrograms()
   }, [])
 
   const visibleCoachingPrograms = useMemo(
     () =>
-      ENDURANCE_PROGRAMS.filter((p) => timeBudget == null || fitsTimeBudget(programDurationMin(p), timeBudget)).sort((a, b) =>
-        readiness ? readinessMatchScore(a.difficulty, readiness) - readinessMatchScore(b.difficulty, readiness) : 0,
-      ),
-    [readiness, timeBudget],
+      ([...ENDURANCE_PROGRAMS, ...customPrograms] as EnduranceProgram[])
+        .filter((p) => timeBudget == null || fitsTimeBudget(programDurationMin(p), timeBudget))
+        .sort((a, b) => (readiness ? readinessMatchScore(a.difficulty, readiness) - readinessMatchScore(b.difficulty, readiness) : 0)),
+    [readiness, timeBudget, customPrograms],
   )
 
   const weekStart = startOfWeek()
@@ -228,12 +242,21 @@ export default function EndurancePage() {
                   </span>
                   <div className="min-w-0 flex-1">
                     <p className="text-sm font-medium leading-tight">{p.name}</p>
-                    <p className="truncate text-[11px] leading-tight text-zinc-500">{p.focus}</p>
+                    <p className="truncate text-[11px] leading-tight text-zinc-500">
+                      {p.focus}
+                      {customPrograms.some((cp) => cp.id === p.id) ? ' · perso' : ''}
+                    </p>
                   </div>
                   <ChevronRight size={14} className="shrink-0 text-zinc-600" />
                 </button>
               ))}
             </div>
+            <button
+              onClick={() => setBuilderOpen('new')}
+              className="mt-1.5 flex w-full items-center justify-center gap-1.5 rounded-xl border border-dashed border-zinc-700 py-2.5 text-xs text-zinc-400 active:bg-zinc-900"
+            >
+              <Plus size={14} /> Créer un programme personnalisé
+            </button>
           </>
         )}
       </section>
@@ -393,6 +416,36 @@ export default function EndurancePage() {
             setPreviewProgram(null)
             setFormOpen(true)
           }}
+          onEdit={
+            customPrograms.some((cp) => cp.id === previewProgram.id)
+              ? () => {
+                  setBuilderOpen(customPrograms.find((cp) => cp.id === previewProgram.id) ?? null)
+                  setPreviewProgram(null)
+                }
+              : undefined
+          }
+          onDelete={
+            customPrograms.some((cp) => cp.id === previewProgram.id)
+              ? async () => {
+                  if (!confirm(`Supprimer le programme "${previewProgram.name}" ?`)) return
+                  await deleteCustomEnduranceProgram(previewProgram.id)
+                  setPreviewProgram(null)
+                  refreshCustomPrograms()
+                }
+              : undefined
+          }
+        />
+      )}
+
+      {builderOpen && (
+        <CustomProgramBuilder
+          initial={builderOpen === 'new' ? undefined : builderOpen}
+          onClose={() => setBuilderOpen(null)}
+          onSave={async (program) => {
+            await saveCustomEnduranceProgram(program)
+            setBuilderOpen(null)
+            refreshCustomPrograms()
+          }}
         />
       )}
 
@@ -448,7 +501,19 @@ function IntervalProfile({ program, elapsedSec, currentIndex }: { program: Endur
   )
 }
 
-function ProgramPreview({ program, onClose, onStart }: { program: EnduranceProgram; onClose: () => void; onStart: () => void }) {
+function ProgramPreview({
+  program,
+  onClose,
+  onStart,
+  onEdit,
+  onDelete,
+}: {
+  program: EnduranceProgram
+  onClose: () => void
+  onStart: () => void
+  onEdit?: () => void
+  onDelete?: () => void
+}) {
   const meta = ENDURANCE_ACTIVITY_META[program.activityType]
   const totalMin = Math.round(programTotalSec(program) / 60)
 
@@ -501,6 +566,20 @@ function ProgramPreview({ program, onClose, onStart }: { program: EnduranceProgr
         </div>
 
         <div className="shrink-0 border-t border-zinc-800 p-4" style={{ paddingBottom: 'calc(env(safe-area-inset-bottom) + 16px)' }}>
+          {(onEdit || onDelete) && (
+            <div className="mb-2 flex gap-2">
+              {onEdit && (
+                <button onClick={onEdit} className="flex-1 rounded-xl border border-zinc-700 py-2.5 text-xs font-medium text-zinc-300 active:bg-zinc-900">
+                  Modifier
+                </button>
+              )}
+              {onDelete && (
+                <button onClick={onDelete} className="flex-1 rounded-xl border border-red-500/30 py-2.5 text-xs font-medium text-red-400 active:bg-red-500/10">
+                  Supprimer
+                </button>
+              )}
+            </div>
+          )}
           <button onClick={onStart} className="w-full rounded-xl bg-teal-500 py-3 text-sm font-semibold text-zinc-950 active:bg-teal-400">
             Démarrer
           </button>
