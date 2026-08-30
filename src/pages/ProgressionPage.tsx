@@ -49,6 +49,7 @@ import { LineChart, Line, CartesianGrid, ResponsiveContainer, Tooltip, XAxis, YA
 import { Sparkles, Loader2 } from 'lucide-react'
 import { analyzeProgression, type ProgressionInsight } from '../lib/aiInsights'
 import StatsTab from '../components/StatsTab'
+import PodcastPlayer from '../components/PodcastPlayer'
 import MuscleHeatmap from '../components/MuscleHeatmap'
 import ActivityCalendarHeatmap from '../components/ActivityCalendarHeatmap'
 
@@ -225,6 +226,8 @@ export default function ProgressionPage() {
             </p>
             <p className="mt-1 text-xs text-zinc-500">Musculation (40%) + Cardio (40%) + Régularité (20%)</p>
           </div>
+
+          <PodcastPlayer />
 
           <div className="mb-5">
             <button

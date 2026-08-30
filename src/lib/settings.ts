@@ -1,3 +1,5 @@
+import { pushProfileRecord } from './cloudSync'
+
 const KEY = 'vibefit_settings_v1'
 
 export type Sex = 'homme' | 'femme'
@@ -49,5 +51,14 @@ export function getSettings(): Settings {
 export function saveSettings(partial: Partial<Settings>) {
   const next = { ...getSettings(), ...partial }
   localStorage.setItem(KEY, JSON.stringify(next))
+  pushProfileRecord({
+    firstName: next.firstName,
+    ageYears: next.ageYears,
+    sex: next.sex,
+    heightCm: next.heightCm,
+    bodyWeightKg: next.bodyWeightKg,
+    restingHeartRateBpm: next.restingHeartRateBpm,
+    dailyCalorieTarget: next.dailyCalorieTarget,
+  })
   return next
 }

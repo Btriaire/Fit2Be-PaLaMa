@@ -17,6 +17,19 @@ export function pushRecord(store: SyncableStore, id: string, data: unknown): voi
   })
 }
 
+/** Pousse le profil (âge, taille, sexe, FC repos...) vers le même serveur de
+ * sync — pas un store IndexedDB comme les autres (les réglages vivent en
+ * localStorage), donc hors de SYNCABLE_STORES/restoreFromCloudIfNeeded. Sert
+ * uniquement à donner au générateur de rapport hebdo (VPS, api/progress-report)
+ * de quoi calculer les formules qui ont besoin du profil (VO2max, IMC...). */
+export function pushProfileRecord(data: unknown): void {
+  fetch('/api/cloudsync', {
+    method: 'POST',
+    headers: { 'content-type': 'application/json' },
+    body: JSON.stringify({ store: 'profile', id: 'me', data }),
+  }).catch(() => {})
+}
+
 export function deleteRecord(store: SyncableStore, id: string): void {
   fetch('/api/cloudsync', {
     method: 'DELETE',
