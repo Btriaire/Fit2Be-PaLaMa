@@ -1,4 +1,7 @@
+import { Frown, Meh, Smile } from 'lucide-react'
 import { READINESS_OPTIONS, TIME_BUDGET_OPTIONS, type Readiness, type TimeBudget } from '../lib/coachingFilter'
+
+const READINESS_ICONS: Record<Readiness, typeof Frown> = { fatigue: Frown, normal: Meh, forme: Smile }
 
 /** Les deux questions posées avant de proposer une liste de programmes
  * coaching — partagées par Gym et Endurance pour un comportement identique. */
@@ -21,17 +24,21 @@ export default function CoachingQuestions({
       <div>
         <p className="mb-1.5 text-[11px] text-zinc-500">Comment tu te sens aujourd'hui ?</p>
         <div className="flex gap-1.5">
-          {READINESS_OPTIONS.map((o) => (
-            <button
-              key={o.value}
-              onClick={() => onReadiness(o.value)}
-              className={`flex-1 rounded-lg py-2 text-xs font-medium ${
-                readiness === o.value ? `${accentClass} text-zinc-950` : 'bg-zinc-900 text-zinc-300'
-              }`}
-            >
-              {o.emoji} {o.label}
-            </button>
-          ))}
+          {READINESS_OPTIONS.map((o) => {
+            const Icon = READINESS_ICONS[o.value]
+            return (
+              <button
+                key={o.value}
+                onClick={() => onReadiness(o.value)}
+                className={`flex flex-1 flex-col items-center gap-1 rounded-lg py-2 text-xs font-medium ${
+                  readiness === o.value ? `${accentClass} text-zinc-950` : 'bg-zinc-900 text-zinc-300'
+                }`}
+              >
+                <Icon size={16} />
+                {o.label}
+              </button>
+            )
+          })}
         </div>
       </div>
       <div>

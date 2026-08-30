@@ -15,6 +15,10 @@ const HERO_IMAGES: Partial<Record<HeroKey, string>> = {
   gym: gymImg,
   yoga: yogaImg,
   food: foodImg,
+  // Pas de photo dédiée pour ces deux-là — le plus proche visuellement parmi
+  // les photos existantes (tapis = course à pied, vélo d'appart = vélo).
+  tapis: courseImg,
+  'velo-appart': veloImg,
 }
 
 const ACCENT_TINT: Record<HeroKey, string> = {
@@ -39,15 +43,18 @@ interface Props {
   className?: string
 }
 
-/** Bannière photo pleine largeur avec calques dégradés transparents (teinte accent + vignette + bas). */
+/** Bannière photo pleine largeur avec calques dégradés transparents (teinte accent + vignette + bas).
+ * Sans photo pour ce heroKey (ex: natation, rameur — pas de photo source), garde
+ * quand même la hauteur/dégradé en fond uni : un consommateur qui superpose un
+ * titre en position absolute sur cette bannière ne doit jamais se retrouver
+ * sans repère de hauteur (le titre s'écraserait sur le contenu en dessous). */
 export default function ActivityHero({ heroKey, className = 'h-40' }: Props) {
   const img = HERO_IMAGES[heroKey]
-  if (!img) return null
   const tint = ACCENT_TINT[heroKey]
 
   return (
-    <div className={`relative w-full overflow-hidden ${className}`}>
-      <img src={img} alt="" className="absolute inset-0 h-full w-full object-cover" />
+    <div className={`relative w-full overflow-hidden bg-zinc-900 ${className}`}>
+      {img && <img src={img} alt="" className="absolute inset-0 h-full w-full object-cover" />}
       <div className="absolute inset-0" style={{ background: tint }} />
       <div
         className="absolute inset-0"

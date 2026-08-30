@@ -6,10 +6,10 @@
 export type Readiness = 'fatigue' | 'normal' | 'forme'
 export type TimeBudget = 15 | 30 | 45 | 60 | 999
 
-export const READINESS_OPTIONS: { value: Readiness; label: string; emoji: string }[] = [
-  { value: 'fatigue', label: 'Fatigué', emoji: '🔋' },
-  { value: 'normal', label: 'Normal', emoji: '🙂' },
-  { value: 'forme', label: 'En forme', emoji: '💪' },
+export const READINESS_OPTIONS: { value: Readiness; label: string }[] = [
+  { value: 'fatigue', label: 'Fatigué' },
+  { value: 'normal', label: 'Normal' },
+  { value: 'forme', label: 'En forme' },
 ]
 
 export const TIME_BUDGET_OPTIONS: { value: TimeBudget; label: string }[] = [
