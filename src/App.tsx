@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react'
 import { Route, Routes } from 'react-router-dom'
 import { getDb } from './lib/db'
-import { restoreFromCloudIfNeeded } from './lib/cloudSync'
+import { restoreFromCloudIfNeeded, pushProfileRecord } from './lib/cloudSync'
 import { autoImportNutriTrackerActivitiesIfNeeded } from './lib/nutriTrackerImport'
 import { autoLogWalkFromStepsIfNeeded } from './lib/stepsActivity'
 import { syncLatestWeightFromNutriTracker } from './lib/weight'
@@ -35,6 +35,21 @@ function App() {
     autoImportNutriTrackerActivitiesIfNeeded(getSettings())
     autoLogWalkFromStepsIfNeeded(getSettings())
     void syncLatestWeightFromNutriTracker()
+    // Pousse le profil (âge, sexe, taille, FC repos) au boot, pas seulement
+    // à la sauvegarde des Réglages — sinon un profil jamais retouché depuis
+    // cette mise à jour resterait invisible du rapport de progression généré
+    // côté serveur (api/progress-report.ts), qui n'a accès qu'à ce qui est
+    // synchronisé.
+    const s = getSettings()
+    pushProfileRecord({
+      firstName: s.firstName,
+      ageYears: s.ageYears,
+      sex: s.sex,
+      heightCm: s.heightCm,
+      bodyWeightKg: s.bodyWeightKg,
+      restingHeartRateBpm: s.restingHeartRateBpm,
+      dailyCalorieTarget: s.dailyCalorieTarget,
+    })
   }, [entered])
 
   useEffect(() => {
