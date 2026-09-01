@@ -4,8 +4,10 @@ import { todayStr } from './date'
 import type { GoogleFitDay } from '../types'
 
 /** Tire les N derniers jours Google Fit depuis NutriTracker et les met en
- * cache local (IndexedDB) — best-effort, ne bloque jamais l'UI en cas d'échec. */
-export async function syncGoogleFit(days = 7): Promise<void> {
+ * cache local (IndexedDB) — best-effort, ne bloque jamais l'UI en cas d'échec.
+ * 14j par défaut (pas juste "aujourd'hui") pour que autoLogWalkFromStepsIfNeeded
+ * puisse rattraper les jours où l'app n'a pas été ouverte. */
+export async function syncGoogleFit(days = 14): Promise<void> {
   const rows = await pullGoogleFitFromNutriTracker(days)
   if (rows.length === 0) return
   const db = await getDb()

@@ -6,42 +6,48 @@
 // avec beaucoup de marche compte pour "aucune activité" en Récupération.
 
 import { getDb } from './db'
-import { syncGoogleFit, getTodayGoogleFit } from './googleFit'
+import { syncGoogleFit, getGoogleFitDays } from './googleFit'
 import { pushRecord, deleteRecord } from './cloudSync'
 import { computeCaloriesFromSteps } from './met'
 import type { Settings } from './settings'
-import type { EnduranceSession } from '../types'
+import type { EnduranceSession, GoogleFitDay } from '../types'
 
 const STEPS_THRESHOLD = 3000
+const BACKFILL_DAYS = 14
 
 function syntheticId(date: string) {
   return `steps-${date}`
 }
 
-export async function autoLogWalkFromStepsIfNeeded(settings: Settings): Promise<void> {
-  await syncGoogleFit()
-  const today = await getTodayGoogleFit()
-  if (!today || today.steps < STEPS_THRESHOLD) return
-
+async function processDay(day: GoogleFitDay, settings: Settings): Promise<void> {
   const db = await getDb()
-  const id = syntheticId(today.date)
-  const dayStart = new Date(`${today.date}T00:00:00`).getTime()
+  const id = syntheticId(day.date)
+  const dayStart = new Date(`${day.date}T00:00:00`).getTime()
   const dayEnd = dayStart + 24 * 3600_000
   const existing = await db.getAllFromIndex('endurance', 'byStartedAt', IDBKeyRange.bound(dayStart, dayEnd))
 
-  // Une vraie séance de marche a déjà été importée de NutriTracker pour
-  // aujourd'hui (via l'import d'activités) — pas la peine de doubler.
-  const alreadyImported = existing.some((s) => s.activityType === 'marche' && s.externalId !== id)
-  if (alreadyImported) {
+  async function removeSyntheticIfPresent() {
     if (existing.some((s) => s.id === id)) {
       await db.delete('endurance', id)
       deleteRecord('endurance', id)
     }
+  }
+
+  if (day.steps < STEPS_THRESHOLD) {
+    await removeSyntheticIfPresent()
     return
   }
 
-  const rawDurationMin = today.activeMinutes > 0 ? today.activeMinutes : Math.round(today.steps / 100)
-  const rawCalories = today.activeCaloriesBurned > 0 ? today.activeCaloriesBurned : computeCaloriesFromSteps(today.steps, settings)
+  // Une vraie séance de marche a déjà été importée de NutriTracker pour ce
+  // jour-là (via l'import d'activités) — pas la peine de doubler.
+  const alreadyImported = existing.some((s) => s.activityType === 'marche' && s.externalId !== id)
+  if (alreadyImported) {
+    await removeSyntheticIfPresent()
+    return
+  }
+
+  const rawDurationMin = day.activeMinutes > 0 ? day.activeMinutes : Math.round(day.steps / 100)
+  const rawCalories = day.activeCaloriesBurned > 0 ? day.activeCaloriesBurned : computeCaloriesFromSteps(day.steps, settings)
 
   // Le total de pas du jour inclut déjà ceux faits en jardinant, en faisant
   // les courses, etc. — si ces activités sont loguées séparément (catégorie
@@ -52,10 +58,7 @@ export async function autoLogWalkFromStepsIfNeeded(settings: Settings): Promise<
   const durationMin = Math.max(0, rawDurationMin - overlapMin)
 
   if (durationMin === 0) {
-    if (existing.some((s) => s.id === id)) {
-      await db.delete('endurance', id)
-      deleteRecord('endurance', id)
-    }
+    await removeSyntheticIfPresent()
     return
   }
 
@@ -72,4 +75,18 @@ export async function autoLogWalkFromStepsIfNeeded(settings: Settings): Promise<
   }
   await db.put('endurance', session)
   pushRecord('endurance', id, session)
+}
+
+/** Rattrape les pas quotidiens en Marche/Activité pour chaque jour connu de
+ * Google Fit, pas seulement "aujourd'hui" — sinon un jour où l'app n'a pas
+ * été ouverte (ou ouverte trop tôt, avant que les pas du jour ne soient
+ * comptés) ne remontait jamais, même après coup. Idempotent : recalcule
+ * chaque jour à chaque appel, donc une activité "Quotidien" ajoutée
+ * rétroactivement corrige aussi la Marche déjà générée pour ce jour-là. */
+export async function autoLogWalkFromStepsIfNeeded(settings: Settings): Promise<void> {
+  await syncGoogleFit(BACKFILL_DAYS)
+  const days = await getGoogleFitDays(BACKFILL_DAYS)
+  for (const day of days) {
+    await processDay(day, settings)
+  }
 }
