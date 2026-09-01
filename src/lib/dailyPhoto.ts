@@ -1,5 +1,6 @@
 import { getDb } from './db'
 import { pushRecord, deleteRecord } from './cloudSync'
+import { pushDailyPhotoToNutriTracker } from './nutriTrackerSync'
 import { todayStr } from './date'
 import type { DailyPhoto } from '../types'
 
@@ -13,6 +14,7 @@ export async function saveDailyPhoto(dataUrl: string, date: string = todayStr())
   const photo: DailyPhoto = { id: date, date, dataUrl, createdAt: Date.now() }
   await db.put('dailyPhotos', photo)
   pushRecord('dailyPhotos', photo.id, photo)
+  void pushDailyPhotoToNutriTracker(dataUrl, date)
   return photo
 }
 

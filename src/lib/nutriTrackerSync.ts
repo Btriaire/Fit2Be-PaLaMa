@@ -41,6 +41,22 @@ export async function pushFoodToNutriTracker(entry: {
   }
 }
 
+/** Pousse la photo du jour vers le journal alimentaire de NutriTracker,
+ * comme capture de la journée — le serveur ne l'enregistre que s'il n'y en a
+ * pas déjà une pour cette date (jamais de remplacement forcé), voir
+ * app/api/vibefit/route.ts type "daily-photo". */
+export async function pushDailyPhotoToNutriTracker(dataUrl: string, date?: string) {
+  try {
+    await fetch('/api/nutritracker', {
+      method: 'POST',
+      headers: { 'content-type': 'application/json' },
+      body: JSON.stringify({ type: 'daily-photo', dataUrl, date }),
+    })
+  } catch {
+    // offline or endpoint unavailable — local save already succeeded, ignore
+  }
+}
+
 export async function pushActivityToNutriTracker(activity: {
   name: string
   activityType: number
