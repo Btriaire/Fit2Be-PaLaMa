@@ -18,6 +18,13 @@ export interface ProgramPhase {
   /** Repère chiffré indicatif (RPM/résistance pour le vélo, vitesse/inclinaison
    * pour le tapis) — pas une consigne rigide, voir EnduranceProgram.fallbackNote. */
   target?: string
+  /** Vitesse tapis ciblée (km/h) — champ structuré (contrairement à `target`,
+   * en texte libre) pour pouvoir tracer le profil vitesse/pente du programme
+   * personnalisé, façon graphique tapis pré-réglé. */
+  speedKmh?: number
+  /** Pente tapis ciblée — niveau d'inclinaison 1 à 25 (repère habituel des
+   * tapis de course), pas un pourcentage. */
+  inclineLevel?: number
 }
 
 export interface EnduranceProgram {

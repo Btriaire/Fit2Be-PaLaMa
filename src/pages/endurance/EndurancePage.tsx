@@ -44,6 +44,7 @@ import {
 } from '../../lib/customEndurancePrograms'
 import { fitsTimeBudget, readinessMatchScore, type Readiness, type TimeBudget } from '../../lib/coachingFilter'
 import CoachingQuestions from '../../components/CoachingQuestions'
+import ProgramProfileChart from '../../components/ProgramProfileChart'
 import CustomProgramBuilder from './CustomProgramBuilder'
 import RouteMap from '../../components/RouteMap'
 import ActivityHero, { hasHeroImage } from '../../components/ActivityHero'
@@ -534,6 +535,8 @@ function ProgramPreview({
             {meta.label} · {totalMin} min
           </p>
           <p className="mb-3 text-sm text-zinc-400">{program.description}</p>
+
+          {program.activityType === 'tapis' && <ProgramProfileChart phases={program.phases} />}
 
           <p className="mb-2 text-[11px] text-zinc-600">Déroulé</p>
           <ul className="mb-3 space-y-1.5">

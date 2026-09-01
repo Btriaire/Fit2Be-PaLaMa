@@ -1,11 +1,14 @@
 import { useEffect, useRef, useState } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
-import { Dumbbell, Footprints, HeartPulse, Apple, Camera, ChevronRight, Settings, Activity, BarChart3, Loader2, Plus, Moon, TrendingUp, ImagePlus } from 'lucide-react'
+import { Dumbbell, Footprints, HeartPulse, Apple, Camera, ChevronLeft, ChevronRight, Settings, Activity, BarChart3, Loader2, Plus, Moon, TrendingUp, ImagePlus, RefreshCw } from 'lucide-react'
 import { getDb } from '../lib/db'
 import { getAllWorkouts, estimateWorkoutCalories } from '../lib/workouts'
-import { isToday, todayStr } from '../lib/date'
+import { isSameDay, todayStr, addDays, formatFullDate } from '../lib/date'
 import { getSettings } from '../lib/settings'
-import { syncGoogleFit, getTodayGoogleFit } from '../lib/googleFit'
+import { syncGoogleFit, getGoogleFitForDate } from '../lib/googleFit'
+import { autoLogWalkFromStepsIfNeeded } from '../lib/stepsActivity'
+import { importNutriTrackerActivityHistory } from '../lib/nutriTrackerImport'
+import { syncLatestWeightFromNutriTracker } from '../lib/weight'
 import { scanMachineResults } from '../lib/machineScan'
 import { getDailyPhoto, saveDailyPhoto } from '../lib/dailyPhoto'
 import { compressImageToDataUrl } from '../lib/image'
@@ -16,11 +19,6 @@ import ActivityHero, { type HeroKey } from '../components/ActivityHero'
 import type { ActivityLog, DailyPhoto, EnduranceSession, GoogleFitDay, NutritionEntry, RecoveryCheckin, Workout } from '../types'
 
 const MOOD_EMOJI: Record<number, string> = { 1: '😞', 2: '🙁', 3: '😐', 4: '🙂', 5: '😄' }
-
-function todayLabel(): string {
-  const s = new Date().toLocaleDateString('fr-FR', { weekday: 'long', day: 'numeric', month: 'long' })
-  return s.charAt(0).toUpperCase() + s.slice(1)
-}
 
 export default function Dashboard() {
   const navigate = useNavigate()
@@ -37,8 +35,38 @@ export default function Dashboard() {
   const [photoSaving, setPhotoSaving] = useState(false)
   const photoInputRef = useRef<HTMLInputElement>(null)
   const [mood, setMood] = useState<RemoteMood | null>(null)
+  const [syncing, setSyncing] = useState(false)
+  const [selectedDate, setSelectedDate] = useState(todayStr())
   const settings = getSettings()
   const quote = getQuoteOfTheDay()
+
+  async function refreshLocalState(date: string) {
+    getAllWorkouts().then(setWorkouts)
+    getDb().then(async (db) => {
+      setActivities(await db.getAll('activities'))
+      setEndurance(await db.getAll('endurance'))
+      setNutrition(await db.getAll('nutrition'))
+      const rec = await db.getAllFromIndex('recovery', 'byDate')
+      setRecovery(rec.find((r) => r.date === date) ?? null)
+    })
+    await getGoogleFitForDate(date).then(setGoogleFit)
+    await pullMoodOfTheDay(date).then(setMood)
+    await getDailyPhoto(date).then(setDailyPhoto)
+  }
+
+  async function forceSyncNow() {
+    setSyncing(true)
+    try {
+      await Promise.all([
+        syncGoogleFit().then(() => autoLogWalkFromStepsIfNeeded(settings)),
+        importNutriTrackerActivityHistory(30, settings),
+        syncLatestWeightFromNutriTracker(),
+      ])
+      await refreshLocalState(selectedDate)
+    } finally {
+      setSyncing(false)
+    }
+  }
 
   async function handleDailyPhoto(e: React.ChangeEvent<HTMLInputElement>) {
     const file = e.target.files?.[0]
@@ -71,26 +99,17 @@ export default function Dashboard() {
   }
 
   useEffect(() => {
-    getAllWorkouts().then(setWorkouts)
-    getDb().then(async (db) => {
-      setActivities(await db.getAll('activities'))
-      setEndurance(await db.getAll('endurance'))
-      setNutrition(await db.getAll('nutrition'))
-      const rec = await db.getAllFromIndex('recovery', 'byDate')
-      setRecovery(rec.find((r) => r.date === todayStr()) ?? null)
-    })
-    getTodayGoogleFit().then(setGoogleFit)
-    syncGoogleFit().then(() => getTodayGoogleFit().then(setGoogleFit))
-    getDailyPhoto().then(setDailyPhoto)
-    pullMoodOfTheDay().then(setMood)
-  }, [])
+    refreshLocalState(selectedDate)
+    if (selectedDate === todayStr()) syncGoogleFit().then(() => refreshLocalState(selectedDate))
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [selectedDate])
 
-  const todayWorkouts = workouts.filter((w) => isToday(w.startedAt) && w.finishedAt)
+  const todayWorkouts = workouts.filter((w) => isSameDay(w.startedAt, selectedDate) && w.finishedAt)
   const todayGymCalories = todayWorkouts.reduce((s, w) => s + estimateWorkoutCalories(w, settings), 0)
-  const todayActivityCalories = activities.filter((a) => isToday(a.loggedAt)).reduce((s, a) => s + a.caloriesBurned, 0)
-  const todayEnduranceCalories = endurance.filter((e) => isToday(e.startedAt)).reduce((s, e) => s + e.caloriesBurned, 0)
+  const todayActivityCalories = activities.filter((a) => isSameDay(a.loggedAt, selectedDate)).reduce((s, a) => s + a.caloriesBurned, 0)
+  const todayEnduranceCalories = endurance.filter((e) => isSameDay(e.startedAt, selectedDate)).reduce((s, e) => s + e.caloriesBurned, 0)
   const todayBurnedCalories = todayGymCalories + todayActivityCalories + todayEnduranceCalories
-  const todayNutritionCalories = nutrition.filter((n) => isToday(n.loggedAt)).reduce((s, n) => s + n.calories, 0)
+  const todayNutritionCalories = nutrition.filter((n) => isSameDay(n.loggedAt, selectedDate)).reduce((s, n) => s + n.calories, 0)
   const balance = todayNutritionCalories - todayBurnedCalories
 
   return (
@@ -99,10 +118,35 @@ export default function Dashboard() {
         <ActivityHero heroKey="course" className="h-48" />
         <div className="absolute inset-x-0 top-0 flex items-start justify-between px-4 pt-[calc(env(safe-area-inset-top)+16px)]">
           <div>
-            <p className="text-sm text-zinc-300 drop-shadow">{todayLabel()}</p>
+            <div className="flex items-center gap-1">
+              <button
+                onClick={() => setSelectedDate((d) => addDays(d, -1))}
+                className="rounded-full p-0.5 text-zinc-300 drop-shadow active:bg-zinc-950/40"
+                aria-label="Jour précédent"
+              >
+                <ChevronLeft size={16} />
+              </button>
+              <p className="text-sm capitalize text-zinc-300 drop-shadow">{formatFullDate(selectedDate)}</p>
+              <button
+                onClick={() => setSelectedDate((d) => addDays(d, 1))}
+                disabled={selectedDate >= todayStr()}
+                className="rounded-full p-0.5 text-zinc-300 drop-shadow active:bg-zinc-950/40 disabled:opacity-30"
+                aria-label="Jour suivant"
+              >
+                <ChevronRight size={16} />
+              </button>
+            </div>
             <h1 className="text-2xl font-bold tracking-tight text-white drop-shadow">Ton activité</h1>
           </div>
           <div className="flex items-center gap-1">
+            <button
+              onClick={forceSyncNow}
+              disabled={syncing}
+              className="rounded-full bg-zinc-950/40 p-2 text-white active:bg-zinc-900 disabled:opacity-60"
+              aria-label="Forcer la synchro NutriTracker et Google Fit"
+            >
+              <RefreshCw size={20} className={syncing ? 'animate-spin' : ''} />
+            </button>
             <input ref={scanInputRef} type="file" accept="image/*" multiple className="hidden" onChange={handleScanFile} />
             <button
               onClick={() => scanInputRef.current?.click()}
@@ -179,17 +223,21 @@ export default function Dashboard() {
           )}
           <div className="flex-1">
             <p className="font-semibold">Photo du jour</p>
-            <p className="text-xs text-zinc-500">{dailyPhoto ? 'Prise aujourd\'hui · voir l\'historique' : 'Aucune photo pour aujourd\'hui'}</p>
+            <p className="text-xs text-zinc-500">
+              {dailyPhoto ? `Prise le ${formatFullDate(selectedDate).toLowerCase()} · voir l'historique` : `Aucune photo pour ${selectedDate === todayStr() ? "aujourd'hui" : 'ce jour-là'}`}
+            </p>
           </div>
         </Link>
-        <button
-          onClick={() => photoInputRef.current?.click()}
-          disabled={photoSaving}
-          className="rounded-full bg-zinc-800 p-2.5 active:bg-zinc-700 disabled:opacity-60"
-          aria-label="Prendre ou choisir une photo"
-        >
-          {photoSaving ? <Loader2 size={18} className="animate-spin" /> : <Camera size={18} />}
-        </button>
+        {selectedDate === todayStr() && (
+          <button
+            onClick={() => photoInputRef.current?.click()}
+            disabled={photoSaving}
+            className="rounded-full bg-zinc-800 p-2.5 active:bg-zinc-700 disabled:opacity-60"
+            aria-label="Prendre ou choisir une photo"
+          >
+            {photoSaving ? <Loader2 size={18} className="animate-spin" /> : <Camera size={18} />}
+          </button>
+        )}
       </div>
 
       <Link

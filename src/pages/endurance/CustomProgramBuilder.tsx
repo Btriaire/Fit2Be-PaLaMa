@@ -3,6 +3,7 @@ import { X, Plus, Trash2, ChevronUp, ChevronDown } from 'lucide-react'
 import { FALLBACK_NOTE, type EnduranceProgram, type PhaseIntensity, type ProgramPhase } from '../../lib/endurancePrograms'
 import { ENDURANCE_ACTIVITY_META } from '../../lib/endurance'
 import type { CustomEnduranceProgram } from '../../lib/customEndurancePrograms'
+import ProgramProfileChart from '../../components/ProgramProfileChart'
 
 const INTENSITY_OPTIONS: PhaseIntensity[] = ['facile', 'modéré', 'dur']
 const ACTIVITY_OPTIONS: Array<Extract<EnduranceProgram['activityType'], 'tapis' | 'velo-appart'>> = ['tapis', 'velo-appart']
@@ -51,6 +52,19 @@ export default function CustomProgramBuilder({
 
   function save() {
     if (!canSave) return
+    // Pour le tapis, vitesse/pente sont saisies en champs structurés (pour
+    // le graphique) plutôt que dans `target` — on synthétise quand même un
+    // `target` lisible pour les affichages existants (aperçu, chrono live).
+    const finalPhases =
+      activityType === 'tapis'
+        ? phases.map((p) => ({
+            ...p,
+            target:
+              p.speedKmh != null || p.inclineLevel != null
+                ? [p.speedKmh != null ? `${p.speedKmh} km/h` : null, p.inclineLevel != null ? `pente ${p.inclineLevel}` : null].filter(Boolean).join(' · ')
+                : p.target,
+          }))
+        : phases
     onSave({
       id: initial?.id,
       name: name.trim(),
@@ -58,7 +72,7 @@ export default function CustomProgramBuilder({
       focus: focus.trim() || `Programme personnalisé, ~${totalMin} min`,
       description: description.trim() || 'Programme créé sur mesure.',
       difficulty,
-      phases,
+      phases: finalPhases,
       fallbackNote: FALLBACK_NOTE,
     })
   }
@@ -135,6 +149,7 @@ export default function CustomProgramBuilder({
           <div className="mb-2 flex items-center justify-between">
             <p className="text-xs text-zinc-500">Phases · ~{totalMin} min au total</p>
           </div>
+          {activityType === 'tapis' && <ProgramProfileChart phases={phases} />}
           <div className="mb-2 space-y-2">
             {phases.map((p, i) => (
               <div key={i} className="glass rounded-xl p-3">
@@ -180,13 +195,39 @@ export default function CustomProgramBuilder({
                       </button>
                     ))}
                   </div>
-                  <input
-                    value={p.target ?? ''}
-                    onChange={(e) => updatePhase(i, { target: e.target.value || undefined })}
-                    placeholder="8 km/h · 1% (optionnel)"
-                    className="min-w-0 flex-1 rounded-lg bg-zinc-900 px-2 py-1.5 text-[11px] outline-none focus:ring-1 focus:ring-teal-500"
-                  />
+                  {activityType !== 'tapis' && (
+                    <input
+                      value={p.target ?? ''}
+                      onChange={(e) => updatePhase(i, { target: e.target.value || undefined })}
+                      placeholder="70-80 RPM (optionnel)"
+                      className="min-w-0 flex-1 rounded-lg bg-zinc-900 px-2 py-1.5 text-[11px] outline-none focus:ring-1 focus:ring-teal-500"
+                    />
+                  )}
                 </div>
+                {activityType === 'tapis' && (
+                  <div className="mt-1.5 flex items-center gap-1.5">
+                    <input
+                      type="number"
+                      min={0}
+                      step={0.5}
+                      value={p.speedKmh ?? ''}
+                      onChange={(e) => updatePhase(i, { speedKmh: e.target.value ? Number(e.target.value) : undefined })}
+                      placeholder="Vitesse"
+                      className="w-20 rounded-lg bg-zinc-900 px-2 py-1.5 text-center text-[11px] outline-none focus:ring-1 focus:ring-teal-500"
+                    />
+                    <span className="shrink-0 text-[10px] text-zinc-600">km/h</span>
+                    <input
+                      type="number"
+                      min={1}
+                      max={25}
+                      value={p.inclineLevel ?? ''}
+                      onChange={(e) => updatePhase(i, { inclineLevel: e.target.value ? Math.min(25, Math.max(1, Number(e.target.value))) : undefined })}
+                      placeholder="Pente"
+                      className="w-20 rounded-lg bg-zinc-900 px-2 py-1.5 text-center text-[11px] outline-none focus:ring-1 focus:ring-teal-500"
+                    />
+                    <span className="shrink-0 text-[10px] text-zinc-600">niveau (1-25)</span>
+                  </div>
+                )}
               </div>
             ))}
           </div>

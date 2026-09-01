@@ -28,6 +28,7 @@ import BackButton from '../../components/BackButton'
 import { pushRecord, deleteRecord } from '../../lib/cloudSync'
 import { analyzeRecovery, type RecoveryInsight } from '../../lib/aiInsights'
 import { pullCardiacRangeFromNutriTracker, type RemoteCardiacDay } from '../../lib/nutriTrackerSync'
+import { syncGoogleFit } from '../../lib/googleFit'
 import { getMuscleGroupFreshness, type MuscleGroupFreshness } from '../../lib/workouts'
 import { Sparkles, Loader2 } from 'lucide-react'
 import type { RecoveryCheckin } from '../../types'
@@ -91,6 +92,11 @@ export default function RecoveryPage() {
   const settings = getSettings()
 
   async function refresh() {
+    // Cette page est parfois la première ouverte dans une session — ne pas
+    // dépendre du sync en arrière-plan lancé au boot de l'app (App.tsx), qui
+    // peut ne pas encore avoir fini, sinon le sommeil/les pas affichés
+    // restent ceux du dernier cache local, potentiellement périmés.
+    await syncGoogleFit()
     const db = await getDb()
     const all = await db.getAllFromIndex('recovery', 'byDate')
     setCheckins(all.reverse())

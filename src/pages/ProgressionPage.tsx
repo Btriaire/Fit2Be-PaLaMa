@@ -48,6 +48,7 @@ import { computeBodyComposition } from '../lib/met'
 import { LineChart, Line, CartesianGrid, ResponsiveContainer, Tooltip, XAxis, YAxis, Legend } from 'recharts'
 import { Sparkles, Loader2 } from 'lucide-react'
 import { analyzeProgression, type ProgressionInsight } from '../lib/aiInsights'
+import { syncGoogleFit } from '../lib/googleFit'
 import StatsTab from '../components/StatsTab'
 import PodcastPlayer from '../components/PodcastPlayer'
 import MuscleHeatmap from '../components/MuscleHeatmap'
@@ -142,6 +143,10 @@ export default function ProgressionPage() {
   const maxVolume = Math.max(0, ...muscleVolume.map((m) => m.totalVolume))
 
   useEffect(() => {
+    // Marche/diversité dépendent du cache Google Fit — ne pas dépendre du
+    // sync en arrière-plan lancé au boot de l'app, potentiellement pas
+    // encore terminé si cette page est ouverte tôt dans la session.
+    syncGoogleFit().then(() => {
     Promise.all([
       computeGeneralIndex(),
       computeSpecificMuscularIndices(),
@@ -175,6 +180,7 @@ export default function ProgressionPage() {
       setOverview(ov)
       setActivityCalendar(cal)
       setLoading(false)
+    })
     })
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])

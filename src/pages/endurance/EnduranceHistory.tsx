@@ -55,6 +55,18 @@ export default function EnduranceHistory() {
     })
   }, [points])
 
+  // Sur tapis, la distance cumulée mélange des sorties à vitesses très
+  // différentes et n'indique rien d'utile sur le volume d'entraînement — les
+  // calories cumulées sont un meilleur indicateur de charge, indépendant de
+  // l'allure choisie ce jour-là.
+  const cumulativeCaloriesData = useMemo(() => {
+    let running = 0
+    return points.map((p) => {
+      running += p.caloriesBurned
+      return { label: formatDate(p.date), cumul: running }
+    })
+  }, [points])
+
   const hrData = points.filter((p) => p.avgHeartRate).map((p) => ({ label: formatDate(p.date), fc: p.avgHeartRate }))
   const caloriesData = points.map((p) => ({ label: formatDate(p.date), kcal: p.caloriesBurned }))
 
@@ -117,7 +129,30 @@ export default function EnduranceHistory() {
             </div>
           )}
 
-          {hasDistanceData && cumulativeData.length >= 2 && (
+          {activityType === 'tapis' && cumulativeCaloriesData.length >= 2 && (
+            <div className="glass mb-4 rounded-2xl p-3">
+              <p className="mb-2 px-1 text-xs font-medium text-zinc-400">Calories cumulées</p>
+              <div className="h-40 w-full">
+                <ResponsiveContainer width="100%" height="100%">
+                  <AreaChart data={cumulativeCaloriesData} margin={{ top: 8, right: 12, left: -20, bottom: 0 }}>
+                    <defs>
+                      <linearGradient id="cumulCalFill" x1="0" y1="0" x2="0" y2="1">
+                        <stop offset="0%" stopColor="#e2361c" stopOpacity={0.4} />
+                        <stop offset="100%" stopColor="#e2361c" stopOpacity={0} />
+                      </linearGradient>
+                    </defs>
+                    <CartesianGrid strokeDasharray="3 3" stroke="#27272a" vertical={false} />
+                    <XAxis dataKey="label" tick={{ fill: '#71717a', fontSize: 11 }} axisLine={false} tickLine={false} />
+                    <YAxis tick={{ fill: '#71717a', fontSize: 11 }} axisLine={false} tickLine={false} />
+                    <Tooltip contentStyle={TOOLTIP_STYLE} labelStyle={TOOLTIP_LABEL_STYLE} formatter={(v) => [`${v} kcal`, 'Cumul']} />
+                    <Area type="monotone" dataKey="cumul" stroke="#e2361c" strokeWidth={2} fill="url(#cumulCalFill)" />
+                  </AreaChart>
+                </ResponsiveContainer>
+              </div>
+            </div>
+          )}
+
+          {activityType !== 'tapis' && hasDistanceData && cumulativeData.length >= 2 && (
             <div className="glass mb-4 rounded-2xl p-3">
               <p className="mb-2 px-1 text-xs font-medium text-zinc-400">Distance cumulée</p>
               <div className="h-40 w-full">
