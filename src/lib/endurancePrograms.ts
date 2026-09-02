@@ -23,8 +23,14 @@ export interface ProgramPhase {
    * personnalisé, façon graphique tapis pré-réglé. */
   speedKmh?: number
   /** Pente tapis ciblée — niveau d'inclinaison 1 à 25 (repère habituel des
-   * tapis de course), pas un pourcentage. */
+   * tapis de course), pas un pourcentage. Utilisé par les programmes
+   * personnalisés (voir CustomProgramBuilder). */
   inclineLevel?: number
+  /** Pente tapis ciblée en % — utilisé par les programmes intégrés
+   * ci-dessous, qui expriment tous la pente en pourcentage plutôt qu'en
+   * niveau. Deux champs distincts plutôt qu'une conversion approximative
+   * entre deux échelles différentes selon la marque de tapis. */
+  inclinePercent?: number
 }
 
 export interface EnduranceProgram {
@@ -105,13 +111,13 @@ export const ENDURANCE_PROGRAMS: EnduranceProgram[] = [
       "6 blocs de 3 min à allure tempo (soutenue mais tenable) entrecoupés de 2 min faciles — développe la vitesse au seuil, utile pour préparer un objectif chronométré.",
     fallbackNote: FALLBACK_NOTE,
     phases: [
-      { label: 'Échauffement', durationSec: 480, intensity: 'facile', target: '5-6 km/h marche · 0% incl.' },
+      { label: 'Échauffement', durationSec: 480, intensity: 'facile', target: '5-6 km/h marche · 0% incl.', speedKmh: 5.5, inclinePercent: 0 },
       ...intervals(
         6,
-        { label: 'Tempo', durationSec: 180, intensity: 'dur', target: '10-11 km/h · 1% incl.' },
-        { label: 'Récup', durationSec: 120, intensity: 'facile', target: '6-7 km/h · 0-1% incl.' },
+        { label: 'Tempo', durationSec: 180, intensity: 'dur', target: '10-11 km/h · 1% incl.', speedKmh: 10.5, inclinePercent: 1 },
+        { label: 'Récup', durationSec: 120, intensity: 'facile', target: '6-7 km/h · 0-1% incl.', speedKmh: 6.5, inclinePercent: 0.5 },
       ),
-      { label: 'Retour au calme', durationSec: 300, intensity: 'facile', target: '5-6 km/h · 0% incl.' },
+      { label: 'Retour au calme', durationSec: 300, intensity: 'facile', target: '5-6 km/h · 0% incl.', speedKmh: 5.5, inclinePercent: 0 },
     ],
     muscuAddOn: {
       label: 'Renfo jambes (optionnel, jour séparé)',
@@ -128,9 +134,9 @@ export const ENDURANCE_PROGRAMS: EnduranceProgram[] = [
       "Footing continu à allure confortable — la base du volume d'entraînement course à pied, ce sur quoi repose tout le reste de la préparation.",
     fallbackNote: FALLBACK_NOTE,
     phases: [
-      { label: 'Échauffement marche/trot', durationSec: 300, intensity: 'facile', target: '5-6 km/h · 0% incl.' },
-      { label: 'Zone 2 continue', durationSec: 1500, intensity: 'modéré', target: '8-9 km/h · 1% incl.' },
-      { label: 'Retour au calme', durationSec: 300, intensity: 'facile', target: '5-6 km/h · 0% incl.' },
+      { label: 'Échauffement marche/trot', durationSec: 300, intensity: 'facile', target: '5-6 km/h · 0% incl.', speedKmh: 5.5, inclinePercent: 0 },
+      { label: 'Zone 2 continue', durationSec: 1500, intensity: 'modéré', target: '8-9 km/h · 1% incl.', speedKmh: 8.5, inclinePercent: 1 },
+      { label: 'Retour au calme', durationSec: 300, intensity: 'facile', target: '5-6 km/h · 0% incl.', speedKmh: 5.5, inclinePercent: 0 },
     ],
   },
   {
@@ -174,7 +180,7 @@ export const ENDURANCE_PROGRAMS: EnduranceProgram[] = [
     description:
       "Marche à allure soutenue mais sans effort respiratoire — bon point d'entrée si tu débutes le tapis, ou séance de récup entre deux sorties plus dures.",
     fallbackNote: FALLBACK_NOTE,
-    phases: [{ label: 'Marche continue', durationSec: 1200, intensity: 'facile', target: '5-6 km/h · 0% incl.' }],
+    phases: [{ label: 'Marche continue', durationSec: 1200, intensity: 'facile', target: '5-6 km/h · 0% incl.', speedKmh: 5.5, inclinePercent: 0 }],
   },
   {
     id: 'tapis-difficile',
@@ -186,13 +192,13 @@ export const ENDURANCE_PROGRAMS: EnduranceProgram[] = [
       "8 répétitions de 400m environ (90s à allure rapide) / 90s de récup — travaille la VMA, plus exigeant que le fractionné tempo. Réservé à ceux qui courent déjà régulièrement.",
     fallbackNote: FALLBACK_NOTE,
     phases: [
-      { label: 'Échauffement', durationSec: 480, intensity: 'facile', target: '6-7 km/h · 0% incl.' },
+      { label: 'Échauffement', durationSec: 480, intensity: 'facile', target: '6-7 km/h · 0% incl.', speedKmh: 6.5, inclinePercent: 0 },
       ...intervals(
         8,
-        { label: 'Rapide', durationSec: 90, intensity: 'dur', target: '13-14 km/h · 0-1% incl.' },
-        { label: 'Récup', durationSec: 90, intensity: 'facile', target: '6-7 km/h · 0% incl.' },
+        { label: 'Rapide', durationSec: 90, intensity: 'dur', target: '13-14 km/h · 0-1% incl.', speedKmh: 13.5, inclinePercent: 0.5 },
+        { label: 'Récup', durationSec: 90, intensity: 'facile', target: '6-7 km/h · 0% incl.', speedKmh: 6.5, inclinePercent: 0 },
       ),
-      { label: 'Retour au calme', durationSec: 300, intensity: 'facile', target: '5-6 km/h · 0% incl.' },
+      { label: 'Retour au calme', durationSec: 300, intensity: 'facile', target: '5-6 km/h · 0% incl.', speedKmh: 5.5, inclinePercent: 0 },
     ],
   },
   {
@@ -205,15 +211,15 @@ export const ENDURANCE_PROGRAMS: EnduranceProgram[] = [
       "La vitesse monte palier par palier jusqu'à un pic, puis redescend symétriquement — inspiré d'un programme tapis pré-réglé classique. Plus varié qu'un tempo continu, sans la difficulté du fractionné court.",
     fallbackNote: FALLBACK_NOTE,
     phases: [
-      { label: 'Échauffement', durationSec: 300, intensity: 'facile', target: '5-6 km/h · 0% incl.' },
-      { label: 'Palier 1', durationSec: 240, intensity: 'modéré', target: '7 km/h · 0% incl.' },
-      { label: 'Palier 2', durationSec: 240, intensity: 'modéré', target: '8 km/h · 0% incl.' },
-      { label: 'Palier 3', durationSec: 240, intensity: 'dur', target: '9.5 km/h · 1% incl.' },
-      { label: 'Pic', durationSec: 360, intensity: 'dur', target: '11 km/h · 1-2% incl.' },
-      { label: 'Palier 4', durationSec: 240, intensity: 'dur', target: '9.5 km/h · 1% incl.' },
-      { label: 'Palier 5', durationSec: 240, intensity: 'modéré', target: '8 km/h · 0% incl.' },
-      { label: 'Palier 6', durationSec: 240, intensity: 'modéré', target: '7 km/h · 0% incl.' },
-      { label: 'Retour au calme', durationSec: 300, intensity: 'facile', target: '5-6 km/h · 0% incl.' },
+      { label: 'Échauffement', durationSec: 300, intensity: 'facile', target: '5-6 km/h · 0% incl.', speedKmh: 5.5, inclinePercent: 0 },
+      { label: 'Palier 1', durationSec: 240, intensity: 'modéré', target: '7 km/h · 0% incl.', speedKmh: 7, inclinePercent: 0 },
+      { label: 'Palier 2', durationSec: 240, intensity: 'modéré', target: '8 km/h · 0% incl.', speedKmh: 8, inclinePercent: 0 },
+      { label: 'Palier 3', durationSec: 240, intensity: 'dur', target: '9.5 km/h · 1% incl.', speedKmh: 9.5, inclinePercent: 1 },
+      { label: 'Pic', durationSec: 360, intensity: 'dur', target: '11 km/h · 1-2% incl.', speedKmh: 11, inclinePercent: 1.5 },
+      { label: 'Palier 4', durationSec: 240, intensity: 'dur', target: '9.5 km/h · 1% incl.', speedKmh: 9.5, inclinePercent: 1 },
+      { label: 'Palier 5', durationSec: 240, intensity: 'modéré', target: '8 km/h · 0% incl.', speedKmh: 8, inclinePercent: 0 },
+      { label: 'Palier 6', durationSec: 240, intensity: 'modéré', target: '7 km/h · 0% incl.', speedKmh: 7, inclinePercent: 0 },
+      { label: 'Retour au calme', durationSec: 300, intensity: 'facile', target: '5-6 km/h · 0% incl.', speedKmh: 5.5, inclinePercent: 0 },
     ],
   },
   {
@@ -226,13 +232,13 @@ export const ENDURANCE_PROGRAMS: EnduranceProgram[] = [
       "Même principe que la pyramide vitesse, mais entre marche rapide et trot léger — garde le côté varié et motivant d'un profil qui monte puis redescend, sans jamais sortir du confortable.",
     fallbackNote: FALLBACK_NOTE,
     phases: [
-      { label: 'Échauffement', durationSec: 240, intensity: 'facile', target: '4.5 km/h · 0% incl.' },
-      { label: 'Palier 1', durationSec: 180, intensity: 'facile', target: '5.5 km/h · 0% incl.' },
-      { label: 'Palier 2', durationSec: 180, intensity: 'modéré', target: '6.5 km/h · 0% incl.' },
-      { label: 'Pic', durationSec: 240, intensity: 'modéré', target: '7.5 km/h · 1% incl.' },
-      { label: 'Palier 3', durationSec: 180, intensity: 'modéré', target: '6.5 km/h · 0% incl.' },
-      { label: 'Palier 4', durationSec: 180, intensity: 'facile', target: '5.5 km/h · 0% incl.' },
-      { label: 'Retour au calme', durationSec: 240, intensity: 'facile', target: '4.5 km/h · 0% incl.' },
+      { label: 'Échauffement', durationSec: 240, intensity: 'facile', target: '4.5 km/h · 0% incl.', speedKmh: 4.5, inclinePercent: 0 },
+      { label: 'Palier 1', durationSec: 180, intensity: 'facile', target: '5.5 km/h · 0% incl.', speedKmh: 5.5, inclinePercent: 0 },
+      { label: 'Palier 2', durationSec: 180, intensity: 'modéré', target: '6.5 km/h · 0% incl.', speedKmh: 6.5, inclinePercent: 0 },
+      { label: 'Pic', durationSec: 240, intensity: 'modéré', target: '7.5 km/h · 1% incl.', speedKmh: 7.5, inclinePercent: 1 },
+      { label: 'Palier 3', durationSec: 180, intensity: 'modéré', target: '6.5 km/h · 0% incl.', speedKmh: 6.5, inclinePercent: 0 },
+      { label: 'Palier 4', durationSec: 180, intensity: 'facile', target: '5.5 km/h · 0% incl.', speedKmh: 5.5, inclinePercent: 0 },
+      { label: 'Retour au calme', durationSec: 240, intensity: 'facile', target: '4.5 km/h · 0% incl.', speedKmh: 4.5, inclinePercent: 0 },
     ],
   },
   {
@@ -245,13 +251,13 @@ export const ENDURANCE_PROGRAMS: EnduranceProgram[] = [
       "La vitesse ne bouge pas (marche active) — c'est l'inclinaison qui monte en pyramide jusqu'à une petite côte, puis redescend. Sollicite bien les jambes et le cardio sans le choc de la course, et reste varié grâce au profil de côte.",
     fallbackNote: FALLBACK_NOTE,
     phases: [
-      { label: 'Échauffement', durationSec: 240, intensity: 'facile', target: '5 km/h · 0% incl.' },
-      { label: 'Palier 1', durationSec: 180, intensity: 'facile', target: '5.5 km/h · 2% incl.' },
-      { label: 'Palier 2', durationSec: 180, intensity: 'modéré', target: '5.5 km/h · 4% incl.' },
-      { label: 'Pic', durationSec: 240, intensity: 'modéré', target: '5.5 km/h · 6% incl.' },
-      { label: 'Palier 3', durationSec: 180, intensity: 'modéré', target: '5.5 km/h · 4% incl.' },
-      { label: 'Palier 4', durationSec: 180, intensity: 'facile', target: '5.5 km/h · 2% incl.' },
-      { label: 'Retour au calme', durationSec: 240, intensity: 'facile', target: '5 km/h · 0% incl.' },
+      { label: 'Échauffement', durationSec: 240, intensity: 'facile', target: '5 km/h · 0% incl.', speedKmh: 5, inclinePercent: 0 },
+      { label: 'Palier 1', durationSec: 180, intensity: 'facile', target: '5.5 km/h · 2% incl.', speedKmh: 5.5, inclinePercent: 2 },
+      { label: 'Palier 2', durationSec: 180, intensity: 'modéré', target: '5.5 km/h · 4% incl.', speedKmh: 5.5, inclinePercent: 4 },
+      { label: 'Pic', durationSec: 240, intensity: 'modéré', target: '5.5 km/h · 6% incl.', speedKmh: 5.5, inclinePercent: 6 },
+      { label: 'Palier 3', durationSec: 180, intensity: 'modéré', target: '5.5 km/h · 4% incl.', speedKmh: 5.5, inclinePercent: 4 },
+      { label: 'Palier 4', durationSec: 180, intensity: 'facile', target: '5.5 km/h · 2% incl.', speedKmh: 5.5, inclinePercent: 2 },
+      { label: 'Retour au calme', durationSec: 240, intensity: 'facile', target: '5 km/h · 0% incl.', speedKmh: 5, inclinePercent: 0 },
     ],
   },
   {
@@ -264,15 +270,15 @@ export const ENDURANCE_PROGRAMS: EnduranceProgram[] = [
       "Une première pyramide jusqu'à un pic soutenu, une courte récup active, puis un second pic encore plus rapide avec un peu d'inclinaison — plus exigeant que la pyramide simple, sur la filière aérobie haute.",
     fallbackNote: FALLBACK_NOTE,
     phases: [
-      { label: 'Échauffement', durationSec: 300, intensity: 'facile', target: '6 km/h · 0% incl.' },
-      { label: 'Montée 1', durationSec: 180, intensity: 'modéré', target: '9 km/h · 0% incl.' },
-      { label: 'Montée 2', durationSec: 180, intensity: 'dur', target: '10.5 km/h · 1% incl.' },
-      { label: 'Pic 1', durationSec: 240, intensity: 'dur', target: '12 km/h · 1% incl.' },
-      { label: 'Récup active', durationSec: 180, intensity: 'modéré', target: '8 km/h · 0% incl.' },
-      { label: 'Pic 2', durationSec: 240, intensity: 'dur', target: '13 km/h · 2% incl.' },
-      { label: 'Descente 1', durationSec: 180, intensity: 'dur', target: '10.5 km/h · 1% incl.' },
-      { label: 'Descente 2', durationSec: 180, intensity: 'modéré', target: '9 km/h · 0% incl.' },
-      { label: 'Retour au calme', durationSec: 300, intensity: 'facile', target: '6 km/h · 0% incl.' },
+      { label: 'Échauffement', durationSec: 300, intensity: 'facile', target: '6 km/h · 0% incl.', speedKmh: 6, inclinePercent: 0 },
+      { label: 'Montée 1', durationSec: 180, intensity: 'modéré', target: '9 km/h · 0% incl.', speedKmh: 9, inclinePercent: 0 },
+      { label: 'Montée 2', durationSec: 180, intensity: 'dur', target: '10.5 km/h · 1% incl.', speedKmh: 10.5, inclinePercent: 1 },
+      { label: 'Pic 1', durationSec: 240, intensity: 'dur', target: '12 km/h · 1% incl.', speedKmh: 12, inclinePercent: 1 },
+      { label: 'Récup active', durationSec: 180, intensity: 'modéré', target: '8 km/h · 0% incl.', speedKmh: 8, inclinePercent: 0 },
+      { label: 'Pic 2', durationSec: 240, intensity: 'dur', target: '13 km/h · 2% incl.', speedKmh: 13, inclinePercent: 2 },
+      { label: 'Descente 1', durationSec: 180, intensity: 'dur', target: '10.5 km/h · 1% incl.', speedKmh: 10.5, inclinePercent: 1 },
+      { label: 'Descente 2', durationSec: 180, intensity: 'modéré', target: '9 km/h · 0% incl.', speedKmh: 9, inclinePercent: 0 },
+      { label: 'Retour au calme', durationSec: 300, intensity: 'facile', target: '6 km/h · 0% incl.', speedKmh: 6, inclinePercent: 0 },
     ],
   },
   {
@@ -285,13 +291,13 @@ export const ENDURANCE_PROGRAMS: EnduranceProgram[] = [
       "Vitesse et inclinaison montent ensemble jusqu'à un pic en côte à allure rapide — la version la plus exigeante de la pyramide, proche d'un travail de VMA en côte. Réservé à ceux qui courent déjà régulièrement.",
     fallbackNote: FALLBACK_NOTE,
     phases: [
-      { label: 'Échauffement', durationSec: 300, intensity: 'facile', target: '6 km/h · 0% incl.' },
-      { label: 'Montée 1', durationSec: 180, intensity: 'dur', target: '10 km/h · 2% incl.' },
-      { label: 'Montée 2', durationSec: 180, intensity: 'dur', target: '11 km/h · 4% incl.' },
-      { label: 'Pic', durationSec: 300, intensity: 'dur', target: '12 km/h · 6% incl.' },
-      { label: 'Descente 1', durationSec: 180, intensity: 'dur', target: '11 km/h · 4% incl.' },
-      { label: 'Descente 2', durationSec: 180, intensity: 'dur', target: '10 km/h · 2% incl.' },
-      { label: 'Retour au calme', durationSec: 300, intensity: 'facile', target: '6 km/h · 0% incl.' },
+      { label: 'Échauffement', durationSec: 300, intensity: 'facile', target: '6 km/h · 0% incl.', speedKmh: 6, inclinePercent: 0 },
+      { label: 'Montée 1', durationSec: 180, intensity: 'dur', target: '10 km/h · 2% incl.', speedKmh: 10, inclinePercent: 2 },
+      { label: 'Montée 2', durationSec: 180, intensity: 'dur', target: '11 km/h · 4% incl.', speedKmh: 11, inclinePercent: 4 },
+      { label: 'Pic', durationSec: 300, intensity: 'dur', target: '12 km/h · 6% incl.', speedKmh: 12, inclinePercent: 6 },
+      { label: 'Descente 1', durationSec: 180, intensity: 'dur', target: '11 km/h · 4% incl.', speedKmh: 11, inclinePercent: 4 },
+      { label: 'Descente 2', durationSec: 180, intensity: 'dur', target: '10 km/h · 2% incl.', speedKmh: 10, inclinePercent: 2 },
+      { label: 'Retour au calme', durationSec: 300, intensity: 'facile', target: '6 km/h · 0% incl.', speedKmh: 6, inclinePercent: 0 },
     ],
   },
 ]

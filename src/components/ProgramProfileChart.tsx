@@ -6,15 +6,18 @@ import type { ProgramPhase } from '../lib/endurancePrograms'
  * programme) — ne trace que ce qui a été saisi en champs structurés
  * (speedKmh/inclineLevel), pas le texte libre `target`. */
 export default function ProgramProfileChart({ phases }: { phases: ProgramPhase[] }) {
-  const hasData = phases.some((p) => p.speedKmh != null || p.inclineLevel != null)
+  const hasIncline = phases.some((p) => p.inclineLevel != null || p.inclinePercent != null)
+  const hasData = phases.some((p) => p.speedKmh != null) || hasIncline
   if (!hasData) return null
+  const inclineUnit = phases.some((p) => p.inclineLevel != null) ? 'niveau' : '%'
 
   let t = 0
   const data: Array<{ tMin: number; vitesse: number | null; pente: number | null }> = []
   for (const p of phases) {
-    data.push({ tMin: Math.round((t / 60) * 10) / 10, vitesse: p.speedKmh ?? null, pente: p.inclineLevel ?? null })
+    const pente = p.inclineLevel ?? p.inclinePercent ?? null
+    data.push({ tMin: Math.round((t / 60) * 10) / 10, vitesse: p.speedKmh ?? null, pente })
     t += p.durationSec
-    data.push({ tMin: Math.round((t / 60) * 10) / 10, vitesse: p.speedKmh ?? null, pente: p.inclineLevel ?? null })
+    data.push({ tMin: Math.round((t / 60) * 10) / 10, vitesse: p.speedKmh ?? null, pente })
   }
 
   return (
@@ -24,7 +27,7 @@ export default function ProgramProfileChart({ phases }: { phases: ProgramPhase[]
           <span className="h-1.5 w-3 rounded-full bg-teal-400" /> Vitesse (km/h)
         </span>
         <span className="flex items-center gap-1 text-orange-400">
-          <span className="h-1.5 w-3 rounded-full bg-orange-400" /> Pente (niveau)
+          <span className="h-1.5 w-3 rounded-full bg-orange-400" /> Pente ({inclineUnit})
         </span>
       </div>
       <div className="h-28 w-full">

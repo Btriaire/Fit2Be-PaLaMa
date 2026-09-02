@@ -476,7 +476,17 @@ function formatPhaseDuration(sec: number): string {
  * proportionnelle à sa durée, couleur = intensité, curseur = position réelle.
  * Donne une vue d'ensemble du programme (passé/en cours/à venir) qu'un simple
  * % de progression ne montre pas. */
-function IntervalProfile({ program, elapsedSec, currentIndex }: { program: EnduranceProgram; elapsedSec: number; currentIndex: number }) {
+function IntervalProfile({
+  program,
+  elapsedSec,
+  currentIndex,
+  showCursor = true,
+}: {
+  program: EnduranceProgram
+  elapsedSec: number
+  currentIndex: number
+  showCursor?: boolean
+}) {
   const total = programTotalSec(program)
   return (
     <div className="relative mb-2 w-full max-w-sm">
@@ -494,10 +504,12 @@ function IntervalProfile({ program, elapsedSec, currentIndex }: { program: Endur
           />
         ))}
       </div>
-      <div
-        className="absolute top-0 h-7 w-0.5 bg-white transition-all"
-        style={{ left: `${Math.min(100, (elapsedSec / total) * 100)}%`, boxShadow: '0 0 4px rgba(255,255,255,0.8)' }}
-      />
+      {showCursor && (
+        <div
+          className="absolute top-0 h-7 w-0.5 bg-white transition-all"
+          style={{ left: `${Math.min(100, (elapsedSec / total) * 100)}%`, boxShadow: '0 0 4px rgba(255,255,255,0.8)' }}
+        />
+      )}
     </div>
   )
 }
@@ -535,6 +547,20 @@ function ProgramPreview({
             {meta.label} · {totalMin} min
           </p>
           <p className="mb-3 text-sm text-zinc-400">{program.description}</p>
+
+          {program.phases.length > 1 && (
+            <div className="mb-3">
+              <p className="mb-1.5 text-[11px] text-zinc-600">Fractionnement</p>
+              <IntervalProfile program={program} elapsedSec={0} currentIndex={-1} showCursor={false} />
+              <div className="flex flex-wrap gap-x-3 gap-y-0.5 text-[10px] text-zinc-600">
+                {(['facile', 'modéré', 'dur'] as const).map((i) => (
+                  <span key={i} className="flex items-center gap-1 capitalize">
+                    <span className="h-2 w-2 rounded-full" style={{ backgroundColor: INTENSITY_COLOR[i] }} /> {i}
+                  </span>
+                ))}
+              </div>
+            </div>
+          )}
 
           {program.activityType === 'tapis' && <ProgramProfileChart phases={program.phases} />}
 
