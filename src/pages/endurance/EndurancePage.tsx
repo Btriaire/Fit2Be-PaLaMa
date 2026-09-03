@@ -43,7 +43,9 @@ import {
   type CustomEnduranceProgram,
 } from '../../lib/customEndurancePrograms'
 import { fitsTimeBudget, readinessMatchScore, type Readiness, type TimeBudget } from '../../lib/coachingFilter'
+import { useCollapsible } from '../../lib/useCollapsible'
 import CoachingQuestions from '../../components/CoachingQuestions'
+import Collapsible from '../../components/Collapsible'
 import ProgramProfileChart from '../../components/ProgramProfileChart'
 import CustomProgramBuilder from './CustomProgramBuilder'
 import RouteMap from '../../components/RouteMap'
@@ -116,7 +118,7 @@ export default function EndurancePage() {
   const [viewerPhoto, setViewerPhoto] = useState<string | null>(null)
   const [previewProgram, setPreviewProgram] = useState<EnduranceProgram | null>(null)
   const [pendingProgram, setPendingProgram] = useState<EnduranceProgram | null>(null)
-  const [coachingOpen, setCoachingOpen] = useState(false)
+  const [coachingOpen, setCoachingOpen] = useCollapsible('endurance-coaching')
   const [readiness, setReadiness] = useState<Readiness | null>(null)
   const [timeBudget, setTimeBudget] = useState<TimeBudget | null>(null)
   const [customPrograms, setCustomPrograms] = useState<CustomEnduranceProgram[]>([])
@@ -219,47 +221,45 @@ export default function EndurancePage() {
           </span>
           <ChevronDown size={16} className={`text-zinc-600 transition-transform ${coachingOpen ? 'rotate-180' : ''}`} />
         </button>
-        {coachingOpen && (
-          <>
-            <CoachingQuestions
-              readiness={readiness}
-              onReadiness={setReadiness}
-              timeBudget={timeBudget}
-              onTimeBudget={setTimeBudget}
-              accentClass="bg-orange-500"
-            />
-            <div className="space-y-1.5">
-              {visibleCoachingPrograms.length === 0 && (
-                <p className="text-xs text-zinc-600">Aucun programme ne rentre dans ce temps — essaie un budget plus large.</p>
-              )}
-              {visibleCoachingPrograms.map((p) => (
-                <button
-                  key={p.id}
-                  onClick={() => setPreviewProgram(p)}
-                  className="glass flex w-full items-center gap-2.5 rounded-lg px-3 py-2 text-left active:scale-[0.98] transition-transform"
-                >
-                  <span className="flex h-7 w-7 shrink-0 items-center justify-center rounded-md bg-orange-500/15 text-orange-400">
-                    <Timer size={14} />
-                  </span>
-                  <div className="min-w-0 flex-1">
-                    <p className="text-sm font-medium leading-tight">{p.name}</p>
-                    <p className="truncate text-[11px] leading-tight text-zinc-500">
-                      {p.focus}
-                      {customPrograms.some((cp) => cp.id === p.id) ? ' · perso' : ''}
-                    </p>
-                  </div>
-                  <ChevronRight size={14} className="shrink-0 text-zinc-600" />
-                </button>
-              ))}
-            </div>
-            <button
-              onClick={() => setBuilderOpen('new')}
-              className="mt-1.5 flex w-full items-center justify-center gap-1.5 rounded-xl border border-dashed border-zinc-700 py-2.5 text-xs text-zinc-400 active:bg-zinc-900"
-            >
-              <Plus size={14} /> Créer un programme personnalisé
-            </button>
-          </>
-        )}
+        <Collapsible open={coachingOpen}>
+          <CoachingQuestions
+            readiness={readiness}
+            onReadiness={setReadiness}
+            timeBudget={timeBudget}
+            onTimeBudget={setTimeBudget}
+            accentClass="bg-orange-500"
+          />
+          <div className="space-y-1.5">
+            {visibleCoachingPrograms.length === 0 && (
+              <p className="text-xs text-zinc-600">Aucun programme ne rentre dans ce temps — essaie un budget plus large.</p>
+            )}
+            {visibleCoachingPrograms.map((p) => (
+              <button
+                key={p.id}
+                onClick={() => setPreviewProgram(p)}
+                className="glass flex w-full items-center gap-2.5 rounded-lg px-3 py-2 text-left active:scale-[0.98] transition-transform"
+              >
+                <span className="flex h-7 w-7 shrink-0 items-center justify-center rounded-md bg-orange-500/15 text-orange-400">
+                  <Timer size={14} />
+                </span>
+                <div className="min-w-0 flex-1">
+                  <p className="text-sm font-medium leading-tight">{p.name}</p>
+                  <p className="truncate text-[11px] leading-tight text-zinc-500">
+                    {p.focus}
+                    {customPrograms.some((cp) => cp.id === p.id) ? ' · perso' : ''}
+                  </p>
+                </div>
+                <ChevronRight size={14} className="shrink-0 text-zinc-600" />
+              </button>
+            ))}
+          </div>
+          <button
+            onClick={() => setBuilderOpen('new')}
+            className="mt-1.5 flex w-full items-center justify-center gap-1.5 rounded-xl border border-dashed border-zinc-700 py-2.5 text-xs text-zinc-400 active:bg-zinc-900"
+          >
+            <Plus size={14} /> Créer un programme personnalisé
+          </button>
+        </Collapsible>
       </section>
 
       <button
@@ -875,7 +875,8 @@ function EnduranceForm({
     const totalSec = activeProgram ? programTotalSec(activeProgram) : null
 
     return (
-      <div className="fixed inset-0 z-50 flex flex-col items-center overflow-y-auto bg-zinc-950 px-6 py-8">
+      <div className="fixed inset-0 z-50 overflow-y-auto bg-zinc-950">
+      <div className="flex min-h-full flex-col items-center justify-center px-6 py-8">
         <p className="mb-2 text-sm font-semibold uppercase tracking-wide text-orange-400">
           {activeProgram ? activeProgram.name : `${meta.label} en direct`}
         </p>
@@ -931,12 +932,14 @@ function EnduranceForm({
           </button>
         </div>
       </div>
+      </div>
     )
   }
 
   if (awaitingDifficulty) {
     return (
-      <div className="fixed inset-0 z-50 flex flex-col items-center justify-center gap-3 overflow-y-auto bg-zinc-950 px-6 py-8">
+      <div className="fixed inset-0 z-50 overflow-y-auto bg-zinc-950">
+      <div className="flex min-h-full flex-col items-center justify-center gap-3 px-6 py-8">
         <p className="mb-2 text-lg font-semibold">Difficulté ressentie ?</p>
         <p className="mb-4 text-center text-xs text-zinc-500">Aide à calculer ta charge d'entraînement réelle.</p>
         {DIFFICULTY_LEVELS.map((lvl) => (
@@ -951,6 +954,7 @@ function EnduranceForm({
         <button onClick={() => pickDifficulty(null)} className="mt-2 text-xs text-zinc-600 active:text-zinc-400">
           Passer cette évaluation
         </button>
+      </div>
       </div>
     )
   }

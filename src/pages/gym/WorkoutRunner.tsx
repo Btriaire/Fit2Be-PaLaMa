@@ -786,7 +786,8 @@ function FocusExerciseView({
         </div>
       </header>
 
-      <div className="flex flex-1 flex-col items-center overflow-y-auto px-6 py-4">
+      <div className="flex-1 overflow-y-auto">
+      <div className="flex min-h-full flex-col items-center justify-center px-6 py-4">
         {exercise?.images?.[0] && (
           <img src={exercise.images[0]} alt="" className="mb-6 h-40 w-40 rounded-2xl bg-zinc-900 object-cover" />
         )}
@@ -877,6 +878,7 @@ function FocusExerciseView({
             </div>
           </div>
         )}
+      </div>
       </div>
 
       {hrMeterOpen && lastLoggedSetId && (
