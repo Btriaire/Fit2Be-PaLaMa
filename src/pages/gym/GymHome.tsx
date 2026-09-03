@@ -365,6 +365,7 @@ function CustomTemplatePreview({
     return new Set([...saved].filter((id) => validIds.has(id)))
   })
   const selectedCount = template.exercises.length - excluded.size
+  const [viewerImage, setViewerImage] = useState<string | null>(null)
 
   function toggle(exerciseId: string) {
     setExcluded((prev) => {
@@ -409,8 +410,11 @@ function CustomTemplatePreview({
               const isExcluded = excluded.has(te.exerciseId)
               return (
                 <li key={te.exerciseId}>
-                  <button
+                  <div
+                    role="button"
+                    tabIndex={0}
                     onClick={() => toggle(te.exerciseId)}
+                    onKeyDown={(e) => e.key === 'Enter' && toggle(te.exerciseId)}
                     className={`glass flex w-full items-center gap-2.5 rounded-xl p-3 text-left transition-opacity ${isExcluded ? 'opacity-40' : ''}`}
                   >
                     <span
@@ -421,7 +425,16 @@ function CustomTemplatePreview({
                       {!isExcluded && <Check size={13} strokeWidth={3} className="text-zinc-950" />}
                     </span>
                     {ex?.images?.[0] ? (
-                      <img src={ex.images[0]} alt="" loading="lazy" className="h-14 w-14 shrink-0 rounded-lg bg-zinc-900 object-cover" />
+                      <button
+                        onClick={(e) => {
+                          e.stopPropagation()
+                          setViewerImage(ex.images![0])
+                        }}
+                        className="shrink-0"
+                        aria-label="Voir la photo en grand"
+                      >
+                        <img src={ex.images[0]} alt="" loading="lazy" className="h-14 w-14 rounded-lg bg-zinc-900 object-cover" />
+                      </button>
                     ) : (
                       <div className="h-14 w-14 shrink-0 rounded-lg bg-zinc-900" />
                     )}
@@ -432,7 +445,7 @@ function CustomTemplatePreview({
                         {te.targetSets && te.targetReps ? ` · cible ${te.targetSets}×${te.targetReps}` : ''}
                       </p>
                     </div>
-                  </button>
+                  </div>
                 </li>
               )
             })}
@@ -453,6 +466,18 @@ function CustomTemplatePreview({
           </button>
         </div>
       </div>
+
+      {viewerImage && (
+        <div className="fixed inset-0 z-[60] flex items-center justify-center bg-black/90 p-4" onClick={(e) => { e.stopPropagation(); setViewerImage(null) }}>
+          <img src={viewerImage} alt="" className="max-h-full max-w-full rounded-xl object-contain" />
+          <button
+            onClick={() => setViewerImage(null)}
+            className="absolute right-4 top-[calc(env(safe-area-inset-top)+16px)] rounded-full bg-zinc-950/60 p-2 text-white active:bg-zinc-900"
+          >
+            <X size={20} />
+          </button>
+        </div>
+      )}
     </div>
   )
 }
@@ -473,6 +498,7 @@ function TemplatePreview({
   })
   const selectedCount = template.exercises.length - excluded.size
   const [history, setHistory] = useState<Array<{ workout: Workout; kcal: number }>>([])
+  const [viewerImage, setViewerImage] = useState<string | null>(null)
 
   useEffect(() => {
     const settings = getSettings()
@@ -545,8 +571,11 @@ function TemplatePreview({
               const isExcluded = excluded.has(te.exerciseId)
               return (
                 <li key={te.exerciseId}>
-                  <button
+                  <div
+                    role="button"
+                    tabIndex={0}
                     onClick={() => toggle(te.exerciseId)}
+                    onKeyDown={(e) => e.key === 'Enter' && toggle(te.exerciseId)}
                     className={`glass flex w-full items-start gap-2.5 rounded-xl p-3 text-left transition-opacity ${isExcluded ? 'opacity-40' : ''}`}
                   >
                     <span
@@ -557,7 +586,16 @@ function TemplatePreview({
                       {!isExcluded && <Check size={13} strokeWidth={3} className="text-zinc-950" />}
                     </span>
                     {ex?.images?.[0] ? (
-                      <img src={ex.images[0]} alt="" loading="lazy" className="h-16 w-16 shrink-0 rounded-lg bg-zinc-900 object-cover" />
+                      <button
+                        onClick={(e) => {
+                          e.stopPropagation()
+                          setViewerImage(ex.images![0])
+                        }}
+                        className="shrink-0"
+                        aria-label="Voir la photo en grand"
+                      >
+                        <img src={ex.images[0]} alt="" loading="lazy" className="h-16 w-16 rounded-lg bg-zinc-900 object-cover" />
+                      </button>
                     ) : (
                       <div className="h-16 w-16 shrink-0 rounded-lg bg-zinc-900" />
                     )}
@@ -573,7 +611,7 @@ function TemplatePreview({
                       </p>
                       <p className="mt-1 text-xs leading-snug text-zinc-400">{te.note}</p>
                     </div>
-                  </button>
+                  </div>
                 </li>
               )
             })}
@@ -594,6 +632,18 @@ function TemplatePreview({
           </button>
         </div>
       </div>
+
+      {viewerImage && (
+        <div className="fixed inset-0 z-[60] flex items-center justify-center bg-black/90 p-4" onClick={(e) => { e.stopPropagation(); setViewerImage(null) }}>
+          <img src={viewerImage} alt="" className="max-h-full max-w-full rounded-xl object-contain" />
+          <button
+            onClick={() => setViewerImage(null)}
+            className="absolute right-4 top-[calc(env(safe-area-inset-top)+16px)] rounded-full bg-zinc-950/60 p-2 text-white active:bg-zinc-900"
+          >
+            <X size={20} />
+          </button>
+        </div>
+      )}
     </div>
   )
 }

@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react'
 import { useNavigate, useParams } from 'react-router-dom'
-import { Bookmark, Camera, Check, ChevronLeft, Copy, Flame, HeartPulse, Pencil, Play, Plus, Search, Trash2, X } from 'lucide-react'
+import { Bookmark, Camera, Check, ChevronDown, ChevronLeft, Copy, Flame, HeartPulse, Pencil, Play, Plus, Search, Trash2, X } from 'lucide-react'
 import clsx from 'clsx'
 import {
   getWorkout,
@@ -18,8 +18,10 @@ import { getSettings } from '../../lib/settings'
 import { getTodayGoogleFit, syncGoogleFit } from '../../lib/googleFit'
 import { saveCustomTemplate, exercisesFromWorkout, compressImageToDataUrl } from '../../lib/customTemplates'
 import { playMotivation } from '../../lib/motivationVoice'
+import { useCollapsible } from '../../lib/useCollapsible'
 import RestTimer from '../../components/RestTimer'
 import MuscleBodyMap from '../../components/MuscleBodyMap'
+import Collapsible from '../../components/Collapsible'
 import HeartRateMeter from '../../components/HeartRateMeter'
 import WorkoutMusicPlayer from '../../components/WorkoutMusicPlayer'
 import type { GoogleFitDay, SetEntry, Workout, WorkoutExercise } from '../../types'
@@ -571,6 +573,7 @@ function ExercisePicker({
 }) {
   const [q, setQ] = useState('')
   const [muscleFilter, setMuscleFilter] = useState<string | null>(null)
+  const [bodyMapOpen, setBodyMapOpen] = useCollapsible('gym-picker-bodymap')
   const DISPLAY_LIMIT = 60
   const estimatedMin = estimateExerciseDurationMin(getSettings().restTimerDefaultSec)
 
@@ -611,7 +614,18 @@ function ExercisePicker({
               className="flex-1 bg-transparent text-sm outline-none"
             />
           </div>
-          <MuscleBodyMap selected={muscleFilter} onSelect={setMuscleFilter} />
+          <button
+            onClick={() => setBodyMapOpen((v) => !v)}
+            className="mb-2 flex w-full items-center justify-between text-xs font-medium text-zinc-500"
+          >
+            <span>Filtrer par silhouette{muscleFilter ? ` — ${muscleFilter}` : ''}</span>
+            <ChevronDown size={14} className={`text-zinc-600 transition-transform ${bodyMapOpen ? 'rotate-180' : ''}`} />
+          </button>
+          <Collapsible open={bodyMapOpen}>
+            <div className="pb-1">
+              <MuscleBodyMap selected={muscleFilter} onSelect={setMuscleFilter} />
+            </div>
+          </Collapsible>
           <div className="mb-3 flex gap-1.5 overflow-x-auto pb-1">
             <button
               onClick={() => setMuscleFilter(null)}

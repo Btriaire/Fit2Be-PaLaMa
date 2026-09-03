@@ -602,4 +602,89 @@ export const COACHING_TEMPLATES: TrainingTemplate[] = [
       },
     ],
   },
+  {
+    id: 'coaching-matrix-climb',
+    name: 'Circuit Matrix — Climbmill & Force',
+    focus: 'Cardio vertical Matrix (~50%) + circuit machines guidées (~50%)',
+    difficulty: 'dur',
+    estimatedMin: 40,
+    description:
+      "Le Climbmill (ou l'Ascent Trainer) Matrix remplace le tapis/vélo classique pour un cardio bien plus exigeant en peu de temps — enchaîné avec un circuit 100% machines guidées pour le reste du corps. Séance complète pour une salle équipée Matrix.",
+    cardioBlock: {
+      label: 'Cardio — Climbmill/Ascent Trainer Matrix',
+      description:
+        "10-12 min en intervalles (1 min soutenu / 1 min facile) sur le Climbmill ou l'Ascent Trainer — bien plus intense qu'un tapis à vitesse équivalente à cause du mouvement vertical. Log-le dans Endurance (tapis) pour qu'il compte dans tes calories et ta charge d'entraînement.",
+    },
+    exercises: [
+      {
+        exerciseId: 'leg-press',
+        targetSets: 3,
+        targetReps: '12',
+        note: "Presse à cuisses Matrix — quadriceps/fessiers. Pieds au centre du plateau, amplitude complète.",
+      },
+      {
+        exerciseId: 'leverage-chest-press',
+        targetSets: 3,
+        targetReps: '10-12',
+        note: "Développé poitrine guidé Matrix. Poignées à hauteur de poitrine, pousse sans verrouiller les coudes en fin de mouvement.",
+      },
+      {
+        exerciseId: 'leverage-iso-row',
+        targetSets: 3,
+        targetReps: '10-12',
+        note: "Tirage dos guidé Matrix, chaque bras indépendant. Poitrine calée contre l'appui, tire les coudes vers l'arrière.",
+      },
+      {
+        exerciseId: 'leverage-shoulder-press',
+        targetSets: 3,
+        targetReps: '10-12',
+        note: "Développé épaules guidé Matrix. Dos plaqué au dossier, ne cambre pas pour finir la répétition.",
+      },
+      {
+        exerciseId: 'ab-crunch-machine',
+        targetSets: 3,
+        targetReps: '15-20',
+        note: "Finisher abdominaux guidé. Contraction contrôlée, pas d'à-coup avec les bras.",
+      },
+    ],
+  },
+  {
+    id: 'coaching-matrix-debutant',
+    name: 'Circuit Matrix — Prise en main',
+    focus: 'Facile — découverte des machines Matrix, cardio léger',
+    difficulty: 'facile',
+    estimatedMin: 25,
+    description:
+      "Toutes les machines guidées Matrix les plus simples à régler, en charge légère — bon point d'entrée si ta salle vient de passer sur du matériel Matrix et que tu veux apprendre les réglages sans te soucier de la charge.",
+    cardioBlock: {
+      label: 'Cardio — fin de séance',
+      description: "10 min à allure confortable sur tapis ou vélo Matrix (tu dois pouvoir parler). Log-le dans Endurance.",
+    },
+    exercises: [
+      {
+        exerciseId: 'leg-press',
+        targetSets: 2,
+        targetReps: '12-15',
+        note: "Presse à cuisses Matrix, charge légère. Sert surtout à régler le siège et repérer l'amplitude confortable.",
+      },
+      {
+        exerciseId: 'lat-pulldown',
+        targetSets: 2,
+        targetReps: '10-12',
+        note: "Tirage vertical Matrix. Cale bien les cuisses sous les appuis avant de tirer.",
+      },
+      {
+        exerciseId: 'machine-bicep-curl',
+        targetSets: 2,
+        targetReps: '10-12',
+        note: "Curl biceps guidé Matrix. Coudes fixes contre l'appui, mouvement lent et contrôlé.",
+      },
+      {
+        exerciseId: 'ab-crunch-machine',
+        targetSets: 2,
+        targetReps: '12-15',
+        note: "Abdominaux guidés. Arrête dès que la forme se dégrade, pas besoin de viser un nombre précis.",
+      },
+    ],
+  },
 ]
