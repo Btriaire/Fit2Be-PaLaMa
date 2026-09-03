@@ -158,6 +158,34 @@ export async function computeCardiacIndex(): Promise<ProgressionIndex> {
   return weightedAverage(specific.map((s) => s.index))
 }
 
+export interface PowerTrend {
+  avgWatts: number
+  avgWattsPerKg: number
+  sampleSize: number
+  trendPct: number
+}
+
+/** Puissance moyenne (vélo/rameur — toute session avec des watts lus sur la
+ * machine) sur N jours, en W et en W/kg (métrique standard pour comparer
+ * l'effort indépendamment du poids du corps, cf. indexReference). Tendance
+ * calculée comme les autres index : moitié récente vs moitié ancienne de la
+ * série chronologique. */
+export async function computePowerTrend(days: number, settings: Settings): Promise<PowerTrend | null> {
+  const sessions = await getEnduranceSessions()
+  const cutoff = Date.now() - days * 86_400_000
+  const withWatts = sessions
+    .filter((s) => s.startedAt >= cutoff && s.machineStats?.avgWatts != null)
+    .sort((a, b) => a.startedAt - b.startedAt)
+  if (withWatts.length === 0) return null
+
+  const watts = withWatts.map((s) => s.machineStats!.avgWatts!)
+  const avgWatts = Math.round(watts.reduce((a, b) => a + b, 0) / watts.length)
+  const avgWattsPerKg = settings.bodyWeightKg > 0 ? Math.round((avgWatts / settings.bodyWeightKg) * 100) / 100 : 0
+  const { trendPct } = trendFromSeries(watts)
+
+  return { avgWatts, avgWattsPerKg, sampleSize: watts.length, trendPct }
+}
+
 // ---- Régularité & index général ----
 
 /** Jours distincts avec au moins une activité (gym/endurance/quotidien/marche)

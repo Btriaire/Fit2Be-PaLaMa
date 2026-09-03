@@ -75,6 +75,14 @@ export const INDEX_REFERENCE: ReferenceCategory[] = [
     category: 'Cardio & effort',
     entries: [
       {
+        name: 'Puissance normalisée au poids (W/kg)',
+        formula: 'Watts moyens lus sur la machine (vélo/rameur) ÷ poids (kg)',
+        unit: 'W/kg',
+        normalRange: 'Loisir ≈1.5-2.5 · entraîné ≈2.5-3.5 · confirmé >3.5 (vélo, sur un effort soutenu)',
+        reference: 'Allen H, Coggan A. "Training and Racing with a Power Meter." VeloPress, 2010.',
+        notes: 'Standard en cyclisme pour comparer la puissance indépendamment du poids du corps — la puissance brute (W) seule favorise les gabarits lourds.',
+      },
+      {
         name: 'Fréquence cardiaque maximale',
         formula: '220 − âge',
         unit: 'bpm',

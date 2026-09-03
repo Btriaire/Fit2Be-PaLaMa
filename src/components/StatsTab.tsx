@@ -13,7 +13,7 @@ import {
 import { getSettings } from '../lib/settings'
 import { computeBodyComposition } from '../lib/met'
 import { formatDate } from '../lib/date'
-import { computeVo2Max, computePolarization, type Vo2MaxEstimate, type Polarization } from '../lib/progression'
+import { computeVo2Max, computePolarization, computePowerTrend, type Vo2MaxEstimate, type Polarization, type PowerTrend } from '../lib/progression'
 import { computeMaxHr } from '../lib/heartRate'
 import { resolveRestingHr } from '../lib/restingHr'
 import { pullCardiacRangeFromNutriTracker, type RemoteCardiacDay } from '../lib/nutriTrackerSync'
@@ -63,6 +63,7 @@ export default function StatsTab() {
   const [polarization, setPolarization] = useState<Polarization | null>(null)
   const [effort, setEffort] = useState<EffortDistribution | null>(null)
   const [cardiacLoad, setCardiacLoad] = useState<CardiacLoadUnderEffort | null>(null)
+  const [power, setPower] = useState<PowerTrend | null>(null)
   const settings = getSettings()
 
   useEffect(() => {
@@ -79,6 +80,7 @@ export default function StatsTab() {
     computePolarization(28).then(setPolarization)
     computeEffortDistribution(14).then(setEffort)
     computeCardiacLoadUnderEffort(14).then(setCardiacLoad)
+    computePowerTrend(14, settings).then(setPower)
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
 
@@ -205,6 +207,16 @@ export default function StatsTab() {
               {vo2max && <span className="ml-1 text-[10px] font-normal text-zinc-600">ml/kg/min</span>}
             </p>
             {vo2max && <p className="mt-0.5 text-[10px] text-zinc-600">Formule Uth et al. · {vo2max.source}</p>}
+          </div>
+          <div className="rounded-xl bg-zinc-900/70 p-3">
+            <p className="text-[10px] text-zinc-500">Puissance moyenne (14j)</p>
+            <p className="mt-0.5 text-xl font-bold text-teal-400">
+              {power?.avgWattsPerKg ?? '—'}
+              {power && <span className="ml-1 text-[10px] font-normal text-zinc-600">W/kg</span>}
+            </p>
+            <p className="mt-0.5 text-[10px] text-zinc-600">
+              {power ? `${power.avgWatts} W moy. · ${power.sampleSize} séance(s)${power.trendPct !== 0 ? ` · ${power.trendPct > 0 ? '+' : ''}${power.trendPct}%` : ''}` : 'Vélo/rameur avec watts scannés'}
+            </p>
           </div>
           <div className="rounded-xl bg-zinc-900/70 p-3">
             <p className="text-[10px] text-zinc-500">RPE moyen (14j)</p>
