@@ -875,7 +875,7 @@ function EnduranceForm({
     const totalSec = activeProgram ? programTotalSec(activeProgram) : null
 
     return (
-      <div className="fixed inset-0 z-50 flex flex-col items-center justify-center bg-zinc-950 px-6">
+      <div className="fixed inset-0 z-50 flex flex-col items-center overflow-y-auto bg-zinc-950 px-6 py-8">
         <p className="mb-2 text-sm font-semibold uppercase tracking-wide text-orange-400">
           {activeProgram ? activeProgram.name : `${meta.label} en direct`}
         </p>
@@ -936,7 +936,7 @@ function EnduranceForm({
 
   if (awaitingDifficulty) {
     return (
-      <div className="fixed inset-0 z-50 flex flex-col items-center justify-center gap-3 bg-zinc-950 px-6">
+      <div className="fixed inset-0 z-50 flex flex-col items-center justify-center gap-3 overflow-y-auto bg-zinc-950 px-6 py-8">
         <p className="mb-2 text-lg font-semibold">Difficulté ressentie ?</p>
         <p className="mb-4 text-center text-xs text-zinc-500">Aide à calculer ta charge d'entraînement réelle.</p>
         {DIFFICULTY_LEVELS.map((lvl) => (

@@ -28,6 +28,7 @@ export default function GymHome() {
   const [coachingOpen, setCoachingOpen] = useState(false)
   const [readiness, setReadiness] = useState<Readiness | null>(null)
   const [timeBudget, setTimeBudget] = useState<TimeBudget | null>(null)
+  const [templatesOpen, setTemplatesOpen] = useState(false)
 
   function refreshCustomTemplates() {
     getCustomTemplates().then(setCustomTemplates)
@@ -199,25 +200,33 @@ export default function GymHome() {
       </section>
 
       <section className="mb-6">
-        <h2 className="mb-2 text-sm font-medium text-zinc-400">Templates par chef musculaire</h2>
-        <div className="space-y-1.5">
-          {TRAINING_TEMPLATES.map((tpl) => (
-            <button
-              key={tpl.id}
-              onClick={() => setPreviewTemplate(tpl)}
-              className="glass flex w-full items-center gap-2.5 rounded-lg px-3 py-2 text-left active:scale-[0.98] transition-transform"
-            >
-              <span className="flex h-7 w-7 shrink-0 items-center justify-center rounded-md bg-orange-500/15 text-orange-400">
-                <Target size={14} />
-              </span>
-              <div className="min-w-0 flex-1">
-                <p className="text-sm font-medium leading-tight">{tpl.name}</p>
-                <p className="truncate text-[11px] leading-tight text-zinc-500">{tpl.focus}</p>
-              </div>
-              <ChevronRight size={14} className="shrink-0 text-zinc-600" />
-            </button>
-          ))}
-        </div>
+        <button
+          onClick={() => setTemplatesOpen((v) => !v)}
+          className="mb-2 flex w-full items-center justify-between text-sm font-medium text-zinc-400"
+        >
+          <span>Templates par chef musculaire</span>
+          <ChevronDown size={16} className={`text-zinc-600 transition-transform ${templatesOpen ? 'rotate-180' : ''}`} />
+        </button>
+        {templatesOpen && (
+          <div className="space-y-1.5">
+            {TRAINING_TEMPLATES.map((tpl) => (
+              <button
+                key={tpl.id}
+                onClick={() => setPreviewTemplate(tpl)}
+                className="glass flex w-full items-center gap-2.5 rounded-lg px-3 py-2 text-left active:scale-[0.98] transition-transform"
+              >
+                <span className="flex h-7 w-7 shrink-0 items-center justify-center rounded-md bg-orange-500/15 text-orange-400">
+                  <Target size={14} />
+                </span>
+                <div className="min-w-0 flex-1">
+                  <p className="text-sm font-medium leading-tight">{tpl.name}</p>
+                  <p className="truncate text-[11px] leading-tight text-zinc-500">{tpl.focus}</p>
+                </div>
+                <ChevronRight size={14} className="shrink-0 text-zinc-600" />
+              </button>
+            ))}
+          </div>
+        )}
       </section>
 
       {customTemplates.length > 0 && (

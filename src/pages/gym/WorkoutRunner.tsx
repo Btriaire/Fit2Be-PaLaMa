@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react'
 import { useNavigate, useParams } from 'react-router-dom'
-import { Bookmark, Camera, Check, ChevronLeft, Copy, Flame, HeartPulse, Play, Plus, Search, X } from 'lucide-react'
+import { Bookmark, Camera, Check, ChevronLeft, Copy, Flame, HeartPulse, Pencil, Play, Plus, Search, Trash2, X } from 'lucide-react'
 import clsx from 'clsx'
 import {
   getWorkout,
@@ -106,6 +106,25 @@ export default function WorkoutRunner() {
     await persist(next)
   }
 
+  function removeExercise(exerciseId: string) {
+    if (!workout) return
+    if (!confirm('Supprimer cet exercice de la séance ? Toutes ses séries seront perdues.')) return
+    persist({ ...workout, exercises: workout.exercises.filter((we) => we.exerciseId !== exerciseId) })
+  }
+
+  /** Correction a posteriori du poids/reps d'une série déjà loguée (erreur de
+   * saisie) — ne retouche jamais isPr, qui dépend du contexte des séries
+   * précédentes au moment où elle a été loguée. */
+  function updateSet(exerciseId: string, setId: string, patch: { weightKg: number; reps: number }) {
+    if (!workout) return
+    persist({
+      ...workout,
+      exercises: workout.exercises.map((we) =>
+        we.exerciseId === exerciseId ? { ...we, sets: we.sets.map((s) => (s.id === setId ? { ...s, ...patch } : s)) } : we,
+      ),
+    })
+  }
+
   async function finishWorkout() {
     if (!workout) return
     const finished = await finishWorkoutAndSync(workout, settings)
@@ -145,6 +164,8 @@ export default function WorkoutRunner() {
             googleFitHeartRateAvg={googleFitToday?.heartRateAvg ?? null}
             restTimerDefaultSec={settings.restTimerDefaultSec}
             onFocus={() => setFocusExerciseId(we.exerciseId)}
+            onRemove={() => removeExercise(we.exerciseId)}
+            onEditSet={(setId, patch) => updateSet(we.exerciseId, setId, patch)}
           />
         ))}
 
@@ -185,6 +206,10 @@ export default function WorkoutRunner() {
               }}
               onHeartRate={(setId, bpm) => updateSetHeartRate(we.exerciseId, setId, bpm)}
               onClose={() => setFocusExerciseId(null)}
+              onRemoveExercise={() => {
+                removeExercise(we.exerciseId)
+                setFocusExerciseId(null)
+              }}
             />
           )
         })()}
@@ -272,6 +297,8 @@ function ExerciseBlock({
   googleFitHeartRateAvg,
   restTimerDefaultSec,
   onFocus,
+  onRemove,
+  onEditSet,
 }: {
   we: WorkoutExercise
   onAddSet: (set: Omit<SetEntry, 'id' | 'exerciseId' | 'completedAt' | 'isPr'>) => void
@@ -279,6 +306,8 @@ function ExerciseBlock({
   googleFitHeartRateAvg: number | null
   restTimerDefaultSec: number
   onFocus: () => void
+  onRemove: () => void
+  onEditSet: (setId: string, patch: { weightKg: number; reps: number }) => void
 }) {
   const exercise = ALL_EXERCISES.find((e) => e.id === we.exerciseId)
   const estimatedMin = estimateExerciseDurationMin(restTimerDefaultSec)
@@ -288,6 +317,23 @@ function ExerciseBlock({
   const [rpe, setRpe] = useState('')
   const [warmup, setWarmup] = useState(false)
   const [meterOpen, setMeterOpen] = useState(false)
+  const [editingSetId, setEditingSetId] = useState<string | null>(null)
+  const [editWeight, setEditWeight] = useState('')
+  const [editReps, setEditReps] = useState('')
+
+  function startEditSet(s: SetEntry) {
+    setEditingSetId(s.id)
+    setEditWeight(String(s.weightKg))
+    setEditReps(String(s.reps))
+  }
+
+  function confirmEditSet() {
+    const w = parseFloat(editWeight)
+    const r = parseInt(editReps, 10)
+    if (!w || !r || !editingSetId) return
+    onEditSet(editingSetId, { weightKg: w, reps: r })
+    setEditingSetId(null)
+  }
 
   const displayHeartRate = we.heartRateBpm
     ? { bpm: we.heartRateBpm, source: we.heartRateSource ?? 'camera' }
@@ -356,12 +402,21 @@ function ExerciseBlock({
               Dernière fois : {last.weightKg}kg × {last.reps}
             </p>
           )}
-          <button
-            onClick={() => setMeterOpen(true)}
-            className="flex items-center gap-1 rounded-full bg-zinc-900 px-2 py-1 text-[11px] font-medium text-red-400 active:bg-zinc-800"
-          >
-            <HeartPulse size={12} /> Mesurer
-          </button>
+          <div className="flex items-center gap-1.5">
+            <button
+              onClick={() => setMeterOpen(true)}
+              className="flex items-center gap-1 rounded-full bg-zinc-900 px-2 py-1 text-[11px] font-medium text-red-400 active:bg-zinc-800"
+            >
+              <HeartPulse size={12} /> Mesurer
+            </button>
+            <button
+              onClick={onRemove}
+              aria-label="Supprimer cet exercice"
+              className="rounded-full bg-zinc-900 p-1.5 text-zinc-600 active:bg-red-500/10 active:text-red-400"
+            >
+              <Trash2 size={13} />
+            </button>
+          </div>
         </div>
       </div>
       {we.note && <p className="mb-2.5 text-xs leading-snug text-zinc-500">{we.note}</p>}
@@ -402,28 +457,54 @@ function ExerciseBlock({
 
       {we.sets.length > 0 && (
         <ul className="mb-2 space-y-1">
-          {we.sets.map((s, i) => (
-            <li
-              key={s.id}
-              className={clsx(
-                'flex items-center justify-between rounded-lg px-2.5 py-1.5 text-sm',
-                s.isWarmup ? 'bg-zinc-900/60 text-zinc-500' : 'bg-zinc-900',
-              )}
-            >
-              <span>
-                Série {i + 1} {s.isWarmup && <span className="text-[10px] uppercase">échauf.</span>}
-              </span>
-              <span className="flex items-center gap-2 font-mono tabular-nums">
-                {s.weightKg}kg × {s.reps}
-                {s.rpe ? <span className="text-zinc-500">RPE{s.rpe}</span> : null}
-                {s.isPr && (
-                  <span className="flex items-center gap-0.5 rounded-full bg-orange-500/15 px-1.5 py-0.5 text-[10px] font-semibold text-orange-400">
-                    <Flame size={10} /> PR
-                  </span>
+          {we.sets.map((s, i) =>
+            editingSetId === s.id ? (
+              <li key={s.id} className="flex items-center gap-1.5 rounded-lg bg-zinc-900 px-2.5 py-1.5">
+                <input
+                  inputMode="decimal"
+                  value={editWeight}
+                  onChange={(e) => setEditWeight(e.target.value)}
+                  className="w-14 rounded-md bg-zinc-800 px-1.5 py-1 text-center text-xs outline-none focus:ring-1 focus:ring-orange-500"
+                />
+                <span className="text-zinc-600">×</span>
+                <input
+                  inputMode="numeric"
+                  value={editReps}
+                  onChange={(e) => setEditReps(e.target.value)}
+                  className="w-14 rounded-md bg-zinc-800 px-1.5 py-1 text-center text-xs outline-none focus:ring-1 focus:ring-orange-500"
+                />
+                <button onClick={confirmEditSet} className="ml-auto rounded-md bg-orange-500 p-1.5 text-zinc-950 active:bg-orange-400">
+                  <Check size={13} strokeWidth={3} />
+                </button>
+                <button onClick={() => setEditingSetId(null)} className="rounded-md bg-zinc-800 p-1.5 text-zinc-400 active:bg-zinc-700">
+                  <X size={13} />
+                </button>
+              </li>
+            ) : (
+              <li
+                key={s.id}
+                onClick={() => startEditSet(s)}
+                className={clsx(
+                  'flex items-center justify-between rounded-lg px-2.5 py-1.5 text-sm active:bg-zinc-800',
+                  s.isWarmup ? 'bg-zinc-900/60 text-zinc-500' : 'bg-zinc-900',
                 )}
-              </span>
-            </li>
-          ))}
+              >
+                <span>
+                  Série {i + 1} {s.isWarmup && <span className="text-[10px] uppercase">échauf.</span>}
+                </span>
+                <span className="flex items-center gap-2 font-mono tabular-nums">
+                  {s.weightKg}kg × {s.reps}
+                  {s.rpe ? <span className="text-zinc-500">RPE{s.rpe}</span> : null}
+                  {s.isPr && (
+                    <span className="flex items-center gap-0.5 rounded-full bg-orange-500/15 px-1.5 py-0.5 text-[10px] font-semibold text-orange-400">
+                      <Flame size={10} /> PR
+                    </span>
+                  )}
+                  <Pencil size={11} className="text-zinc-700" />
+                </span>
+              </li>
+            ),
+          )}
         </ul>
       )}
 
@@ -606,6 +687,7 @@ function FocusExerciseView({
   onFinish,
   onHeartRate,
   onClose,
+  onRemoveExercise,
 }: {
   we: WorkoutExercise
   onAddSet: (
@@ -614,6 +696,7 @@ function FocusExerciseView({
   onFinish: (setIds: string[], rpe: number) => void
   onHeartRate: (setId: string, bpm: number) => void
   onClose: () => void
+  onRemoveExercise: () => void
 }) {
   const exercise = ALL_EXERCISES.find((e) => e.id === we.exerciseId)
   const [last, setLast] = useState<LastPerformance | null>(null)
@@ -689,12 +772,21 @@ function FocusExerciseView({
           <p className="text-xs uppercase tracking-wide text-orange-400">Focus</p>
           <h1 className="truncate text-lg font-semibold">{exercise?.name ?? we.exerciseId}</h1>
         </div>
-        <button onClick={onClose} className="rounded-full bg-zinc-900 p-2 active:bg-zinc-800">
-          <X size={20} />
-        </button>
+        <div className="flex shrink-0 items-center gap-1.5">
+          <button
+            onClick={onRemoveExercise}
+            aria-label="Supprimer cet exercice"
+            className="rounded-full bg-zinc-900 p-2 text-zinc-500 active:bg-red-500/10 active:text-red-400"
+          >
+            <Trash2 size={18} />
+          </button>
+          <button onClick={onClose} className="rounded-full bg-zinc-900 p-2 active:bg-zinc-800">
+            <X size={20} />
+          </button>
+        </div>
       </header>
 
-      <div className="flex flex-1 flex-col items-center justify-center px-6">
+      <div className="flex flex-1 flex-col items-center overflow-y-auto px-6 py-4">
         {exercise?.images?.[0] && (
           <img src={exercise.images[0]} alt="" className="mb-6 h-40 w-40 rounded-2xl bg-zinc-900 object-cover" />
         )}
