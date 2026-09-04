@@ -806,34 +806,37 @@ function FocusExerciseView({
       </header>
 
       <div className="flex-1 overflow-y-auto">
-      <div className="flex min-h-full flex-col items-center justify-center px-6 py-4">
-        {exercise?.images?.[0] && (
-          <img src={exercise.images[0]} alt="" className="mb-6 h-40 w-40 rounded-2xl bg-zinc-900 object-cover" />
-        )}
-
-        <p className="mb-1 text-sm text-zinc-400">
-          Série <span className="font-mono text-zinc-200">{doneCount + 1}</span>
-          {we.targetSets != null && <span> / {we.targetSets}</span>}
-        </p>
-        {we.targetSets != null && we.targetSets > 0 && (
-          <div className="mb-3 flex items-center gap-1.5">
-            {Array.from({ length: Math.max(we.targetSets, doneCount) }, (_, i) => (
-              <span
-                key={i}
-                className={`h-2 w-2 rounded-full ${i < doneCount ? 'bg-orange-500' : 'bg-zinc-800'}`}
-              />
-            ))}
+      <div className="flex min-h-full flex-col items-center px-6 py-4">
+        <div className="mb-3 flex w-full max-w-xs items-center gap-3">
+          {exercise?.images?.[0] && (
+            <img src={exercise.images[0]} alt="" className="h-14 w-14 shrink-0 rounded-xl bg-zinc-900 object-cover" />
+          )}
+          <div className="min-w-0 flex-1">
+            <p className="text-sm text-zinc-400">
+              Série <span className="font-mono text-zinc-200">{doneCount + 1}</span>
+              {we.targetSets != null && <span> / {we.targetSets}</span>}
+            </p>
+            {we.targetSets != null && we.targetSets > 0 && (
+              <div className="mt-1.5 flex items-center gap-1.5">
+                {Array.from({ length: Math.max(we.targetSets, doneCount) }, (_, i) => (
+                  <span
+                    key={i}
+                    className={`h-2 w-2 rounded-full ${i < doneCount ? 'bg-orange-500' : 'bg-zinc-800'}`}
+                  />
+                ))}
+              </div>
+            )}
           </div>
-        )}
+        </div>
         {last && we.sets.length === 0 && (
-          <p className="mb-5 text-xs text-zinc-600">
+          <p className="mb-3 w-full max-w-xs text-xs text-zinc-600">
             Dernière fois : {last.weightKg}kg × {last.reps}
           </p>
         )}
 
         {!awaitingDifficulty ? (
           <>
-            <div className="mb-6 flex items-center gap-4">
+            <div className="mb-4 flex items-center gap-4">
               <div className="text-center">
                 <input
                   value={weight}
@@ -876,7 +879,7 @@ function FocusExerciseView({
             )}
             <button
               onClick={() => (sessionSetIds.length > 0 ? setAwaitingDifficulty(true) : onClose())}
-              className={`mt-4 text-sm font-medium active:opacity-80 ${targetReached ? 'text-teal-400' : 'text-zinc-500'}`}
+              className={`mt-3 text-sm font-medium active:opacity-80 ${targetReached ? 'text-teal-400' : 'text-zinc-500'}`}
             >
               Terminer l'exercice {targetReached ? '✓' : ''}
             </button>
