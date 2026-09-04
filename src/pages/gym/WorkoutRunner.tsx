@@ -583,7 +583,12 @@ function ExercisePicker({
       e.name.toLowerCase().includes(q.toLowerCase()) &&
       (!muscleFilter || e.muscleGroup === muscleFilter),
   )
-  const results = filtered.slice(0, DISPLAY_LIMIT)
+  // Les machines guidées en premier — trajectoire fixe, plus accessible et
+  // plus sûr techniquement, donc le choix par défaut le plus pertinent à
+  // proposer en tête (tri stable : ne change pas l'ordre entre elles ni
+  // entre les autres équipements).
+  const sorted = [...filtered].sort((a, b) => (a.equipment === 'Machine' ? 0 : 1) - (b.equipment === 'Machine' ? 0 : 1))
+  const results = sorted.slice(0, DISPLAY_LIMIT)
 
   return (
     <div className="fixed inset-0 z-50 flex items-end justify-center bg-black/60" onClick={onClose}>
