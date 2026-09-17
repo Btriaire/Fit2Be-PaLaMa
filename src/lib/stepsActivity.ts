@@ -47,7 +47,15 @@ async function processDay(day: GoogleFitDay, settings: Settings): Promise<void> 
   }
 
   const rawDurationMin = day.activeMinutes > 0 ? day.activeMinutes : Math.round(day.steps / 100)
-  const rawCalories = day.activeCaloriesBurned > 0 ? day.activeCaloriesBurned : computeCaloriesFromSteps(day.steps, settings)
+  // Ne PAS utiliser day.activeCaloriesBurned ici : ce champ vient de
+  // com.google.calories.expended côté Google Fit, qui inclut le métabolisme
+  // de base de toute la journée malgré son nom — vérifié en prod le
+  // 2026-09-18, des Marche auto-générées de 130-230 min affichaient
+  // 1780-1930 kcal (quasi tout le TDEE du jour), alors que les jours importés
+  // d'Apple Health (calories réellement actives) tournaient à 600-800 kcal
+  // pour des durées comparables. On utilise toujours notre propre formule
+  // NEAT (pas × poids), qui ne compte que la dépense en plus du repos.
+  const rawCalories = computeCaloriesFromSteps(day.steps, settings)
 
   // Le total de pas du jour inclut déjà ceux faits en jardinant, en faisant
   // les courses, etc. — si ces activités sont loguées séparément (catégorie
