@@ -203,7 +203,7 @@ export default function Dashboard() {
               goalLabel={`/ ${STEPS_GOAL.toLocaleString('fr-FR')}`}
               value={stepsToday}
               goal={STEPS_GOAL}
-              color="#7d93ea"
+              color="#4a63d8"
             />
             <ActivityRing
               icon={<Dumbbell size={24} />}
@@ -221,7 +221,7 @@ export default function Dashboard() {
               goalLabel={`/ ${Math.floor(settings.sleepTargetMin / 60)}h`}
               value={sleepMin}
               goal={settings.sleepTargetMin}
-              color="#a78bfa"
+              color="#818cf8"
             />
           </div>
 
@@ -238,7 +238,7 @@ export default function Dashboard() {
               <p className="text-[11px] text-zinc-500">kcal mangées</p>
             </div>
             <div>
-              <p className={`text-base font-bold ${remaining >= 0 ? 'text-emerald-400' : 'text-orange-400'}`}>{Math.abs(remaining)}</p>
+              <p className={`text-base font-bold ${remaining >= 0 ? 'text-teal-300' : 'text-orange-400'}`}>{Math.abs(remaining)}</p>
               <p className="text-[11px] text-zinc-500">{remaining >= 0 ? 'kcal restantes' : 'au-dessus'}</p>
             </div>
           </div>
@@ -297,14 +297,14 @@ export default function Dashboard() {
 
         <div className="grid grid-cols-2 gap-2.5">
           <BigModuleCard to="/gym" heroKey="gym" icon={<Dumbbell size={22} />} title="Fitness" color="text-orange-400" />
-          <BigModuleCard to="/endurance" heroKey="velo" icon={<Activity size={22} />} title="Endurance" color="text-sky-300" />
+          <BigModuleCard to="/endurance" heroKey="velo" icon={<Activity size={22} />} title="Endurance" color="text-teal-300" />
         </div>
 
         <div className="grid grid-cols-4 gap-2">
-          <ShortcutTile to="/activities" icon={<Footprints size={20} />} label="Activités" color="text-sky-300" />
+          <ShortcutTile to="/activities" icon={<Footprints size={20} />} label="Activités" color="text-teal-300" />
           <ShortcutTile to="/recovery" icon={<HeartPulse size={20} />} label="Récup" color="text-indigo-300" />
           <ShortcutTile to="/nutrition" icon={<Apple size={20} />} label="Diet" color="text-orange-300" />
-          <ShortcutTile to="/progression" icon={<TrendingUp size={20} />} label="Progrès" color="text-emerald-300" />
+          <ShortcutTile to="/progression" icon={<TrendingUp size={20} />} label="Progrès" color="text-indigo-300" />
           <ShortcutTile to="/timer" icon={<Timer size={20} />} label="Chrono" color="text-zinc-200" />
           <ShortcutTile
             onClick={() => scanInputRef.current?.click()}

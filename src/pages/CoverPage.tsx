@@ -4,7 +4,7 @@ import { Apple, Dumbbell, Footprints, HeartPulse } from 'lucide-react'
 const MODULES = [
   { icon: Dumbbell, label: 'Gym', color: '#ff5a30' },
   { icon: Footprints, label: 'Endurance', color: '#7d93ea' },
-  { icon: HeartPulse, label: 'Récup', color: '#a78bfa' },
+  { icon: HeartPulse, label: 'Récup', color: '#818cf8' },
   { icon: Apple, label: 'Diet', color: '#ff9466' },
 ]
 
