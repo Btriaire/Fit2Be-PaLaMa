@@ -24,13 +24,13 @@ import AddPage from './pages/AddPage'
 import PhotosPage from './pages/PhotosPage'
 import ReferencePage from './pages/ReferencePage'
 
+// Page de garde à chaque lancement (sessionStorage) ; la synchro tourne dès le boot, sans attendre le tap.
 const ENTERED_KEY = 'vibefit_entered'
 
 function App() {
-  const [entered, setEntered] = useState(() => localStorage.getItem(ENTERED_KEY) === '1')
+  const [entered, setEntered] = useState(() => sessionStorage.getItem(ENTERED_KEY) === '1')
 
   useEffect(() => {
-    if (!entered) return
     getDb().then(restoreFromCloudIfNeeded)
     autoImportNutriTrackerActivitiesIfNeeded(getSettings())
     autoLogWalkFromStepsIfNeeded(getSettings())
@@ -50,10 +50,9 @@ function App() {
       restingHeartRateBpm: s.restingHeartRateBpm,
       dailyCalorieTarget: s.dailyCalorieTarget,
     })
-  }, [entered])
+  }, [])
 
   useEffect(() => {
-    if (!entered) return
     // Reprend l'import dès que l'app revient au premier plan (pas seulement
     // au tout premier chargement) — sinon une marche loggée dans
     // NutriTracker pendant que VibeFit était en arrière-plan n'apparaît
@@ -69,13 +68,13 @@ function App() {
     }
     document.addEventListener('visibilitychange', onVisible)
     return () => document.removeEventListener('visibilitychange', onVisible)
-  }, [entered])
+  }, [])
 
   if (!entered) {
     return (
       <CoverPage
         onEnter={() => {
-          localStorage.setItem(ENTERED_KEY, '1')
+          sessionStorage.setItem(ENTERED_KEY, '1')
           setEntered(true)
         }}
       />
