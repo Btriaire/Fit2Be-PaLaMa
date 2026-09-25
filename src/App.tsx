@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react'
-import { Route, Routes } from 'react-router-dom'
+import { Route, Routes, useNavigate } from 'react-router-dom'
 import { getDb } from './lib/db'
 import { restoreFromCloudIfNeeded, pushProfileRecord } from './lib/cloudSync'
 import { autoImportNutriTrackerActivitiesIfNeeded } from './lib/nutriTrackerImport'
@@ -23,8 +23,14 @@ import ProgressionPage from './pages/ProgressionPage'
 import AddPage from './pages/AddPage'
 import PhotosPage from './pages/PhotosPage'
 import ReferencePage from './pages/ReferencePage'
+import TimerPage from './pages/TimerPage'
 
 // Page de garde à chaque lancement (sessionStorage) ; la synchro tourne dès le boot, sans attendre le tap.
+function TimerRoute() {
+  const navigate = useNavigate()
+  return <TimerPage onClose={() => navigate(-1)} />
+}
+
 const ENTERED_KEY = 'vibefit_entered'
 
 function App() {
@@ -99,6 +105,7 @@ function App() {
           <Route path="/add" element={<AddPage />} />
           <Route path="/photos" element={<PhotosPage />} />
           <Route path="/reference" element={<ReferencePage />} />
+          <Route path="/timer" element={<TimerRoute />} />
           <Route path="/settings" element={<SettingsPage />} />
         </Routes>
       </main>

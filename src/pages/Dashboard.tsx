@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
-import { Dumbbell, Footprints, HeartPulse, Apple, Camera, ChevronLeft, ChevronRight, Settings, Activity, BarChart3, Loader2, Plus, Moon, TrendingUp, ImagePlus, RefreshCw } from 'lucide-react'
+import { Dumbbell, Footprints, HeartPulse, Apple, Camera, ChevronLeft, ChevronRight, Settings, Activity, BarChart3, Loader2, Plus, Moon, TrendingUp, ImagePlus, RefreshCw, Timer } from 'lucide-react'
 import { getDb } from '../lib/db'
 import { getAllWorkouts, estimateWorkoutCalories } from '../lib/workouts'
 import { isSameDay, todayStr, addDays, formatFullDate } from '../lib/date'
@@ -156,6 +156,9 @@ export default function Dashboard() {
             >
               {scanning ? <Loader2 size={20} className="animate-spin" /> : <Camera size={20} />}
             </button>
+            <Link to="/timer" aria-label="Chrono et minuteur" className="rounded-full bg-zinc-950/40 p-2 text-white active:bg-zinc-900">
+              <Timer size={20} />
+            </Link>
             <Link to="/progression" className="rounded-full bg-zinc-950/40 p-2 text-white active:bg-zinc-900">
               <BarChart3 size={20} />
             </Link>
