@@ -5,12 +5,6 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
 import { Flag, Minus, Pause, Play, Plus, RotateCcw, X } from 'lucide-react'
 
-interface WakeLockSentinelLike {
-  release(): Promise<void>
-}
-interface NavigatorWithWakeLock extends Navigator {
-  wakeLock?: { request(type: 'screen'): Promise<WakeLockSentinelLike> }
-}
 interface WindowWithWebkitAudio extends Window {
   webkitAudioContext: typeof AudioContext
 }
@@ -51,7 +45,7 @@ export default function TimerPage({ onClose }: { onClose: () => void }) {
   const elapsed = startedAt !== null ? elapsedBase + (nowMs - startedAt) : elapsedBase
   const remaining = timerDuration - elapsed
 
-  const wakeLockRef = useRef<WakeLockSentinelLike | null>(null)
+  const wakeLockRef = useRef<WakeLockSentinel | null>(null)
   const audioRef = useRef<AudioContext | null>(null)
   const liveRef = useRef({ mode, timerDuration, elapsedBase, startedAt, reducedMotion })
 
@@ -134,7 +128,7 @@ export default function TimerPage({ onClose }: { onClose: () => void }) {
     let cancelled = false
     ;(async () => {
       try {
-        const lock = await (navigator as NavigatorWithWakeLock).wakeLock?.request('screen')
+        const lock = await navigator.wakeLock?.request('screen')
         if (!lock) return
         if (cancelled) void lock.release().catch(() => {})
         else wakeLockRef.current = lock
