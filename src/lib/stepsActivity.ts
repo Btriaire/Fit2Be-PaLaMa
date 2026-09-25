@@ -81,6 +81,10 @@ async function processDay(day: GoogleFitDay, settings: Settings): Promise<void> 
     externalId: id,
     ...(overlapMin > 0 ? { notes: `Ajusté : ${overlapMin} min déjà comptées dans une activité "Quotidien" loguée ce jour-là.` } : {}),
   }
+  // Sans ce garde-fou, chaque ouverture de l'app réécrivait et repoussait vers
+  // le VPS les 14 jours de marche, même inchangés (~14 POST /api/cloudsync).
+  const previous = existing.find((s) => s.id === id)
+  if (previous && previous.durationMin === session.durationMin && previous.caloriesBurned === session.caloriesBurned && previous.notes === session.notes) return
   await db.put('endurance', session)
   pushRecord('endurance', id, session)
 }
