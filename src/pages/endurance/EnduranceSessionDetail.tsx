@@ -1,3 +1,4 @@
+import { SOURCE_LABEL, inferSource } from '../../lib/dataSource'
 import { useEffect, useState } from 'react'
 import { useNavigate, useParams } from 'react-router-dom'
 import { ChevronLeft, Timer, Route, HeartPulse, Flame, Zap, Gauge, Mountain, Trash2, TrendingUp, Activity, Pencil, Check, X, Split } from 'lucide-react'
@@ -200,6 +201,7 @@ export default function EnduranceSessionDetail() {
         </div>
 
         {session.notes && <p className="mb-4 px-1 text-[11px] text-zinc-600">ℹ️ {session.notes}</p>}
+        <p className="mb-4 px-1 text-[11px] text-zinc-500">Source : {SOURCE_LABEL[inferSource(session)]}</p>
 
         {session.activityType === 'marche' && (
           <section className="glass mb-4 rounded-2xl p-4">

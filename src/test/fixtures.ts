@@ -13,6 +13,8 @@ export const PROFILE: Settings = {
   restingHeartRateBpm: 60,
   sleepTargetMin: 480,
   motivationVoice: 'off',
+  goal: 'maintien',
+  calorieMode: 'manual',
 }
 
 export const FEMALE: Settings = { ...PROFILE, sex: 'femme', bodyWeightKg: 60, heightCm: 165 }

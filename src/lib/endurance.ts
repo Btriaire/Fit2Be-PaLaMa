@@ -94,6 +94,7 @@ export async function logEnduranceSession(
     id: newId(),
     activityType: input.activityType,
     startedAt: input.startedAt ?? Date.now(),
+    source: input.machineStats ? 'machine-scan' : 'manual',
     durationMin: input.durationMin,
     distanceKm: input.distanceKm,
     avgHeartRate: input.avgHeartRate,

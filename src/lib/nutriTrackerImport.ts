@@ -5,6 +5,7 @@
 // activité importée porte son id NutriTracker en externalId pour ne jamais
 // être réimportée.
 
+import { inferSource } from './dataSource'
 import { getDb, newId } from './db'
 import { pullActivityHistoryFromNutriTracker, type RemoteActivity } from './nutriTrackerSync'
 import { pushRecord } from './cloudSync'
@@ -115,6 +116,7 @@ export async function importNutriTrackerActivityHistory(days: number, settings: 
         avgHeartRate: a.heartRateAvg ?? undefined,
         caloriesBurned,
         externalId: a.id,
+        source: inferSource({ externalId: a.id }),
         ...(machineStats ? { machineStats } : {}),
       }
       await db.put('endurance', session)
@@ -136,6 +138,7 @@ export async function importNutriTrackerActivityHistory(days: number, settings: 
         caloriesBurned: a.caloriesBurned ?? computeCaloriesForUser(metValue, a.durationMin, settings),
         loggedAt: startedAt,
         externalId: a.id,
+        source: inferSource({ externalId: a.id }),
       }
       await db.put('activities', log)
       pushRecord('activities', log.id, log)

@@ -1,30 +1,32 @@
-import { useEffect, useState } from 'react'
+import { Suspense, lazy, useEffect, useState } from 'react'
 import { Route, Routes, useNavigate } from 'react-router-dom'
 import { getDb } from './lib/db'
 import { restoreFromCloudIfNeeded, pushProfileRecord } from './lib/cloudSync'
 import { autoImportNutriTrackerActivitiesIfNeeded } from './lib/nutriTrackerImport'
 import { autoLogWalkFromStepsIfNeeded } from './lib/stepsActivity'
 import { syncLatestWeightFromNutriTracker } from './lib/weight'
-import { getSettings } from './lib/settings'
+import { getSettings, hasStoredSettings } from './lib/settings'
+import { effectiveCalorieTarget } from './lib/calorieTarget'
 import BottomNav from './components/BottomNav'
 import CoverPage from './pages/CoverPage'
 import UpdateBanner from './components/UpdateBanner'
 import Dashboard from './pages/Dashboard'
-import SettingsPage from './pages/SettingsPage'
-import GymHome from './pages/gym/GymHome'
-import WorkoutRunner from './pages/gym/WorkoutRunner'
-import ExerciseHistory from './pages/gym/ExerciseHistory'
-import ActivitiesPage from './pages/activities/ActivitiesPage'
-import RecoveryPage from './pages/recovery/RecoveryPage'
-import NutritionPage from './pages/nutrition/NutritionPage'
-import EndurancePage from './pages/endurance/EndurancePage'
-import EnduranceHistory from './pages/endurance/EnduranceHistory'
-import EnduranceSessionDetail from './pages/endurance/EnduranceSessionDetail'
-import ProgressionPage from './pages/ProgressionPage'
-import AddPage from './pages/AddPage'
-import PhotosPage from './pages/PhotosPage'
-import ReferencePage from './pages/ReferencePage'
-import TimerPage from './pages/TimerPage'
+const SettingsPage = lazy(() => import('./pages/SettingsPage'))
+const GymHome = lazy(() => import('./pages/gym/GymHome'))
+const WorkoutRunner = lazy(() => import('./pages/gym/WorkoutRunner'))
+const ExerciseHistory = lazy(() => import('./pages/gym/ExerciseHistory'))
+const ActivitiesPage = lazy(() => import('./pages/activities/ActivitiesPage'))
+const RecoveryPage = lazy(() => import('./pages/recovery/RecoveryPage'))
+const NutritionPage = lazy(() => import('./pages/nutrition/NutritionPage'))
+const EndurancePage = lazy(() => import('./pages/endurance/EndurancePage'))
+const EnduranceHistory = lazy(() => import('./pages/endurance/EnduranceHistory'))
+const EnduranceSessionDetail = lazy(() => import('./pages/endurance/EnduranceSessionDetail'))
+const ProgressionPage = lazy(() => import('./pages/ProgressionPage'))
+const AddPage = lazy(() => import('./pages/AddPage'))
+const PhotosPage = lazy(() => import('./pages/PhotosPage'))
+const ReferencePage = lazy(() => import('./pages/ReferencePage'))
+const TimerPage = lazy(() => import('./pages/TimerPage'))
+import OnboardingPage, { ONBOARDED_KEY } from './pages/OnboardingPage'
 
 // Page de garde à chaque lancement (sessionStorage) ; la synchro tourne dès le boot, sans attendre le tap.
 function TimerRoute() {
@@ -36,6 +38,8 @@ const ENTERED_KEY = 'vibefit_entered'
 
 function App() {
   const [entered, setEntered] = useState(() => sessionStorage.getItem(ENTERED_KEY) === '1')
+  // Un profil déjà enregistré (ancien utilisateur) vaut onboarding fait.
+  const [onboarded, setOnboarded] = useState(() => localStorage.getItem(ONBOARDED_KEY) === '1' || hasStoredSettings())
 
   useEffect(() => {
     getDb().then(restoreFromCloudIfNeeded)
@@ -48,14 +52,15 @@ function App() {
     // côté serveur (api/progress-report.ts), qui n'a accès qu'à ce qui est
     // synchronisé.
     const s = getSettings()
-    pushProfileRecord({
+    // Ne pousse le profil qu'une fois saisi : sinon les valeurs par défaut d'un nouvel appareil écraseraient le vrai profil sur le VPS.
+    if (hasStoredSettings()) pushProfileRecord({
       firstName: s.firstName,
       ageYears: s.ageYears,
       sex: s.sex,
       heightCm: s.heightCm,
       bodyWeightKg: s.bodyWeightKg,
       restingHeartRateBpm: s.restingHeartRateBpm,
-      dailyCalorieTarget: s.dailyCalorieTarget,
+      dailyCalorieTarget: effectiveCalorieTarget(s).target,
     })
   }, [])
 
@@ -91,9 +96,19 @@ function App() {
     )
   }
 
+  if (!onboarded) {
+    return (
+      <>
+        <OnboardingPage onDone={() => setOnboarded(true)} />
+        <UpdateBanner />
+      </>
+    )
+  }
+
   return (
     <div className="min-h-screen bg-zinc-950 text-zinc-100">
       <main className="mx-auto max-w-md pb-24">
+        <Suspense fallback={<div className="p-6 text-center text-sm text-zinc-400">Chargement…</div>}>
         <Routes>
           <Route path="/" element={<Dashboard />} />
           <Route path="/gym" element={<GymHome />} />
@@ -112,6 +127,7 @@ function App() {
           <Route path="/timer" element={<TimerRoute />} />
           <Route path="/settings" element={<SettingsPage />} />
         </Routes>
+        </Suspense>
       </main>
       <BottomNav />
       <UpdateBanner />

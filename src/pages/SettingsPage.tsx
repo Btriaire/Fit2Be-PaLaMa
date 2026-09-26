@@ -1,3 +1,4 @@
+import { targetFromProfile } from '../lib/calorieTarget'
 import { todayStr } from '../lib/date'
 import SyncStatusLine from '../components/SyncStatusLine'
 import { useState } from 'react'
@@ -24,6 +25,8 @@ export default function SettingsPage() {
   const [profileSavedFlash, setProfileSavedFlash] = useState(false)
   const [profilePhoto, setProfilePhoto] = useState(initial.profilePhotoDataUrl)
   const [dailyCalorieTarget, setDailyCalorieTarget] = useState(String(initial.dailyCalorieTarget))
+  const [goal, setGoal] = useState(initial.goal)
+  const [calorieMode, setCalorieMode] = useState(initial.calorieMode)
   const [restTimerDefaultSec, setRestTimerDefaultSec] = useState(String(initial.restTimerDefaultSec))
   const [restingHeartRateBpm, setRestingHeartRateBpm] = useState(String(initial.restingHeartRateBpm))
   const [sleepTargetMin, setSleepTargetMin] = useState(String(initial.sleepTargetMin))
@@ -39,6 +42,7 @@ export default function SettingsPage() {
   const [dupFlash, setDupFlash] = useState<string | null>(null)
   const [gfSyncing, setGfSyncing] = useState(false)
   const [gfFlash, setGfFlash] = useState<string | null>(null)
+  const autoTarget = targetFromProfile({ ...getSettings(), goal })
 
   async function handlePhoto(e: React.ChangeEvent<HTMLInputElement>) {
     const file = e.target.files?.[0]
@@ -247,7 +251,56 @@ export default function SettingsPage() {
       </section>
 
       <section className="glass mb-4 space-y-4 rounded-2xl p-4">
-        <Field label="Objectif calorique quotidien" value={dailyCalorieTarget} onChange={setDailyCalorieTarget} suffix="kcal" />
+        <div>
+          <p className="mb-1 text-xs text-zinc-400">Objectif calorique quotidien</p>
+          <div className="mb-2 grid grid-cols-2 gap-2">
+            {([
+              ['auto', 'Calculé'],
+              ['manual', 'Manuel'],
+            ] as const).map(([mode, label]) => (
+              <button
+                key={mode}
+                onClick={() => {
+                  setCalorieMode(mode)
+                  saveSettings({ calorieMode: mode })
+                }}
+                className={`min-h-11 rounded-lg text-sm font-medium ${calorieMode === mode ? 'bg-teal-500 text-white' : 'bg-zinc-900 text-zinc-300'}`}
+              >
+                {label}
+              </button>
+            ))}
+          </div>
+          {calorieMode === 'auto' ? (
+            <div className="rounded-lg bg-zinc-900 p-3">
+              <div className="mb-2 grid grid-cols-3 gap-1.5">
+                {([
+                  ['perte', 'Perdre'],
+                  ['maintien', 'Maintenir'],
+                  ['prise', 'Prendre'],
+                ] as const).map(([g, label]) => (
+                  <button
+                    key={g}
+                    onClick={() => {
+                      setGoal(g)
+                      saveSettings({ goal: g })
+                    }}
+                    className={`min-h-11 rounded-lg text-xs font-medium ${goal === g ? 'bg-orange-500 text-zinc-950' : 'bg-zinc-800 text-zinc-300'}`}
+                  >
+                    {label}
+                  </button>
+                ))}
+              </div>
+              <p className="text-sm font-semibold text-zinc-100">{autoTarget.target} kcal / jour</p>
+              <p className="mt-1 text-xs leading-relaxed text-zinc-400">
+                Métabolisme de base {autoTarget.bmr} kcal, base {autoTarget.baseline} kcal
+                {autoTarget.adjustment !== 0 && ` ${autoTarget.adjustment > 0 ? '+' : '−'} ${Math.abs(autoTarget.adjustment)} selon ton objectif`}. Les
+                calories brûlées à l&apos;entraînement s&apos;y ajoutent chaque jour. Le calcul suit ton poids, ta taille et ton âge.
+              </p>
+            </div>
+          ) : (
+            <Field label="Cible saisie" value={dailyCalorieTarget} onChange={setDailyCalorieTarget} suffix="kcal" />
+          )}
+        </div>
         <Field label="Repos par défaut entre séries" value={restTimerDefaultSec} onChange={setRestTimerDefaultSec} suffix="sec" />
         <Field label="FC de repos (pour le VO2max estimé)" value={restingHeartRateBpm} onChange={setRestingHeartRateBpm} suffix="bpm" />
         <Field label="Objectif de sommeil" value={sleepTargetMin} onChange={setSleepTargetMin} suffix="min" />

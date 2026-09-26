@@ -14,7 +14,7 @@ export async function getWeightLogs(): Promise<WeightLog[]> {
 /** Enregistre une pesée et met à jour le profil (poids courant utilisé dans tous les calculs). */
 export async function logWeight(weightKg: number, loggedAt = Date.now()): Promise<WeightLog> {
   const db = await getDb()
-  const entry: WeightLog = { id: newId(), loggedAt, weightKg }
+  const entry: WeightLog = { id: newId(), loggedAt, weightKg, source: 'manual' }
   await db.put('weightLogs', entry)
   pushRecord('weightLogs', entry.id, entry)
   saveSettings({ bodyWeightKg: weightKg })
@@ -48,7 +48,7 @@ export async function adoptWeightFromSync(weightKg: number, dateStr: string): Pr
   if (alreadyLogged) return null
 
   const loggedAt = new Date(`${dateStr}T12:00:00`).getTime()
-  const entry: WeightLog = { id: newId(), loggedAt, weightKg }
+  const entry: WeightLog = { id: newId(), loggedAt, weightKg, source: 'nutritracker' }
   await db.put('weightLogs', entry)
   pushRecord('weightLogs', entry.id, entry)
   saveSettings({ bodyWeightKg: weightKg })

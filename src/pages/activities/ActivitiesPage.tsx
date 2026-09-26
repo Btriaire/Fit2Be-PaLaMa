@@ -52,7 +52,7 @@ export default function ActivitiesPage() {
 
   async function addLog(entry: Omit<ActivityLog, 'id' | 'loggedAt'>) {
     const db = await getDb()
-    const log: ActivityLog = { ...entry, id: newId(), loggedAt: Date.now() }
+    const log: ActivityLog = { ...entry, id: newId(), loggedAt: Date.now(), source: 'manual' }
     await db.put('activities', log)
     pushRecord('activities', log.id, log)
     setFormOpen(false)

@@ -21,6 +21,11 @@
   --color-orange-300: #ff9466;
   --color-orange-400: #ff5a30;
   --color-orange-500: #e2361c;
+
+  /* Texte secondaire : les zinc-500/600 stock (4,1:1 et 2,6:1 sur fond noir) ne passent pas
+     le contraste WCAG AA (4,5:1). Redéfinis pour toute l'app — ils ne servent qu'au texte. */
+  --color-zinc-500: #93939e; /* 6,2:1 sur #09090b, 5,5:1 sur les cartes */
+  --color-zinc-600: #85858f; /* 4,9:1 sur les cartes */
 }
 
 :root {

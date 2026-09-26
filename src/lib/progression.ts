@@ -4,6 +4,7 @@
 // par battement de cœur en cardio) et on mappe le %  de variation sur 0-100
 // autour d'un point neutre à 50.
 
+import { effectiveCalorieTarget } from './calorieTarget'
 import { dayKey } from './date'
 import { getAllWorkouts, getExerciseHistory, getLoggedExerciseIds, getPrStats, estimateWorkoutCalories } from './workouts'
 import { getEnduranceSessions, ENDURANCE_ACTIVITY_META } from './endurance'
@@ -457,6 +458,7 @@ const ACTIVITY_DAILY_TARGET_MIN = 30
  * ramenés sur 0-100 pour être lisibles ensemble sur un même graphique —
  * chaque pilier a sa propre notion de "objectif du jour atteint à 100%". */
 export async function computeOverviewSeries(settings: Settings, days = 14): Promise<OverviewPoint[]> {
+  const calorieTarget = effectiveCalorieTarget(settings).target
   const [endurance, db, googleFitDays, remoteNutritionDays] = await Promise.all([
     getEnduranceSessions(),
     getDb(),
@@ -506,8 +508,8 @@ export async function computeOverviewSeries(settings: Settings, days = 14): Prom
       activites: activityMin > 0 ? Math.min(100, Math.round((activityMin / ACTIVITY_DAILY_TARGET_MIN) * 100)) : null,
       recuperation: checkin ? checkin.bodyBatteryScore : null,
       nutrition:
-        consumed > 0 && settings.dailyCalorieTarget > 0
-          ? Math.max(0, 100 - Math.round((Math.abs(consumed - settings.dailyCalorieTarget) / settings.dailyCalorieTarget) * 100))
+        consumed > 0 && calorieTarget > 0
+          ? Math.max(0, 100 - Math.round((Math.abs(consumed - calorieTarget) / calorieTarget) * 100))
           : null,
     })
   }

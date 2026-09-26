@@ -1,3 +1,4 @@
+import { effectiveCalorieTarget } from '../../lib/calorieTarget'
 import { useEffect, useMemo, useState } from 'react'
 import { Link } from 'react-router-dom'
 import { Apple, ChevronLeft, ChevronRight, Flame, Footprints, Mic, Plus, Scale, Square, Trash2, User, X } from 'lucide-react'
@@ -26,6 +27,7 @@ export default function NutritionPage() {
   const [selectedDate, setSelectedDate] = useState(todayStr())
   const [formOpen, setFormOpen] = useState(false)
   const [settings, setSettings] = useState(getSettings())
+  const calorieTarget = effectiveCalorieTarget(settings).target
   const [remoteNutrition, setRemoteNutrition] = useState<RemoteNutritionTotals | null>(null)
   const [googleFitDay, setGoogleFitDay] = useState<GoogleFitDay | null>(null)
   const [aiLoading, setAiLoading] = useState(false)
@@ -81,7 +83,7 @@ export default function NutritionPage() {
   // séances de sport déjà comptées via gymCalories/activityCalories.
   const stepsCalories = googleFitDay ? computeCaloriesFromSteps(googleFitDay.steps, settings) : 0
   const totalBurned = gymCalories + activityCalories + stepsCalories
-  const adjustedTarget = settings.dailyCalorieTarget + totalBurned
+  const adjustedTarget = calorieTarget + totalBurned
   const remaining = adjustedTarget - consumed
   const pct = Math.min(100, Math.round((consumed / adjustedTarget) * 100))
 
@@ -128,7 +130,7 @@ export default function NutritionPage() {
     setAiResult(null)
     const recovery = await computeDailyRecovery(settings.ageYears)
     const result = await suggestDietAdjustments({
-      dailyCalorieTarget: settings.dailyCalorieTarget,
+      dailyCalorieTarget: calorieTarget,
       consumedToday: { calories: consumed, proteinG: protein, carbsG: carbs, fatG: fat, sugarG: sugar },
       totalBurnedToday: totalBurned,
       recentMeals: dayEntries.map((e) => ({ label: e.label, calories: e.calories, proteinG: e.proteinG, carbsG: e.carbsG, fatG: e.fatG })),
@@ -149,7 +151,7 @@ export default function NutritionPage() {
         <div className="absolute inset-x-0 top-0 flex items-center gap-2 px-4 pt-[calc(env(safe-area-inset-top)+16px)]">
           <BackButton />
           <Apple className="text-teal-400" size={24} />
-          <h1 className="text-xl font-semibold tracking-tight text-white drop-shadow">Diet Deficit</h1>
+          <h1 className="text-xl font-semibold tracking-tight text-white drop-shadow">Diet</h1>
         </div>
       </div>
 
@@ -194,7 +196,7 @@ export default function NutritionPage() {
       <div className="glass mb-4 rounded-2xl p-4">
         <div className="mb-2 flex items-baseline justify-between">
           <p className="text-sm text-zinc-400">Consommées</p>
-          <p className="text-sm text-zinc-400">Objectif {settings.dailyCalorieTarget} kcal</p>
+          <p className="text-sm text-zinc-400">Objectif {calorieTarget} kcal</p>
         </div>
         <p className="mb-2 text-3xl font-bold text-teal-400">{consumed} kcal</p>
         <div className="mb-1 h-2 overflow-hidden rounded-full bg-zinc-800">
@@ -291,7 +293,7 @@ export default function NutritionPage() {
               </ul>
             </div>
           )}
-          <p className="text-[10px] text-zinc-600">Objectif calorique {settings.dailyCalorieTarget} kcal toujours respecté.</p>
+          <p className="text-[10px] text-zinc-600">Objectif calorique {calorieTarget} kcal toujours respecté.</p>
         </div>
       )}
 

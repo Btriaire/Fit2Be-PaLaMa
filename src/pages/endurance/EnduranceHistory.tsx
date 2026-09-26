@@ -48,9 +48,8 @@ export default function EnduranceHistory() {
   const volumeData = points.map((p) => ({ label: formatDate(p.date), distance: p.distanceKm ?? 0, duree: p.durationMin }))
 
   const cumulativeData = useMemo(() => {
-    let running = 0
-    return points.map((p) => {
-      running += p.distanceKm ?? 0
+    return points.map((p, i) => {
+      const running = points.slice(0, i + 1).reduce((sum, q) => sum + (q.distanceKm ?? 0), 0)
       return { label: formatDate(p.date), cumul: Math.round(running * 10) / 10 }
     })
   }, [points])

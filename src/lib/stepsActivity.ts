@@ -79,6 +79,7 @@ async function processDay(day: GoogleFitDay, settings: Settings): Promise<void> 
     durationMin,
     caloriesBurned,
     externalId: id,
+    source: 'googlefit',
     ...(overlapMin > 0 ? { notes: `Ajusté : ${overlapMin} min déjà comptées dans une activité "Quotidien" loguée ce jour-là.` } : {}),
   }
   // Sans ce garde-fou, chaque ouverture de l'app réécrivait et repoussait vers

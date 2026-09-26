@@ -1,8 +1,11 @@
 import { pushProfileRecord } from './cloudSync'
+import { effectiveCalorieTarget } from './calorieTarget'
 
 const KEY = 'vibefit_settings_v1'
 
 export type Sex = 'homme' | 'femme'
+export type Goal = 'perte' | 'maintien' | 'prise'
+export type CalorieMode = 'manual' | 'auto'
 
 export interface Settings {
   firstName: string
@@ -22,6 +25,13 @@ export interface Settings {
   profilePhotoDataUrl?: string
   /** Voix de motivation générée à la volée (musculation + cardio) — 'off' désactive. */
   motivationVoice: 'off' | 'coach' | 'calme'
+  /** Objectif de composition corporelle — pilote la cible calorique auto. */
+  goal: Goal
+  /** 'auto' : cible calculée depuis le BMR et l'objectif ; 'manual' : valeur saisie. */
+  calorieMode: CalorieMode
+  targetWeightKg?: number
+  /** Date visée (YYYY-MM-DD) pour atteindre le poids cible. */
+  targetDate?: string
 }
 
 const DEFAULTS: Settings = {
@@ -36,6 +46,17 @@ const DEFAULTS: Settings = {
   restingHeartRateBpm: 60,
   sleepTargetMin: 480,
   motivationVoice: 'off',
+  goal: 'maintien',
+  calorieMode: 'manual',
+}
+
+/** Vrai si l'utilisateur a déjà enregistré un profil (sert à ne pas relancer l'onboarding). */
+export function hasStoredSettings(): boolean {
+  try {
+    return localStorage.getItem(KEY) != null
+  } catch {
+    return false
+  }
 }
 
 export function getSettings(): Settings {
@@ -58,7 +79,7 @@ export function saveSettings(partial: Partial<Settings>) {
     heightCm: next.heightCm,
     bodyWeightKg: next.bodyWeightKg,
     restingHeartRateBpm: next.restingHeartRateBpm,
-    dailyCalorieTarget: next.dailyCalorieTarget,
+    dailyCalorieTarget: effectiveCalorieTarget(next).target,
   })
   return next
 }

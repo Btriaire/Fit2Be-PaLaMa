@@ -40,6 +40,7 @@ describe('Marche automatique depuis les pas Google Fit', () => {
     expect(s.durationMin).toBe(60)
     expect(s.caloriesBurned).toBe(343) // 9150 pas × 0,0005 × 75 kg — et non 1800
     expect(s.startedAt).toBe(noon)
+    expect(s.source).toBe('googlefit')
   })
 
   it('est idempotente : relancer sans changement ne repousse rien vers le VPS', async () => {

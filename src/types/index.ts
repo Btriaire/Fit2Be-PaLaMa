@@ -73,6 +73,9 @@ export interface CustomTemplate {
 
 // ---- Activités quotidiennes ----
 
+/** D'où vient une donnée : permet de repérer les doublons et les valeurs douteuses. */
+export type DataSource = 'manual' | 'googlefit' | 'nutritracker' | 'apple-health' | 'machine-scan'
+
 export type ActivityCategory = 'gym' | 'outdoor' | 'loisir' | 'quotidien' | 'bureau' | 'deplacement'
 
 export interface ActivityLog {
@@ -87,6 +90,7 @@ export interface ActivityLog {
   /** id de l'entrée côté NutriTracker si importée de là-bas — sert à ne
    * jamais réimporter deux fois la même activité. */
   externalId?: string
+  source?: DataSource
 }
 
 // ---- Endurance ----
@@ -156,6 +160,7 @@ export interface PhaseLogEntry {
 export interface EnduranceSession {
   id: string
   activityType: EnduranceActivityType
+  source?: DataSource
   startedAt: number
   durationMin: number
   distanceKm?: number
@@ -215,6 +220,7 @@ export interface WeightLog {
   id: string
   loggedAt: number
   weightKg: number
+  source?: DataSource
 }
 
 export interface UserSettings {

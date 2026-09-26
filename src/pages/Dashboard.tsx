@@ -18,6 +18,7 @@ import { computeActivityStreak, computeDailyRecovery, type ActivityStreak, type 
 import { ENDURANCE_ACTIVITY_META } from '../lib/endurance'
 import ActivityRing from '../components/ActivityRing'
 import SyncStatusLine from '../components/SyncStatusLine'
+import { effectiveCalorieTarget } from '../lib/calorieTarget'
 import ActivityHero, { type HeroKey } from '../components/ActivityHero'
 import type { ActivityLog, DailyPhoto, EnduranceSession, GoogleFitDay, NutritionEntry, RecoveryCheckin, Workout } from '../types'
 
@@ -138,7 +139,9 @@ export default function Dashboard() {
     ? nextAction({ recovery, sleepMin, load, sessionsToday, eaten: todayNutritionCalories })
     : null
 
-  const remaining = settings.dailyCalorieTarget - todayNutritionCalories
+  // Même logique que la page Diet : la cible de base + les calories brûlées du jour.
+  const calorieTarget = effectiveCalorieTarget(settings).target
+  const remaining = calorieTarget + todayBurnedCalories - todayNutritionCalories
 
   return (
     <div>
@@ -150,7 +153,7 @@ export default function Dashboard() {
             <div className="flex items-center gap-1">
               <button
                 onClick={() => setSelectedDate((d) => addDays(d, -1))}
-                className="rounded-full p-0.5 text-zinc-300 drop-shadow active:bg-zinc-950/40"
+                className="-my-2.5 flex h-11 w-8 items-center justify-center rounded-full text-zinc-300 drop-shadow active:bg-zinc-950/40"
                 aria-label="Jour précédent"
               >
                 <ChevronLeft size={16} />
@@ -159,7 +162,7 @@ export default function Dashboard() {
               <button
                 onClick={() => setSelectedDate((d) => addDays(d, 1))}
                 disabled={selectedDate >= todayStr()}
-                className="rounded-full p-0.5 text-zinc-300 drop-shadow active:bg-zinc-950/40 disabled:opacity-30"
+                className="-my-2.5 flex h-11 w-8 items-center justify-center rounded-full text-zinc-300 drop-shadow active:bg-zinc-950/40 disabled:opacity-30"
                 aria-label="Jour suivant"
               >
                 <ChevronRight size={16} />
@@ -180,12 +183,12 @@ export default function Dashboard() {
             <button
               onClick={forceSyncNow}
               disabled={syncing}
-              className="rounded-full bg-zinc-950/40 p-2 text-white active:bg-zinc-900 disabled:opacity-60"
+              className="flex h-11 w-11 items-center justify-center rounded-full bg-zinc-950/40 text-white active:bg-zinc-900 disabled:opacity-60"
               aria-label="Forcer la synchro NutriTracker et Google Fit"
             >
               <RefreshCw size={20} className={syncing ? 'animate-spin' : ''} />
             </button>
-            <Link to="/settings" aria-label="Réglages" className="rounded-full bg-zinc-950/40 p-2 text-white active:bg-zinc-900">
+            <Link to="/settings" aria-label="Réglages" className="flex h-11 w-11 items-center justify-center rounded-full bg-zinc-950/40 text-white active:bg-zinc-900">
               <Settings size={20} />
             </Link>
           </div>
@@ -234,7 +237,7 @@ export default function Dashboard() {
             <div>
               <p className="text-base font-bold text-zinc-50">
                 {todayNutritionCalories}
-                <span className="text-xs font-medium text-zinc-500"> / {settings.dailyCalorieTarget}</span>
+                <span className="text-xs font-medium text-zinc-400"> / {calorieTarget + todayBurnedCalories}</span>
               </p>
               <p className="text-[11px] text-zinc-500">kcal mangées</p>
             </div>
