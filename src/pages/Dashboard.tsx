@@ -18,6 +18,8 @@ import { computeActivityStreak, computeDailyRecovery, type ActivityStreak, type 
 import { ENDURANCE_ACTIVITY_META } from '../lib/endurance'
 import ActivityRing from '../components/ActivityRing'
 import SyncStatusLine from '../components/SyncStatusLine'
+import FitStatusLine from '../components/FitStatusLine'
+import { effectiveSleepMinutes } from '../lib/fitHealth'
 import { computePersonalGoals, DEFAULT_SESSIONS_GOAL, DEFAULT_STEPS_GOAL, type PersonalGoals } from '../lib/personalGoals'
 import { computeTrainingAlerts, type TrainingAlert } from '../lib/trainingAlerts'
 import { mostNeglected, weeklyVolumeByGroup } from '../lib/weeklyVolume'
@@ -71,7 +73,7 @@ export default function Dashboard() {
     setSyncing(true)
     try {
       await Promise.all([
-        syncGoogleFit().then(() => autoLogWalkFromStepsIfNeeded(settings)),
+        syncGoogleFit(14, { force: true }).then(() => autoLogWalkFromStepsIfNeeded(settings)),
         importNutriTrackerActivityHistory(30, settings),
         syncLatestWeightFromNutriTracker(),
       ])
@@ -134,7 +136,7 @@ export default function Dashboard() {
 
   const isToday = selectedDate === todayStr()
   const stepsToday = googleFit?.steps ?? null
-  const sleepMin = googleFit?.sleepMinutes ?? null
+  const sleepMin = effectiveSleepMinutes(googleFit, recovery?.sleepHours)
 
   const windowEnd = new Date(`${selectedDate}T23:59:59`).getTime()
   const windowStart = windowEnd - 7 * 86_400_000
@@ -207,6 +209,8 @@ export default function Dashboard() {
 
       <div className="-mt-3 space-y-3 px-4 pb-6">
         {scanError && <p className="text-center text-xs text-red-400">{scanError}</p>}
+
+        {isToday && <FitStatusLine refreshKey={googleFit?.syncedAt ?? 0} />}
 
         <section className="glass rounded-3xl p-4" aria-label="Objectifs du jour">
           <div className="flex items-start justify-between gap-2">

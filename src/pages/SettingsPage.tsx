@@ -105,7 +105,7 @@ export default function SettingsPage() {
     setGfSyncing(true)
     setGfFlash(null)
     try {
-      await syncGoogleFit()
+      await syncGoogleFit(14, { force: true })
       await autoLogWalkFromStepsIfNeeded(getSettings())
       const today = await getTodayGoogleFit()
       setGfFlash(today ? `${today.steps.toLocaleString('fr-FR')} pas aujourd'hui` : 'Rien de disponible pour l\'instant')

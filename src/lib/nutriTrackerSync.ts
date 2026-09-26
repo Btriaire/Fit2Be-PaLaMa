@@ -3,6 +3,8 @@
 // down) never blocks a local save. Goes through our own /api/nutritracker
 // serverless proxy so the shared secret never reaches the browser.
 
+import type { GoogleFitDay } from '../types'
+
 interface PullWeightResult {
   weightKg: number | null
   date: string | null
@@ -93,6 +95,28 @@ interface GoogleFitDayRaw {
   activeMinutes: number
   heartRateAvg: number | null
   sleepMinutes: number | null
+  sleepSource?: GoogleFitDay['sleepSource']
+  syncedAtMs?: number | null
+}
+
+/**
+ * Demande à NutriTracker de tirer les chiffres frais chez Google (aujourd'hui + hier) : sans cela
+ * on ne lit que ce qu'il a synchronisé plus tôt (cron de 5 h ou ouverture de NutriTracker), donc
+ * des pas et un sommeil périmés. Renvoie true si au moins un jour a été resynchronisé.
+ */
+export async function refreshGoogleFitRemote(days = 2): Promise<boolean> {
+  try {
+    const r = await fetch('/api/nutritracker', {
+      method: 'POST',
+      headers: { 'content-type': 'application/json' },
+      body: JSON.stringify({ type: 'googlefit-sync', days }),
+    })
+    if (!r.ok) return false
+    const data = (await r.json()) as { ok?: boolean; skipped?: boolean }
+    return data.ok === true && !data.skipped
+  } catch {
+    return false
+  }
 }
 
 /** Google Fit n'est connecté que côté NutriTracker (OAuth) — on lit ici ce

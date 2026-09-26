@@ -4,6 +4,7 @@
 // séance — zone de FC réelle en priorité, sinon les METs de l'activité, sinon
 // le RPE saisi manuellement sur les séries de musculation.
 
+import { effectiveSleepMinutes } from './fitHealth'
 import { getDb } from './db'
 import { getAllWorkouts } from './workouts'
 import { getEnduranceSessions, ENDURANCE_ACTIVITY_META } from './endurance'
@@ -308,7 +309,10 @@ export async function computeReadiness(ageYears: number, subjectiveScore: number
 
   const today = todayStr()
   const todayFit = await db.get('googleFitDaily', today)
-  const sleepComponent = todayFit?.sleepMinutes != null ? Math.round(Math.min(100, (todayFit.sleepMinutes / sleepTargetMin) * 100)) : null
+  // Sommeil de la nuit : Google Fit, sinon les heures saisies au check-in du jour.
+  const checkin = (await db.getAllFromIndex('recovery', 'byDate')).find((r) => r.date === today)
+  const sleepMin = effectiveSleepMinutes(todayFit ?? null, checkin?.sleepHours)
+  const sleepComponent = sleepMin != null ? Math.round(Math.min(100, (sleepMin / sleepTargetMin) * 100)) : null
 
   const score = Math.round(
     sleepComponent != null

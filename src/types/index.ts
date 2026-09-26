@@ -244,6 +244,10 @@ export interface DailyPhoto {
 
 export interface GoogleFitDay {
   date: string // YYYY-MM-DD, clé primaire
+  /** D'où vient le sommeil : Google Fit, ou une autre source quand Google Fit n'en reçoit plus. */
+  sleepSource?: 'googlefit' | 'manual' | 'apple-health' | 'withings' | null
+  /** Quand NutriTracker a réellement tiré ces chiffres chez Google (≠ quand on les a lus). */
+  remoteSyncedAt?: number | null
   steps: number
   activeCaloriesBurned: number
   activeMinutes: number
