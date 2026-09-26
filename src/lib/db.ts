@@ -2,6 +2,7 @@ import { openDB, type DBSchema, type IDBPDatabase } from 'idb'
 import type {
   ActivityLog,
   CustomTemplate,
+  DailyFatigue,
   DailyPhoto,
   EnduranceSession,
   Exercise,
@@ -25,13 +26,14 @@ interface VibeFitDB extends DBSchema {
   customTemplates: { key: string; value: CustomTemplate; indexes: { byCreatedAt: number } }
   dailyPhotos: { key: string; value: DailyPhoto }
   customEndurancePrograms: { key: string; value: CustomEnduranceProgram; indexes: { byCreatedAt: number } }
+  fatigue: { key: string; value: DailyFatigue }
 }
 
 let dbPromise: Promise<IDBPDatabase<VibeFitDB>> | null = null
 
 export function getDb() {
   if (!dbPromise) {
-    dbPromise = openDB<VibeFitDB>('vibefit', 7, {
+    dbPromise = openDB<VibeFitDB>('vibefit', 8, {
       upgrade(db, oldVersion) {
         if (oldVersion < 1) {
           const workouts = db.createObjectStore('workouts', { keyPath: 'id' })
@@ -69,6 +71,9 @@ export function getDb() {
         if (oldVersion < 7) {
           const customEndurancePrograms = db.createObjectStore('customEndurancePrograms', { keyPath: 'id' })
           customEndurancePrograms.createIndex('byCreatedAt', 'createdAt')
+        }
+        if (oldVersion < 8) {
+          db.createObjectStore('fatigue', { keyPath: 'id' })
         }
       },
     })

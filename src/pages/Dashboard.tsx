@@ -19,6 +19,8 @@ import { ENDURANCE_ACTIVITY_META } from '../lib/endurance'
 import ActivityRing from '../components/ActivityRing'
 import SyncStatusLine from '../components/SyncStatusLine'
 import FitStatusLine from '../components/FitStatusLine'
+import FatigueCard from '../components/FatigueCard'
+import { isHighFatigue } from '../lib/fatigue'
 import { effectiveSleepMinutes } from '../lib/fitHealth'
 import { computePersonalGoals, DEFAULT_SESSIONS_GOAL, DEFAULT_STEPS_GOAL, type PersonalGoals } from '../lib/personalGoals'
 import { computeTrainingAlerts, type TrainingAlert } from '../lib/trainingAlerts'
@@ -26,7 +28,7 @@ import { mostNeglected, weeklyVolumeByGroup } from '../lib/weeklyVolume'
 import { getMuscleGroupVolume } from '../lib/workouts'
 import { effectiveCalorieTarget } from '../lib/calorieTarget'
 import ActivityHero, { type HeroKey } from '../components/ActivityHero'
-import type { ActivityLog, DailyPhoto, EnduranceSession, GoogleFitDay, NutritionEntry, RecoveryCheckin, Workout } from '../types'
+import type { ActivityLog, DailyFatigue, DailyPhoto, EnduranceSession, GoogleFitDay, NutritionEntry, RecoveryCheckin, Workout } from '../types'
 
 const MOOD_EMOJI: Record<number, string> = { 1: '😞', 2: '🙁', 3: '😐', 4: '🙂', 5: '😄' }
 
@@ -52,6 +54,7 @@ export default function Dashboard() {
   const [alerts, setAlerts] = useState<TrainingAlert[]>([])
   const [goals, setGoals] = useState<PersonalGoals>({ steps: DEFAULT_STEPS_GOAL, sessions: DEFAULT_SESSIONS_GOAL, adapted: false })
   const [neglected, setNeglected] = useState<string[]>([])
+  const [fatigue, setFatigue] = useState<DailyFatigue | null>(null)
   const settings = getSettings()
   const quote = getQuoteOfTheDay()
 
@@ -148,7 +151,7 @@ export default function Dashboard() {
 
   const lastSession = latestSession(workouts, endurance, activities)
   const suggestion = isToday
-    ? nextAction({ sleepMin, load, sessionsToday, eaten: todayNutritionCalories, alerts, neglected })
+    ? nextAction({ sleepMin, load, sessionsToday, eaten: todayNutritionCalories, alerts, neglected, fatigue })
     : null
 
   // Même logique que la page Diet : la cible de base + les calories brûlées du jour.
@@ -211,6 +214,7 @@ export default function Dashboard() {
         {scanError && <p className="text-center text-xs text-red-400">{scanError}</p>}
 
         {isToday && <FitStatusLine refreshKey={googleFit?.syncedAt ?? 0} />}
+        {isToday && <FatigueCard date={selectedDate} onChange={setFatigue} />}
 
         <section className="glass rounded-3xl p-4" aria-label="Objectifs du jour">
           <div className="flex items-start justify-between gap-2">
@@ -380,11 +384,14 @@ function nextAction(ctx: {
   eaten: number
   alerts: TrainingAlert[]
   neglected: string[]
+  fatigue: DailyFatigue | null
 }): Suggestion {
   if (ctx.sleepMin != null && ctx.sleepMin < 360)
     return { to: '/recovery', title: 'Nuit courte — vas-y en douceur', detail: 'Moins de 6 h de sommeil : privilégie une séance légère ou de la récupération.' }
   if (ctx.load && (ctx.load.band === 'importante' || ctx.load.band === 'intense'))
     return { to: '/recovery', title: 'Grosse charge aujourd’hui', detail: 'Étirements, marche ou repos : laisse le corps encaisser.' }
+  if (isHighFatigue(ctx.fatigue))
+    return { to: '/recovery', title: 'Tu te sens fatigué — allège', detail: 'Fatigue élevée déclarée : privilégie une séance légère, des étirements ou du repos.' }
   const deload = ctx.alerts.find((a) => a.level === 'warn')
   if (deload) return { to: deload.to, title: deload.title, detail: deload.detail }
   if (ctx.sessionsToday === 0)

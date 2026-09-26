@@ -240,6 +240,17 @@ export interface DailyPhoto {
   createdAt: number
 }
 
+// ---- Fatigue du jour (curseurs de l'accueil) ----
+
+/** Niveau ressenti, de 1 (frais) à 5 (épuisé) — un enregistrement par jour, indépendant du check-in Récup. */
+export interface DailyFatigue {
+  id: string // = date, pour la synchro générique cloudSync
+  date: string // YYYY-MM-DD
+  general: number
+  muscular: number
+  updatedAt: number
+}
+
 // ---- Google Fit (lu depuis NutriTracker, pas d'OAuth propre à cette app) ----
 
 export interface GoogleFitDay {

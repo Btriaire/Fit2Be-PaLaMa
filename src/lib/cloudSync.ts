@@ -17,7 +17,7 @@ async function trackResult(res: Response) {
   recordSyncResult(ok)
 }
 
-export const SYNCABLE_STORES = ['workouts', 'activities', 'recovery', 'nutrition', 'weightLogs', 'endurance', 'customTemplates', 'dailyPhotos', 'customEndurancePrograms'] as const
+export const SYNCABLE_STORES = ['workouts', 'activities', 'recovery', 'nutrition', 'weightLogs', 'endurance', 'customTemplates', 'dailyPhotos', 'customEndurancePrograms', 'fatigue'] as const
 export type SyncableStore = (typeof SYNCABLE_STORES)[number]
 
 export function pushRecord(store: SyncableStore, id: string, data: unknown): void {
