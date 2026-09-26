@@ -18,6 +18,9 @@ import { computeActivityStreak, computeDailyRecovery, type ActivityStreak, type 
 import { ENDURANCE_ACTIVITY_META } from '../lib/endurance'
 import ActivityRing from '../components/ActivityRing'
 import SyncStatusLine from '../components/SyncStatusLine'
+import { computeTrainingAlerts, type TrainingAlert } from '../lib/trainingAlerts'
+import { mostNeglected, weeklyVolumeByGroup } from '../lib/weeklyVolume'
+import { getMuscleGroupVolume } from '../lib/workouts'
 import { effectiveCalorieTarget } from '../lib/calorieTarget'
 import ActivityHero, { type HeroKey } from '../components/ActivityHero'
 import type { ActivityLog, DailyPhoto, EnduranceSession, GoogleFitDay, NutritionEntry, RecoveryCheckin, Workout } from '../types'
@@ -43,6 +46,8 @@ export default function Dashboard() {
   const [selectedDate, setSelectedDate] = useState(todayStr())
   const [streak, setStreak] = useState<ActivityStreak | null>(null)
   const [load, setLoad] = useState<DailyRecovery | null>(null)
+  const [alerts, setAlerts] = useState<TrainingAlert[]>([])
+  const [neglected, setNeglected] = useState<string[]>([])
   const settings = getSettings()
   const quote = getQuoteOfTheDay()
 
@@ -107,6 +112,8 @@ export default function Dashboard() {
   useEffect(() => {
     computeActivityStreak(settings.ageYears).then(setStreak)
     computeDailyRecovery(settings.ageYears).then(setLoad)
+    computeTrainingAlerts(settings.ageYears).then(setAlerts)
+    getMuscleGroupVolume(7).then((stats) => setNeglected(mostNeglected(weeklyVolumeByGroup(stats), 2).map((g) => g.label)))
   }, [workouts, activities, endurance, settings.ageYears])
 
   useEffect(() => {
@@ -136,7 +143,7 @@ export default function Dashboard() {
 
   const lastSession = latestSession(workouts, endurance, activities)
   const suggestion = isToday
-    ? nextAction({ recovery, sleepMin, load, sessionsToday, eaten: todayNutritionCalories })
+    ? nextAction({ recovery, sleepMin, load, sessionsToday, eaten: todayNutritionCalories, alerts, neglected })
     : null
 
   // Même logique que la page Diet : la cible de base + les calories brûlées du jour.
@@ -366,13 +373,22 @@ function nextAction(ctx: {
   load: DailyRecovery | null
   sessionsToday: number
   eaten: number
+  alerts: TrainingAlert[]
+  neglected: string[]
 }): Suggestion {
   if (!ctx.recovery) return { to: '/recovery', title: 'Fais ton check-in du jour', detail: 'Sommeil, énergie, stress : 30 secondes pour calibrer ta journée.' }
   if (ctx.sleepMin != null && ctx.sleepMin < 360)
     return { to: '/recovery', title: 'Nuit courte — vas-y en douceur', detail: 'Moins de 6 h de sommeil : privilégie une séance légère ou de la récupération.' }
   if (ctx.load && (ctx.load.band === 'importante' || ctx.load.band === 'intense'))
     return { to: '/recovery', title: 'Grosse charge aujourd’hui', detail: 'Étirements, marche ou repos : laisse le corps encaisser.' }
-  if (ctx.sessionsToday === 0) return { to: '/gym', title: 'Lance une séance', detail: 'Aucune séance aujourd’hui — choisis un programme ou une séance libre.' }
+  const deload = ctx.alerts.find((a) => a.level === 'warn')
+  if (deload) return { to: deload.to, title: deload.title, detail: deload.detail }
+  if (ctx.sessionsToday === 0)
+    return {
+      to: '/gym',
+      title: 'Lance une séance',
+      detail: ctx.neglected.length ? `Cette semaine il te manque du volume : ${ctx.neglected.join(', ').toLowerCase()}.` : 'Aucune séance aujourd’hui — choisis un programme ou une séance libre.',
+    }
   if (ctx.eaten === 0) return { to: '/nutrition', title: 'Note ton premier repas', detail: 'Sans repas saisi, ton suivi calorique du jour reste vide.' }
   return { to: '/progression', title: 'Journée en bonne voie', detail: 'Objectifs cochés — regarde ta progression.' }
 }

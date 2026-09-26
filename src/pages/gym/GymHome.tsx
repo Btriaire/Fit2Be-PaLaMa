@@ -1,3 +1,4 @@
+import WeeklyVolumeCard from '../../components/WeeklyVolumeCard'
 import { useEffect, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { Dumbbell, Plus, ChevronRight, ChevronDown, Flame, TrendingUp, Trash2, Target, X, Check, Bookmark } from 'lucide-react'
@@ -129,6 +130,8 @@ export default function GymHome() {
           </div>
         </button>
       )}
+
+      <WeeklyVolumeCard />
 
       <section className="mb-6">
         <button

@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react'
 import { HeartPulse, Trash2, X } from 'lucide-react'
 import { getLastPerformance, type LastPerformance } from '../../lib/workouts'
+import { getLoadSuggestion, type LoadSuggestion } from '../../lib/loadProgression'
 import { ALL_EXERCISES } from '../../lib/exercises'
 import { getSettings } from '../../lib/settings'
 import { playMotivation } from '../../lib/motivationVoice'
@@ -31,6 +32,7 @@ export function FocusExerciseView({
 }) {
   const exercise = ALL_EXERCISES.find((e) => e.id === we.exerciseId)
   const [last, setLast] = useState<LastPerformance | null>(null)
+  const [suggestion, setSuggestion] = useState<LoadSuggestion | null>(null)
   const [weight, setWeight] = useState('')
   const [reps, setReps] = useState('')
   const [awaitingDifficulty, setAwaitingDifficulty] = useState(false)
@@ -64,6 +66,14 @@ export function FocusExerciseView({
       if (!lp && !lastSetThisWorkout && we.targetReps) {
         const firstNumber = we.targetReps.match(/\d+/)?.[0]
         if (firstNumber) setReps((r) => r || firstNumber)
+      }
+    })
+    // Suggestion de charge (double progression) : prioritaire sur « dernière fois » tant qu'aucune série n'est faite.
+    getLoadSuggestion(we.exerciseId, { targetReps: we.targetReps, equipment: exercise?.equipment }).then((sg) => {
+      setSuggestion(sg)
+      if (sg && !lastSetThisWorkout) {
+        setWeight(String(sg.weightKg))
+        setReps(String(sg.reps))
       }
     })
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -141,9 +151,24 @@ export function FocusExerciseView({
           </div>
         </div>
         {last && we.sets.length === 0 && (
-          <p className="mb-3 w-full max-w-xs text-xs text-zinc-600">
+          <p className="mb-2 w-full max-w-xs text-xs text-zinc-400">
             Dernière fois : {last.weightKg}kg × {last.reps}
           </p>
+        )}
+        {suggestion && we.sets.length === 0 && (
+          <div
+            className={`mb-3 w-full max-w-xs rounded-xl border px-3 py-2 text-xs ${
+              suggestion.kind === 'increase' || suggestion.kind === 'add-rep'
+                ? 'border-teal-400/30 bg-teal-500/10'
+                : 'border-orange-400/30 bg-orange-500/10'
+            }`}
+          >
+            <p className={`font-semibold ${suggestion.kind === 'increase' || suggestion.kind === 'add-rep' ? 'text-teal-200' : 'text-orange-200'}`}>
+              Suggestion : {suggestion.weightKg > 0 ? `${String(suggestion.weightKg).replace('.', ',')} kg × ` : ''}
+              {suggestion.reps} reps
+            </p>
+            <p className="mt-0.5 leading-snug text-zinc-400">{suggestion.reason}</p>
+          </div>
         )}
 
         {!awaitingDifficulty ? (
