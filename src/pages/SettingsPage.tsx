@@ -1,3 +1,4 @@
+import { HR_ZONE_META, computeMaxHr, zoneBoundsBpm } from '../lib/heartRate'
 import { targetFromProfile } from '../lib/calorieTarget'
 import { todayStr } from '../lib/date'
 import SyncStatusLine from '../components/SyncStatusLine'
@@ -43,6 +44,9 @@ export default function SettingsPage() {
   const [gfSyncing, setGfSyncing] = useState(false)
   const [gfFlash, setGfFlash] = useState<string | null>(null)
   const autoTarget = targetFromProfile({ ...getSettings(), goal })
+  const zoneAge = parseInt(ageYears, 10) || initial.ageYears
+  const zoneMax = computeMaxHr(zoneAge)
+  const zones = zoneBoundsBpm(zoneAge, parseInt(restingHeartRateBpm, 10) || initial.restingHeartRateBpm)
 
   async function handlePhoto(e: React.ChangeEvent<HTMLInputElement>) {
     const file = e.target.files?.[0]
@@ -303,6 +307,24 @@ export default function SettingsPage() {
         </div>
         <Field label="Repos par défaut entre séries" value={restTimerDefaultSec} onChange={setRestTimerDefaultSec} suffix="sec" />
         <Field label="FC de repos (pour le VO2max estimé)" value={restingHeartRateBpm} onChange={setRestingHeartRateBpm} suffix="bpm" />
+        <div className="rounded-lg bg-zinc-900 p-3">
+          <p className="mb-2 text-xs text-zinc-400">
+            Tes zones cardiaques — FC max estimée {zoneMax} bpm (Tanaka), calculées sur ta FC de réserve (Karvonen)
+          </p>
+          <ul className="space-y-1.5">
+            {zones.map((z) => (
+              <li key={z.zone} className="flex items-center gap-2 text-xs">
+                <span className="h-2.5 w-2.5 shrink-0 rounded-full" style={{ background: HR_ZONE_META[z.zone].color }} />
+                <span className="flex-1 text-zinc-300">
+                  Z{z.zone} · {HR_ZONE_META[z.zone].label}
+                </span>
+                <span className="font-mono tabular-nums text-zinc-100">
+                  {z.minBpm}–{z.maxBpm} bpm
+                </span>
+              </li>
+            ))}
+          </ul>
+        </div>
         <Field label="Objectif de sommeil" value={sleepTargetMin} onChange={setSleepTargetMin} suffix="min" />
         <button
           onClick={submit}

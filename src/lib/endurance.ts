@@ -89,7 +89,7 @@ export async function logEnduranceSession(
   const caloriesBurned =
     input.caloriesBurned ??
     (input.activityType === 'marche' ? Math.max(0, estimatedCalories - bmrShareForDuration(input.durationMin, settings)) : estimatedCalories)
-  const hrZone = input.avgHeartRate ? computeHrZone(input.avgHeartRate, settings.ageYears) : undefined
+  const hrZone = input.avgHeartRate ? computeHrZone(input.avgHeartRate, settings.ageYears, settings.restingHeartRateBpm) : undefined
   const session: EnduranceSession = {
     id: newId(),
     activityType: input.activityType,

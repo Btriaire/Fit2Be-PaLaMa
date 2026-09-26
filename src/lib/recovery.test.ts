@@ -29,10 +29,14 @@ beforeEach(async () => {
 describe('charge d’un effort (session-RPE, Foster)', () => {
   const base: EnduranceSession = { id: 'e', activityType: 'course', startedAt: 0, durationMin: 30, caloriesBurned: 0 }
 
-  it('utilise la FC moyenne en priorité (150 bpm à 30 ans ≈ 79 % → RPE 6)', () => {
-    const l = enduranceSessionLoad({ ...base, avgHeartRate: 150 }, AGE, 'Course')
+  it('utilise la FC moyenne en priorité (145 bpm à 30 ans, FC max 187 ≈ 77 % → RPE 6)', () => {
+    const l = enduranceSessionLoad({ ...base, avgHeartRate: 145 }, AGE, 'Course')
     expect(l.effortScore).toBe(6)
     expect(l.load).toBe(180)
+  })
+
+  it('150 bpm dépasse 80 % de la FC max (Tanaka) → RPE 7,5', () => {
+    expect(enduranceSessionLoad({ ...base, avgHeartRate: 150 }, AGE, 'Course').effortScore).toBe(7.5)
   })
 
   it('sinon le RPE saisi', () => {
