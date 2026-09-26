@@ -4,29 +4,23 @@ import { BrowserRouter } from 'react-router-dom'
 import { registerSW } from 'virtual:pwa-register'
 import './index.css'
 import App from './App.tsx'
+import { notifyNeedRefresh, setApplyUpdate } from './lib/appUpdate'
 
-// Default injectRegister:'auto' (disabled in vite.config.ts) only fires a
-// bare register() with no update logic, so a deployed fix could sit
-// invisible behind the old cached bundle indefinitely. This checks for a
-// new version immediately, applies it (skipWaiting) without asking, and
-// re-checks whenever the app comes back to the foreground — the moment
-// that happens after a deploy, the reload carries the new build.
+// Le service worker vérifie les mises à jour dès le lancement et à chaque retour
+// au premier plan. Une nouvelle version n'est appliquée qu'à la demande de
+// l'utilisateur (bandeau « Nouvelle version disponible ») : jamais de rechargement
+// surprise pendant une séance ou un minuteur.
 const updateSW = registerSW({
   immediate: true,
   onNeedRefresh() {
-    updateSW(true)
+    notifyNeedRefresh()
   },
 })
-document.addEventListener('visibilitychange', () => {
-  if (document.visibilityState === 'visible') updateSW()
-})
+setApplyUpdate(() => updateSW(true))
 
-// Belt-and-suspenders: a device that already had a PRE-FIX service worker
-// registered (before this update-check logic existed) can stay stuck
-// indefinitely — that old SW's own browser-level update check can still
-// fire independently of this page's JS, but nothing ever reloaded the open
-// tab once it did. Force an explicit update() check on load/foreground, and
-// hard-reload the instant a new SW takes control.
+// Vérification explicite d'une nouvelle version au lancement et au retour au
+// premier plan (elle ne l'applique pas : c'est le bandeau qui le fait), puis
+// rechargement dès que le nouveau service worker prend le contrôle.
 if ('serviceWorker' in navigator) {
   navigator.serviceWorker.getRegistration().then((reg) => reg?.update())
   document.addEventListener('visibilitychange', () => {

@@ -4,7 +4,7 @@ import { Footprints, Plus, Trash2, X } from 'lucide-react'
 import { getDb, newId } from '../../lib/db'
 import { MET_ACTIVITIES, computeCaloriesForUser } from '../../lib/met'
 import { getSettings } from '../../lib/settings'
-import { isToday, formatTime, formatDate } from '../../lib/date'
+import { isToday, formatTime, formatDate, dayKey } from '../../lib/date'
 import { pushActivityToNutriTracker } from '../../lib/nutriTrackerSync'
 import { pushRecord, deleteRecord } from '../../lib/cloudSync'
 import { ACTIVITY_PHOTOS } from '../../lib/activityPhotos'
@@ -64,7 +64,7 @@ export default function ActivitiesPage() {
       activityType: googleFitType,
       durationMin: entry.durationMin,
       caloriesBurned: entry.caloriesBurned,
-      date: new Date(log.loggedAt).toISOString().slice(0, 10),
+      date: dayKey(log.loggedAt),
     })
   }
 

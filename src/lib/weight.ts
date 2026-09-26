@@ -1,3 +1,4 @@
+import { dayKey } from './date'
 import { getDb, newId } from './db'
 import { saveSettings } from './settings'
 import { pushWeightToNutriTracker, pullLatestWeightFromNutriTracker } from './nutriTrackerSync'
@@ -17,7 +18,7 @@ export async function logWeight(weightKg: number, loggedAt = Date.now()): Promis
   await db.put('weightLogs', entry)
   pushRecord('weightLogs', entry.id, entry)
   saveSettings({ bodyWeightKg: weightKg })
-  const date = new Date(loggedAt).toISOString().slice(0, 10)
+  const date = dayKey(loggedAt)
   void pushWeightToNutriTracker(weightKg, date)
   return entry
 }
@@ -43,7 +44,7 @@ export async function deleteWeightLog(id: string) {
 export async function adoptWeightFromSync(weightKg: number, dateStr: string): Promise<WeightLog | null> {
   const db = await getDb()
   const existing = await db.getAllFromIndex('weightLogs', 'byLoggedAt')
-  const alreadyLogged = existing.some((w) => new Date(w.loggedAt).toISOString().slice(0, 10) === dateStr)
+  const alreadyLogged = existing.some((w) => dayKey(w.loggedAt) === dateStr)
   if (alreadyLogged) return null
 
   const loggedAt = new Date(`${dateStr}T12:00:00`).getTime()

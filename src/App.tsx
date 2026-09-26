@@ -8,6 +8,7 @@ import { syncLatestWeightFromNutriTracker } from './lib/weight'
 import { getSettings } from './lib/settings'
 import BottomNav from './components/BottomNav'
 import CoverPage from './pages/CoverPage'
+import UpdateBanner from './components/UpdateBanner'
 import Dashboard from './pages/Dashboard'
 import SettingsPage from './pages/SettingsPage'
 import GymHome from './pages/gym/GymHome'
@@ -78,12 +79,15 @@ function App() {
 
   if (!entered) {
     return (
-      <CoverPage
-        onEnter={() => {
-          sessionStorage.setItem(ENTERED_KEY, '1')
-          setEntered(true)
-        }}
-      />
+      <>
+        <CoverPage
+          onEnter={() => {
+            sessionStorage.setItem(ENTERED_KEY, '1')
+            setEntered(true)
+          }}
+        />
+        <UpdateBanner />
+      </>
     )
   }
 
@@ -110,6 +114,7 @@ function App() {
         </Routes>
       </main>
       <BottomNav />
+      <UpdateBanner />
     </div>
   )
 }

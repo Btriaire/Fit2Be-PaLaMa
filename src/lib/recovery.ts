@@ -9,7 +9,7 @@ import { getAllWorkouts } from './workouts'
 import { getEnduranceSessions, ENDURANCE_ACTIVITY_META } from './endurance'
 import { computeMaxHr } from './heartRate'
 import { GYM_WORKOUT_MET } from './met'
-import { isToday } from './date'
+import { isToday, dayKey, todayStr } from './date'
 import type { ActivityLog, EnduranceSession, Workout } from '../types'
 
 export type RecoveryBand = 'aucune' | 'légère' | 'modérée' | 'importante' | 'intense'
@@ -238,7 +238,7 @@ export async function computeSleepDebt(sleepTargetMin: number): Promise<SleepDeb
   for (let i = 0; i < 7; i++) {
     const d = new Date()
     d.setDate(d.getDate() - i)
-    const dateStr = d.toISOString().slice(0, 10)
+    const dateStr = dayKey(d.getTime())
     const day = await db.get('googleFitDaily', dateStr)
     if (day?.sleepMinutes == null) continue
     daysWithData++
@@ -306,8 +306,8 @@ export async function computeReadiness(ageYears: number, subjectiveScore: number
   const { penalty } = bandFor(yesterdayLoad)
   const loadComponent = Math.round(100 - (penalty / 30) * 100)
 
-  const todayStr = new Date().toISOString().slice(0, 10)
-  const todayFit = await db.get('googleFitDaily', todayStr)
+  const today = todayStr()
+  const todayFit = await db.get('googleFitDaily', today)
   const sleepComponent = todayFit?.sleepMinutes != null ? Math.round(Math.min(100, (todayFit.sleepMinutes / sleepTargetMin) * 100)) : null
 
   const score = Math.round(

@@ -9,7 +9,7 @@ export default defineConfig({
     react(),
     tailwindcss(),
     VitePWA({
-      registerType: 'autoUpdate',
+      registerType: 'prompt',
       // Default injectRegister:'auto' only adds a bare
       // navigator.serviceWorker.register() call — it ignores registerType
       // entirely, so a new deploy never actually reaches an

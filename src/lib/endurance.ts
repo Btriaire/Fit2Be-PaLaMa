@@ -1,3 +1,4 @@
+import { dayKey } from './date'
 import { getDb, newId } from './db'
 import { computeCaloriesForUser, computeCaloriesFromHr, computeCaloriesFromPhaseLog, bmrShareForDuration } from './met'
 import { computeHrZone } from './heartRate'
@@ -113,7 +114,7 @@ export async function logEnduranceSession(
     activityType: meta.googleFitType,
     durationMin: input.durationMin,
     caloriesBurned,
-    date: new Date(session.startedAt).toISOString().slice(0, 10),
+    date: dayKey(session.startedAt),
   })
 
   return session
@@ -155,7 +156,7 @@ export async function updateEnduranceActivityType(
     activityType: meta.googleFitType,
     durationMin: updated.durationMin,
     caloriesBurned,
-    date: new Date(updated.startedAt).toISOString().slice(0, 10),
+    date: dayKey(updated.startedAt),
   })
 
   return updated

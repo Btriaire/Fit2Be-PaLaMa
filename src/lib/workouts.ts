@@ -1,3 +1,4 @@
+import { dayKey } from './date'
 import { getDb } from './db'
 import { computeCaloriesForUser, computeCaloriesFromHr, GYM_WORKOUT_MET } from './met'
 import { pushActivityToNutriTracker } from './nutriTrackerSync'
@@ -159,7 +160,7 @@ export async function finishWorkout(workout: Workout, settings: Settings): Promi
     activityType: GYM_GOOGLE_FIT_TYPE,
     durationMin,
     caloriesBurned,
-    date: new Date(finished.startedAt).toISOString().slice(0, 10),
+    date: dayKey(finished.startedAt),
   })
   return finished
 }

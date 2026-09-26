@@ -17,6 +17,7 @@ import { getQuoteOfTheDay } from '../lib/motivation'
 import { computeActivityStreak, computeDailyRecovery, type ActivityStreak, type DailyRecovery } from '../lib/recovery'
 import { ENDURANCE_ACTIVITY_META } from '../lib/endurance'
 import ActivityRing from '../components/ActivityRing'
+import SyncStatusLine from '../components/SyncStatusLine'
 import ActivityHero, { type HeroKey } from '../components/ActivityHero'
 import type { ActivityLog, DailyPhoto, EnduranceSession, GoogleFitDay, NutritionEntry, RecoveryCheckin, Workout } from '../types'
 
@@ -328,6 +329,8 @@ export default function Dashboard() {
             />
           )}
         </div>
+
+        <SyncStatusLine className="pt-1" />
 
         <p className="px-2 pt-1 text-center text-xs italic leading-snug text-zinc-500">
           « {quote.text} » — {quote.author}

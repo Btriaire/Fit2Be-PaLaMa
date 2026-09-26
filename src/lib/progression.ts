@@ -4,6 +4,7 @@
 // par battement de cœur en cardio) et on mappe le %  de variation sur 0-100
 // autour d'un point neutre à 50.
 
+import { dayKey } from './date'
 import { getAllWorkouts, getExerciseHistory, getLoggedExerciseIds, getPrStats, estimateWorkoutCalories } from './workouts'
 import { getEnduranceSessions, ENDURANCE_ACTIVITY_META } from './endurance'
 import { enduranceSessionLoad } from './recovery'
@@ -201,13 +202,13 @@ async function computeConsistencyIndex(): Promise<ProgressionIndex> {
   const cutoff = Date.now() - 14 * 24 * 3600_000
   const days = new Set<string>()
   for (const w of workouts) {
-    if (w.finishedAt && w.startedAt >= cutoff) days.add(new Date(w.startedAt).toISOString().slice(0, 10))
+    if (w.finishedAt && w.startedAt >= cutoff) days.add(dayKey(w.startedAt))
   }
   for (const e of endurance) {
-    if (e.startedAt >= cutoff) days.add(new Date(e.startedAt).toISOString().slice(0, 10))
+    if (e.startedAt >= cutoff) days.add(dayKey(e.startedAt))
   }
   for (const a of activities) {
-    if (a.loggedAt >= cutoff) days.add(new Date(a.loggedAt).toISOString().slice(0, 10))
+    if (a.loggedAt >= cutoff) days.add(dayKey(a.loggedAt))
   }
   for (const g of googleFitDays) {
     if (g.steps >= MEANINGFUL_WALK_STEPS) days.add(g.date)
@@ -408,7 +409,7 @@ export async function computeEnergyBalanceTrend(settings: Settings): Promise<Ene
       .filter((n) => n.loggedAt >= dayStart.getTime() && n.loggedAt < dayEnd)
       .reduce((s, n) => s + n.calories, 0)
 
-    days.push({ date: dayStart.toISOString().slice(0, 10), balance: Math.round(consumed - burned) })
+    days.push({ date: dayKey(dayStart.getTime()), balance: Math.round(consumed - burned) })
   }
 
   return { avgBalance7d: Math.round(days.reduce((s, d) => s + d.balance, 0) / 7), days }

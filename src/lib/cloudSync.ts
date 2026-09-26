@@ -4,6 +4,19 @@
 // every call swallows its own errors so a sync hiccup (offline, VPS
 // restart) never blocks the local save that already succeeded.
 
+import { recordSyncResult } from './syncStatus'
+
+/** Une réponse 200 avec `skipped: true` (VPS injoignable, synchro non configurée) compte comme un échec. */
+async function trackResult(res: Response) {
+  let ok = res.ok
+  if (ok) {
+    // Corps non JSON (ex: page HTML de repli) = pas la vraie API : échec.
+    const body = (await res.json().catch(() => null)) as { skipped?: boolean; ok?: boolean } | null
+    if (!body || body.skipped || body.ok === false) ok = false
+  }
+  recordSyncResult(ok)
+}
+
 export const SYNCABLE_STORES = ['workouts', 'activities', 'recovery', 'nutrition', 'weightLogs', 'endurance', 'customTemplates', 'dailyPhotos', 'customEndurancePrograms'] as const
 export type SyncableStore = (typeof SYNCABLE_STORES)[number]
 
@@ -12,9 +25,12 @@ export function pushRecord(store: SyncableStore, id: string, data: unknown): voi
     method: 'POST',
     headers: { 'content-type': 'application/json' },
     body: JSON.stringify({ store, id, data }),
-  }).catch(() => {
-    // offline or endpoint unavailable — local save already succeeded, ignore
   })
+    .then(trackResult)
+    .catch(() => {
+      // offline or endpoint unavailable — local save already succeeded
+      recordSyncResult(false)
+    })
 }
 
 /** Pousse le profil (âge, taille, sexe, FC repos...) vers le même serveur de
@@ -35,9 +51,11 @@ export function deleteRecord(store: SyncableStore, id: string): void {
     method: 'DELETE',
     headers: { 'content-type': 'application/json' },
     body: JSON.stringify({ store, id }),
-  }).catch(() => {
-    // same — best effort
   })
+    .then(trackResult)
+    .catch(() => {
+      recordSyncResult(false)
+    })
 }
 
 interface CloudRecord {

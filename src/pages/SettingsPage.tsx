@@ -1,3 +1,5 @@
+import { todayStr } from '../lib/date'
+import SyncStatusLine from '../components/SyncStatusLine'
 import { useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { ChevronLeft, Download, Upload, RefreshCw, Sparkles, User, Camera } from 'lucide-react'
@@ -157,7 +159,7 @@ export default function SettingsPage() {
     const url = URL.createObjectURL(blob)
     const a = document.createElement('a')
     a.href = url
-    a.download = `vibefit-export-${new Date().toISOString().slice(0, 10)}.json`
+    a.download = `vibefit-export-${todayStr()}.json`
     a.click()
     URL.revokeObjectURL(url)
   }
@@ -322,6 +324,7 @@ export default function SettingsPage() {
 
       <section className="glass mb-4 space-y-2 rounded-2xl p-4">
         <h2 className="mb-1 text-sm font-medium text-zinc-400">Données locales</h2>
+        <SyncStatusLine className="pb-1" />
         <button
           onClick={exportData}
           className="flex w-full items-center justify-center gap-1.5 rounded-xl bg-zinc-900 py-3 text-sm font-medium active:bg-zinc-800"
