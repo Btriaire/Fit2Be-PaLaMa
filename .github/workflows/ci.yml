@@ -18,3 +18,4 @@ jobs:
       # Même commande que le déploiement Vercel : tsc -b (plus strict que tsc --noEmit) puis build.
       - run: npm run build
       - run: npm run lint
+      - run: npm test
