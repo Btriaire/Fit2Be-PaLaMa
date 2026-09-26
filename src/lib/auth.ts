@@ -6,7 +6,7 @@ export async function checkSession(): Promise<Exclude<AuthState, 'checking'>> {
   try {
     const ctrl = new AbortController()
     const timer = setTimeout(() => ctrl.abort(), 4000)
-    const r = await fetch('/api/session', { cache: 'no-store', signal: ctrl.signal })
+    const r = await fetch('/api/auth', { cache: 'no-store', signal: ctrl.signal })
     clearTimeout(timer)
     if (!r.ok) return 'ok'
     const j = (await r.json()) as { required?: boolean; authenticated?: boolean }
@@ -19,7 +19,7 @@ export async function checkSession(): Promise<Exclude<AuthState, 'checking'>> {
 
 export async function login(password: string): Promise<{ ok: boolean; error?: string }> {
   try {
-    const r = await fetch('/api/login', {
+    const r = await fetch('/api/auth', {
       method: 'POST',
       headers: { 'content-type': 'application/json' },
       body: JSON.stringify({ password }),
@@ -34,7 +34,7 @@ export async function login(password: string): Promise<{ ok: boolean; error?: st
 
 export async function logout(): Promise<void> {
   try {
-    await fetch('/api/session', { method: 'DELETE' })
+    await fetch('/api/auth', { method: 'DELETE' })
   } catch {
     // déjà hors ligne : le cookie expirera de lui-même
   }
