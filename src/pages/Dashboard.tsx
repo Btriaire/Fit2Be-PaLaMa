@@ -148,7 +148,7 @@ export default function Dashboard() {
 
   const lastSession = latestSession(workouts, endurance, activities)
   const suggestion = isToday
-    ? nextAction({ recovery, sleepMin, load, sessionsToday, eaten: todayNutritionCalories, alerts, neglected })
+    ? nextAction({ sleepMin, load, sessionsToday, eaten: todayNutritionCalories, alerts, neglected })
     : null
 
   // Même logique que la page Diet : la cible de base + les calories brûlées du jour.
@@ -374,7 +374,6 @@ interface Suggestion {
 }
 
 function nextAction(ctx: {
-  recovery: RecoveryCheckin | null
   sleepMin: number | null
   load: DailyRecovery | null
   sessionsToday: number
@@ -382,7 +381,6 @@ function nextAction(ctx: {
   alerts: TrainingAlert[]
   neglected: string[]
 }): Suggestion {
-  if (!ctx.recovery) return { to: '/recovery', title: 'Fais ton check-in du jour', detail: 'Sommeil, énergie, stress : 30 secondes pour calibrer ta journée.' }
   if (ctx.sleepMin != null && ctx.sleepMin < 360)
     return { to: '/recovery', title: 'Nuit courte — vas-y en douceur', detail: 'Moins de 6 h de sommeil : privilégie une séance légère ou de la récupération.' }
   if (ctx.load && (ctx.load.band === 'importante' || ctx.load.band === 'intense'))
