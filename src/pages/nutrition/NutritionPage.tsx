@@ -1,3 +1,4 @@
+import { GoalCard, ProteinCard } from '../../components/NutritionGoals'
 import { effectiveCalorieTarget } from '../../lib/calorieTarget'
 import { useEffect, useMemo, useState } from 'react'
 import { Link } from 'react-router-dom'
@@ -212,6 +213,9 @@ export default function NutritionPage() {
           </p>
         )}
       </div>
+
+      <ProteinCard consumedG={protein} settings={settings} />
+      <GoalCard settings={settings} weightLogs={weightLogs} />
 
       {remoteNutrition && Object.keys(remoteNutrition.byMeal).length > 0 && (
         <div className="glass mb-4 rounded-2xl p-4">

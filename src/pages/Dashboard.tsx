@@ -18,6 +18,7 @@ import { computeActivityStreak, computeDailyRecovery, type ActivityStreak, type 
 import { ENDURANCE_ACTIVITY_META } from '../lib/endurance'
 import ActivityRing from '../components/ActivityRing'
 import SyncStatusLine from '../components/SyncStatusLine'
+import { computePersonalGoals, DEFAULT_SESSIONS_GOAL, DEFAULT_STEPS_GOAL, type PersonalGoals } from '../lib/personalGoals'
 import { computeTrainingAlerts, type TrainingAlert } from '../lib/trainingAlerts'
 import { mostNeglected, weeklyVolumeByGroup } from '../lib/weeklyVolume'
 import { getMuscleGroupVolume } from '../lib/workouts'
@@ -47,6 +48,7 @@ export default function Dashboard() {
   const [streak, setStreak] = useState<ActivityStreak | null>(null)
   const [load, setLoad] = useState<DailyRecovery | null>(null)
   const [alerts, setAlerts] = useState<TrainingAlert[]>([])
+  const [goals, setGoals] = useState<PersonalGoals>({ steps: DEFAULT_STEPS_GOAL, sessions: DEFAULT_SESSIONS_GOAL, adapted: false })
   const [neglected, setNeglected] = useState<string[]>([])
   const settings = getSettings()
   const quote = getQuoteOfTheDay()
@@ -113,6 +115,7 @@ export default function Dashboard() {
     computeActivityStreak(settings.ageYears).then(setStreak)
     computeDailyRecovery(settings.ageYears).then(setLoad)
     computeTrainingAlerts(settings.ageYears).then(setAlerts)
+    computePersonalGoals().then(setGoals)
     getMuscleGroupVolume(7).then((stats) => setNeglected(mostNeglected(weeklyVolumeByGroup(stats), 2).map((g) => g.label)))
   }, [workouts, activities, endurance, settings.ageYears])
 
@@ -211,18 +214,18 @@ export default function Dashboard() {
               icon={<Footprints size={24} />}
               label="Pas"
               display={stepsToday != null ? stepsToday.toLocaleString('fr-FR') : '—'}
-              goalLabel={`/ ${STEPS_GOAL.toLocaleString('fr-FR')}`}
+              goalLabel={`/ ${goals.steps.toLocaleString('fr-FR')}`}
               value={stepsToday}
-              goal={STEPS_GOAL}
+              goal={goals.steps}
               color="#4a63d8"
             />
             <ActivityRing
               icon={<Dumbbell size={24} />}
               label="Séances 7 j"
               display={`${weeklySessions}`}
-              goalLabel={`/ ${WEEKLY_SESSIONS_GOAL}`}
+              goalLabel={`/ ${goals.sessions}`}
               value={weeklySessions}
-              goal={WEEKLY_SESSIONS_GOAL}
+              goal={goals.sessions}
               color="#ff5a30"
             />
             <ActivityRing
@@ -235,6 +238,8 @@ export default function Dashboard() {
               color="#818cf8"
             />
           </div>
+
+          {goals.adapted && <p className="mt-2 text-center text-[11px] text-zinc-400">Objectifs adaptés à tes dernières semaines</p>}
 
           <div className="mt-4 grid grid-cols-3 divide-x divide-zinc-800 border-t border-zinc-800 pt-3 text-center">
             <div>
@@ -357,9 +362,6 @@ export default function Dashboard() {
     </div>
   )
 }
-
-const STEPS_GOAL = 8000
-const WEEKLY_SESSIONS_GOAL = 4
 
 interface Suggestion {
   to: string

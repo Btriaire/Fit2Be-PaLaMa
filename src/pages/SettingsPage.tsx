@@ -27,6 +27,8 @@ export default function SettingsPage() {
   const [profilePhoto, setProfilePhoto] = useState(initial.profilePhotoDataUrl)
   const [dailyCalorieTarget, setDailyCalorieTarget] = useState(String(initial.dailyCalorieTarget))
   const [goal, setGoal] = useState(initial.goal)
+  const [targetWeight, setTargetWeight] = useState(initial.targetWeightKg != null ? String(initial.targetWeightKg) : '')
+  const [targetDate, setTargetDate] = useState(initial.targetDate ?? '')
   const [calorieMode, setCalorieMode] = useState(initial.calorieMode)
   const [restTimerDefaultSec, setRestTimerDefaultSec] = useState(String(initial.restTimerDefaultSec))
   const [restingHeartRateBpm, setRestingHeartRateBpm] = useState(String(initial.restingHeartRateBpm))
@@ -142,6 +144,8 @@ export default function SettingsPage() {
       restTimerDefaultSec: parseInt(restTimerDefaultSec, 10) || initial.restTimerDefaultSec,
       restingHeartRateBpm: parseInt(restingHeartRateBpm, 10) || initial.restingHeartRateBpm,
       sleepTargetMin: parseInt(sleepTargetMin, 10) || initial.sleepTargetMin,
+      targetWeightKg: parseFloat(targetWeight.replace(',', '.')) > 0 ? parseFloat(targetWeight.replace(',', '.')) : undefined,
+      targetDate: targetDate || undefined,
     })
     setSavedFlash(true)
     setTimeout(() => setSavedFlash(false), 1500)
@@ -304,6 +308,24 @@ export default function SettingsPage() {
           ) : (
             <Field label="Cible saisie" value={dailyCalorieTarget} onChange={setDailyCalorieTarget} suffix="kcal" />
           )}
+        </div>
+        <div>
+          <p className="mb-1 text-xs text-zinc-400">Objectif de poids (facultatif)</p>
+          <div className="grid grid-cols-2 gap-2">
+            <Field label="Poids cible" value={targetWeight} onChange={setTargetWeight} suffix="kg" />
+            <div>
+              <label htmlFor="target-date" className="mb-1 block text-xs text-zinc-500">
+                Échéance
+              </label>
+              <input
+                id="target-date"
+                type="date"
+                value={targetDate}
+                onChange={(e) => setTargetDate(e.target.value)}
+                className="min-h-11 w-full rounded-lg bg-zinc-900 px-3 py-2.5 text-sm outline-none [color-scheme:dark]"
+              />
+            </div>
+          </div>
         </div>
         <Field label="Repos par défaut entre séries" value={restTimerDefaultSec} onChange={setRestTimerDefaultSec} suffix="sec" />
         <Field label="FC de repos (pour le VO2max estimé)" value={restingHeartRateBpm} onChange={setRestingHeartRateBpm} suffix="bpm" />
