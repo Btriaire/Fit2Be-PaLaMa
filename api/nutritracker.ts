@@ -3,7 +3,10 @@
 // var, never in the client bundle: the browser calls same-origin /api/
 // nutritracker, this function calls out to nutri-tracker with the secret.
 
+import { requireAuth } from './_auth.js'
+
 interface VercelRequest {
+  headers?: Record<string, string | string[] | undefined>
   method?: string
   body?: unknown
   query: Record<string, string | string[] | undefined>
@@ -17,6 +20,7 @@ interface VercelResponse {
 const NUTRITRACKER_BASE_URL = process.env.NUTRITRACKER_BASE_URL || 'https://nutri-tracker-mocha.vercel.app'
 
 export default async function handler(req: VercelRequest, res: VercelResponse) {
+  if (!requireAuth(req, res)) return
   const secret = process.env.NUTRITRACKER_SYNC_SECRET
   if (!secret) {
     res.status(200).json({ ok: false, skipped: true, reason: 'sync not configured' })

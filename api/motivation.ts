@@ -4,7 +4,10 @@
 // jamais dans le bundle client). Best-effort : ne doit jamais faire échouer
 // une série ou une sortie si Groq/le VPS sont indisponibles.
 
+import { requireAuth } from './_auth.js'
+
 interface VercelRequest {
+  headers?: Record<string, string | string[] | undefined>
   method?: string
   body?: unknown
 }
@@ -96,6 +99,7 @@ async function synthesize(text: string, voice: Voice, secret: string): Promise<{
 }
 
 export default async function handler(req: VercelRequest, res: VercelResponse) {
+  if (!requireAuth(req, res)) return
   if (req.method !== 'POST') {
     res.status(405).json({ error: 'Method not allowed' })
     return

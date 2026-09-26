@@ -10,6 +10,8 @@ import { effectiveCalorieTarget } from './lib/calorieTarget'
 import BottomNav from './components/BottomNav'
 import CoverPage from './pages/CoverPage'
 import UpdateBanner from './components/UpdateBanner'
+import LoginPage from './pages/LoginPage'
+import { checkSession, type AuthState } from './lib/auth'
 import Dashboard from './pages/Dashboard'
 const SettingsPage = lazy(() => import('./pages/SettingsPage'))
 const GymHome = lazy(() => import('./pages/gym/GymHome'))
@@ -37,11 +39,23 @@ function TimerRoute() {
 const ENTERED_KEY = 'vibefit_entered'
 
 function App() {
+  const [auth, setAuth] = useState<AuthState>('checking')
   const [entered, setEntered] = useState(() => sessionStorage.getItem(ENTERED_KEY) === '1')
   // Un profil déjà enregistré (ancien utilisateur) vaut onboarding fait.
   const [onboarded, setOnboarded] = useState(() => localStorage.getItem(ONBOARDED_KEY) === '1' || hasStoredSettings())
 
+  // Vérifie la session au lancement et à chaque retour au premier plan.
   useEffect(() => {
+    checkSession().then(setAuth)
+    function onVisible() {
+      if (document.visibilityState === 'visible') checkSession().then(setAuth)
+    }
+    document.addEventListener('visibilitychange', onVisible)
+    return () => document.removeEventListener('visibilitychange', onVisible)
+  }, [])
+
+  useEffect(() => {
+    if (auth !== 'ok') return
     getDb().then(restoreFromCloudIfNeeded)
     autoImportNutriTrackerActivitiesIfNeeded(getSettings())
     autoLogWalkFromStepsIfNeeded(getSettings())
@@ -62,9 +76,10 @@ function App() {
       restingHeartRateBpm: s.restingHeartRateBpm,
       dailyCalorieTarget: effectiveCalorieTarget(s).target,
     })
-  }, [])
+  }, [auth])
 
   useEffect(() => {
+    if (auth !== 'ok') return
     // Reprend l'import dès que l'app revient au premier plan (pas seulement
     // au tout premier chargement) — sinon une marche loggée dans
     // NutriTracker pendant que VibeFit était en arrière-plan n'apparaît
@@ -80,7 +95,11 @@ function App() {
     }
     document.addEventListener('visibilitychange', onVisible)
     return () => document.removeEventListener('visibilitychange', onVisible)
-  }, [])
+  }, [auth])
+
+  // Écran de connexion avant tout le reste ; hors ligne ou sans mot de passe côté serveur, on n'est jamais bloqué.
+  if (auth === 'checking') return <div className="min-h-screen bg-zinc-950" />
+  if (auth === 'login') return <LoginPage onDone={() => setAuth('ok')} />
 
   if (!entered) {
     return (

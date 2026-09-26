@@ -3,7 +3,10 @@
 // server-side env var, never in the client bundle, same pattern as
 // api/nutritracker.ts.
 
+import { requireAuth } from './_auth.js'
+
 interface VercelRequest {
+  headers?: Record<string, string | string[] | undefined>
   method?: string
   body?: unknown
   query: Record<string, string | string[] | undefined>
@@ -15,6 +18,7 @@ interface VercelResponse {
 }
 
 export default async function handler(req: VercelRequest, res: VercelResponse) {
+  if (!requireAuth(req, res)) return
   const baseUrl = process.env.CLOUDSYNC_BASE_URL
   const secret = process.env.CLOUDSYNC_SECRET
   if (!baseUrl || !secret) {

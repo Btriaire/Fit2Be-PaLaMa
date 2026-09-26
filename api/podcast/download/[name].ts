@@ -2,6 +2,8 @@
 // généré, depuis le manager VPS. ?inline=1 pour un <audio> lecteur direct
 // (pas de Content-Disposition attachment) ; sinon téléchargement classique.
 
+import { requireAuth } from '../../_auth.js'
+
 interface VercelRequest {
   method?: string
   query: Record<string, string | string[] | undefined>
@@ -18,6 +20,7 @@ interface VercelResponse {
 const VPS_MANAGER_URL = process.env.VPS_MANAGER_URL || 'http://46.202.131.240:9000'
 
 export default async function handler(req: VercelRequest, res: VercelResponse) {
+  if (!requireAuth(req, res)) return
   const name = typeof req.query.name === 'string' ? req.query.name : ''
   if (!/^[\w.-]+\.m4a$/.test(name)) {
     res.status(400).json({ error: 'Nom invalide' })

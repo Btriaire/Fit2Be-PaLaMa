@@ -3,7 +3,10 @@
 // qui tourne déjà en cron hebdomadaire, voir /opt/notebooklm-fit2be sur le
 // VPS). Même pattern que api/nutritracker.ts / api/cloudsync.ts.
 
+import { requireAuth } from '../_auth.js'
+
 interface VercelRequest {
+  headers?: Record<string, string | string[] | undefined>
   method?: string
   body?: unknown
 }
@@ -17,6 +20,7 @@ const VPS_MANAGER_URL = process.env.VPS_MANAGER_URL || 'http://46.202.131.240:90
 const VALID_PERIODS = new Set(['7d', '30d', '90d', 'all'])
 
 export default async function handler(req: VercelRequest, res: VercelResponse) {
+  if (!requireAuth(req, res)) return
   if (req.method !== 'POST') {
     res.status(405).json({ error: 'Method not allowed' })
     return

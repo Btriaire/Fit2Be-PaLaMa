@@ -6,7 +6,10 @@
 // les 30-90s ; ajouter un aller-retour LLM à chaque fois serait inutilement
 // lent et coûteux pour un simple mot annoncé.
 
+import { requireAuth } from './_auth.js'
+
 interface VercelRequest {
+  headers?: Record<string, string | string[] | undefined>
   method?: string
   body?: unknown
 }
@@ -21,6 +24,7 @@ const MOTIVATION_VPS_URL = process.env.MOTIVATION_VPS_URL || 'https://fit2be-mot
 type Voice = 'coach' | 'calme'
 
 export default async function handler(req: VercelRequest, res: VercelResponse) {
+  if (!requireAuth(req, res)) return
   if (req.method !== 'POST') {
     res.status(405).json({ error: 'Method not allowed' })
     return

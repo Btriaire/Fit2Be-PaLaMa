@@ -64,13 +64,16 @@ interface CloudRecord {
   updatedAt: number
 }
 
-async function pullAll(): Promise<Partial<Record<SyncableStore, CloudRecord[]>>> {
+/** null = échec (hors ligne, 401, panne) : on ne doit alors surtout pas considérer la restauration comme faite. */
+async function pullAll(): Promise<Partial<Record<SyncableStore, CloudRecord[]>> | null> {
   try {
     const r = await fetch('/api/cloudsync')
-    if (!r.ok) return {}
-    return await r.json()
+    if (!r.ok) return null
+    const body = await r.json()
+    if (body && (body as { skipped?: boolean }).skipped) return null
+    return body
   } catch {
-    return {}
+    return null
   }
 }
 
@@ -89,6 +92,7 @@ export async function restoreFromCloudIfNeeded(
   if (localStorage.getItem(RESTORE_FLAG_KEY)) return
   try {
     const grouped = await pullAll()
+    if (!grouped) return // réessaiera au prochain lancement
     for (const store of SYNCABLE_STORES) {
       const remoteRecords = grouped[store]
       if (!remoteRecords || remoteRecords.length === 0) continue

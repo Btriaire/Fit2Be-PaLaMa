@@ -4,7 +4,10 @@
 // un vrai capteur FC continu (montre connectée) que Fit2Be-PaLaMa n'a pas,
 // donc bien plus précis qu'une estimation MET/formule.
 
+import { requireAuth } from './_auth.js'
+
 interface VercelRequest {
+  headers?: Record<string, string | string[] | undefined>
   method?: string
   body?: unknown
 }
@@ -35,6 +38,7 @@ Règles :
 - N'invente aucune valeur non visible à l'écran.`
 
 export default async function handler(req: VercelRequest, res: VercelResponse) {
+  if (!requireAuth(req, res)) return
   if (req.method !== 'POST') {
     res.status(405).json({ error: 'Method not allowed' })
     return

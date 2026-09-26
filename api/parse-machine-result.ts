@@ -2,7 +2,10 @@
 // de machine de cardio (Matrix, Technogym, etc.) via un modèle vision Groq.
 // Même pattern que app/api/food/photo/route.ts dans nutri-tracker.
 
+import { requireAuth } from './_auth.js'
+
 interface VercelRequest {
+  headers?: Record<string, string | string[] | undefined>
   method?: string
   body?: unknown
 }
@@ -40,6 +43,7 @@ Format exact :
 Convertis le temps total (ex "45:21") en minutes décimales arrondies à l'entier. Mets null pour toute valeur absente ou illisible.`
 
 export default async function handler(req: VercelRequest, res: VercelResponse) {
+  if (!requireAuth(req, res)) return
   if (req.method !== 'POST') {
     res.status(405).json({ error: 'Method not allowed' })
     return

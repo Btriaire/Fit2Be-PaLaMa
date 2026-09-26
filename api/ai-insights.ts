@@ -5,7 +5,10 @@
 // client a déjà assemblé localement — aucune donnée n'est relue depuis une
 // base ici, cette fonction ne fait que transmettre à Groq et renvoyer du JSON.
 
+import { requireAuth } from './_auth.js'
+
 interface VercelRequest {
+  headers?: Record<string, string | string[] | undefined>
   method?: string
   body?: unknown
 }
@@ -64,6 +67,7 @@ Réponds UNIQUEMENT avec un objet JSON de cette forme, sans texte autour :
 }
 
 export default async function handler(req: VercelRequest, res: VercelResponse) {
+  if (!requireAuth(req, res)) return
   if (req.method !== 'POST') {
     res.status(405).json({ error: 'Method not allowed' })
     return
