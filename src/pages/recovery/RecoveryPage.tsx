@@ -73,6 +73,10 @@ export default function RecoveryPage() {
   const navigate = useNavigate()
   const [checkins, setCheckins] = useState<RecoveryCheckin[]>([])
   const [sleepQuality, setSleepQuality] = useState(3)
+  // Durée en heures, saisie manuellement : Google Fit ne transmet plus le sommeil depuis
+  // le 20/09 et rien d'autre ne l'alimente côté serveur — c'est le seul repli qui marche
+  // vraiment (voir lib/fitHealth.ts effectiveSleepMinutes).
+  const [sleepHours, setSleepHours] = useState(7)
   const [muscleFatigue, setMuscleFatigue] = useState(3)
   const [stressLevel, setStressLevel] = useState(3)
   const [motivation, setMotivation] = useState(3)
@@ -110,6 +114,7 @@ export default function RecoveryPage() {
     const today = all.find((c) => c.date === todayStr())
     if (today) {
       setSleepQuality(today.sleepQuality)
+      setSleepHours(today.sleepHours ?? 7)
       setMuscleFatigue(today.muscleFatigue)
       setStressLevel(today.stressLevel)
       setMotivation(today.motivation)
@@ -151,6 +156,7 @@ export default function RecoveryPage() {
       id: keepId,
       date: todayStr(),
       sleepQuality: sleepQuality as 1 | 2 | 3 | 4 | 5,
+      sleepHours,
       muscleFatigue: muscleFatigue as 1 | 2 | 3 | 4 | 5,
       stressLevel: stressLevel as 1 | 2 | 3 | 4 | 5,
       motivation: motivation as 1 | 2 | 3 | 4 | 5,
@@ -518,6 +524,7 @@ export default function RecoveryPage() {
             </p>
             <div className="grid grid-cols-2 gap-2 text-sm">
               <SummaryStat label="Qualité du sommeil" value={SCALE_LABELS[todayCheckin.sleepQuality]} />
+              <SummaryStat label="Heures de sommeil" value={todayCheckin.sleepHours != null ? formatHoursLabel(todayCheckin.sleepHours) : '—'} />
               <SummaryStat label="Fatigue musculaire" value={SCALE_LABELS[6 - todayCheckin.muscleFatigue]} />
               <SummaryStat label="Niveau de stress" value={SCALE_LABELS[6 - todayCheckin.stressLevel]} />
               <SummaryStat label="Motivation" value={SCALE_LABELS[todayCheckin.motivation]} />
@@ -526,6 +533,24 @@ export default function RecoveryPage() {
         ) : (
           <div className="space-y-4">
             <SliderRow label="Qualité du sommeil" value={sleepQuality} onChange={setSleepQuality} />
+            <div>
+              <div className="mb-1.5 flex items-center justify-between text-sm">
+                <span className="text-zinc-300">Heures de sommeil</span>
+                <span className="text-xs text-zinc-500">{formatHoursLabel(sleepHours)}</span>
+              </div>
+              <input
+                type="range"
+                min={0}
+                max={12}
+                step={0.25}
+                value={sleepHours}
+                onChange={(e) => setSleepHours(Number(e.target.value))}
+                aria-label="Heures de sommeil"
+                aria-valuetext={formatHoursLabel(sleepHours)}
+                className="h-11 w-full cursor-pointer accent-indigo-500"
+              />
+              <p className="mt-1 text-[10px] text-zinc-600">Google Fit ne remonte plus le sommeil depuis le 20/09 : cette valeur remplace la sienne partout.</p>
+            </div>
             <SliderRow label="Fatigue musculaire" value={muscleFatigue} onChange={setMuscleFatigue} invert />
             <SliderRow label="Niveau de stress" value={stressLevel} onChange={setStressLevel} invert />
             <SliderRow label="Motivation" value={motivation} onChange={setMotivation} />
@@ -597,6 +622,11 @@ export default function RecoveryPage() {
       </div>
     </div>
   )
+}
+
+function formatHoursLabel(h: number): string {
+  const totalMin = Math.round(h * 60)
+  return `${Math.floor(totalMin / 60)}h${String(totalMin % 60).padStart(2, '0')}`
 }
 
 function SummaryStat({ label, value }: { label: string; value: string }) {
