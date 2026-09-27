@@ -62,23 +62,24 @@ const MONOTONY_COLOR: Record<MonotonyRisk, string> = {
   élevé: '#e2361c',
 }
 
-function computeSubjectiveScore(c: { sleepQuality: number; muscleFatigue: number; stressLevel: number; motivation: number }) {
-  // Sommeil + motivation pèsent positif, fatigue musculaire + stress pèsent négatif (inversés)
-  const positive = c.sleepQuality + c.motivation
-  const negative = (6 - c.muscleFatigue) + (6 - c.stressLevel)
-  return Math.round(((positive + negative) / 20) * 100)
+// Qualité du sommeil et stress ont été retirés du check-in (curseurs en trop, jamais très
+// fiables en auto-évaluation) : le sommeil vient maintenant des heures réelles saisies
+// à côté (curseur "Heures de sommeil"), comparées à l'objectif des Réglages.
+function computeSubjectiveScore(c: { sleepHours: number; muscleFatigue: number; motivation: number }, sleepTargetMin: number) {
+  const sleepScore = Math.max(1, Math.min(5, Math.round(((c.sleepHours * 60) / sleepTargetMin) * 5)))
+  const positive = sleepScore + c.motivation
+  const negative = 6 - c.muscleFatigue
+  return Math.round(((positive + negative) / 15) * 100)
 }
 
 export default function RecoveryPage() {
   const navigate = useNavigate()
   const [checkins, setCheckins] = useState<RecoveryCheckin[]>([])
-  const [sleepQuality, setSleepQuality] = useState(3)
   // Durée en heures, saisie manuellement : Google Fit ne transmet plus le sommeil depuis
   // le 20/09 et rien d'autre ne l'alimente côté serveur — c'est le seul repli qui marche
   // vraiment (voir lib/fitHealth.ts effectiveSleepMinutes).
   const [sleepHours, setSleepHours] = useState(7)
   const [muscleFatigue, setMuscleFatigue] = useState(3)
-  const [stressLevel, setStressLevel] = useState(3)
   const [motivation, setMotivation] = useState(3)
   const [recovery, setRecovery] = useState<DailyRecovery | null>(null)
   const [acwr, setAcwr] = useState<Acwr | null>(null)
@@ -113,10 +114,8 @@ export default function RecoveryPage() {
     setMuscleFreshness(await getMuscleGroupFreshness())
     const today = all.find((c) => c.date === todayStr())
     if (today) {
-      setSleepQuality(today.sleepQuality)
       setSleepHours(today.sleepHours ?? 7)
       setMuscleFatigue(today.muscleFatigue)
-      setStressLevel(today.stressLevel)
       setMotivation(today.motivation)
     }
   }
@@ -127,7 +126,7 @@ export default function RecoveryPage() {
   }, [])
 
   const todayCheckin = checkins.find((c) => c.date === todayStr())
-  const subjective = computeSubjectiveScore({ sleepQuality, muscleFatigue, stressLevel, motivation })
+  const subjective = computeSubjectiveScore({ sleepHours, muscleFatigue, motivation }, settings.sleepTargetMin)
   const loadPenalty = recovery?.bodyBatteryPenalty ?? 0
   // Toujours recalculé en direct — un check-in validé plus tôt dans la
   // journée ne doit pas figer le score si une séance est loggée après coup.
@@ -155,10 +154,8 @@ export default function RecoveryPage() {
     const checkin: RecoveryCheckin = {
       id: keepId,
       date: todayStr(),
-      sleepQuality: sleepQuality as 1 | 2 | 3 | 4 | 5,
       sleepHours,
       muscleFatigue: muscleFatigue as 1 | 2 | 3 | 4 | 5,
-      stressLevel: stressLevel as 1 | 2 | 3 | 4 | 5,
       motivation: motivation as 1 | 2 | 3 | 4 | 5,
       bodyBatteryScore: score,
     }
@@ -523,16 +520,13 @@ export default function RecoveryPage() {
               <Check size={13} /> Déjà validé aujourd'hui — modifie-le plutôt que d'en refaire un nouveau.
             </p>
             <div className="grid grid-cols-2 gap-2 text-sm">
-              <SummaryStat label="Qualité du sommeil" value={SCALE_LABELS[todayCheckin.sleepQuality]} />
               <SummaryStat label="Heures de sommeil" value={todayCheckin.sleepHours != null ? formatHoursLabel(todayCheckin.sleepHours) : '—'} />
               <SummaryStat label="Fatigue musculaire" value={SCALE_LABELS[6 - todayCheckin.muscleFatigue]} />
-              <SummaryStat label="Niveau de stress" value={SCALE_LABELS[6 - todayCheckin.stressLevel]} />
               <SummaryStat label="Motivation" value={SCALE_LABELS[todayCheckin.motivation]} />
             </div>
           </div>
         ) : (
           <div className="space-y-4">
-            <SliderRow label="Qualité du sommeil" value={sleepQuality} onChange={setSleepQuality} />
             <div>
               <div className="mb-1.5 flex items-center justify-between text-sm">
                 <span className="text-zinc-300">Heures de sommeil</span>
@@ -551,9 +545,10 @@ export default function RecoveryPage() {
               />
               <p className="mt-1 text-[10px] text-zinc-600">Google Fit ne remonte plus le sommeil depuis le 20/09 : cette valeur remplace la sienne partout.</p>
             </div>
-            <SliderRow label="Fatigue musculaire" value={muscleFatigue} onChange={setMuscleFatigue} invert />
-            <SliderRow label="Niveau de stress" value={stressLevel} onChange={setStressLevel} invert />
-            <SliderRow label="Motivation" value={motivation} onChange={setMotivation} />
+            <div className="flex items-end justify-center gap-8 py-2">
+              <DjFader label="Fatigue musculaire" value={muscleFatigue} onChange={setMuscleFatigue} invert color="#e2361c" />
+              <DjFader label="Motivation" value={motivation} onChange={setMotivation} color="#2f4bd6" />
+            </div>
             <div className="flex gap-2">
               {todayCheckin && (
                 <button
@@ -638,34 +633,56 @@ function SummaryStat({ label, value }: { label: string; value: string }) {
   )
 }
 
-function SliderRow({
+// Curseur vertical façon fader de console DJ : un <input type="range"> horizontal pivoté
+// à -90°, repères de graduation façon table de mixage, jauge colorée qui monte avec la valeur.
+function DjFader({
   label,
   value,
   onChange,
   invert,
+  color,
 }: {
   label: string
   value: number
   onChange: (v: number) => void
   invert?: boolean
+  color: string
 }) {
+  const fillPct = ((value - 1) / 4) * 100
   return (
-    <div>
-      <div className="mb-1.5 flex items-center justify-between text-sm">
-        <span className="text-zinc-300">{label}</span>
-        <span className="text-xs text-zinc-500">{SCALE_LABELS[invert ? 6 - value : value]}</span>
+    <div className="flex flex-col items-center gap-2">
+      <span className="text-xs font-semibold" style={{ color }}>
+        {SCALE_LABELS[invert ? 6 - value : value]}
+      </span>
+      <div className="relative flex h-36 w-16 items-center justify-center rounded-2xl bg-zinc-900 py-3">
+        {/* Graduations façon table de mixage */}
+        <div className="pointer-events-none absolute inset-y-3 left-1/2 flex w-8 -translate-x-1/2 flex-col justify-between">
+          {[5, 4, 3, 2, 1].map((n) => (
+            <div key={n} className="h-px w-full bg-zinc-800" />
+          ))}
+        </div>
+        {/* Rail rempli depuis le bas, sous le curseur pivoté */}
+        <div
+          className="pointer-events-none absolute bottom-3 left-1/2 w-1.5 -translate-x-1/2 rounded-full transition-[height]"
+          style={{ height: `calc(${fillPct}% * 0.86)`, backgroundColor: color }}
+        />
+        <input
+          type="range"
+          min={1}
+          max={5}
+          step={1}
+          value={value}
+          onChange={(e) => onChange(Number(e.target.value))}
+          aria-label={label}
+          aria-valuetext={SCALE_LABELS[invert ? 6 - value : value]}
+          className="h-16 w-32 -rotate-90 cursor-pointer touch-none appearance-none bg-transparent
+            [&::-moz-range-thumb]:h-9 [&::-moz-range-thumb]:w-14 [&::-moz-range-thumb]:rounded-md [&::-moz-range-thumb]:border-2 [&::-moz-range-thumb]:border-zinc-950 [&::-moz-range-thumb]:bg-zinc-200 [&::-moz-range-thumb]:shadow-lg
+            [&::-moz-range-track]:h-1.5 [&::-moz-range-track]:rounded-full [&::-moz-range-track]:bg-transparent
+            [&::-webkit-slider-runnable-track]:h-1.5 [&::-webkit-slider-runnable-track]:rounded-full [&::-webkit-slider-runnable-track]:bg-transparent
+            [&::-webkit-slider-thumb]:mt-[-13.5px] [&::-webkit-slider-thumb]:h-9 [&::-webkit-slider-thumb]:w-14 [&::-webkit-slider-thumb]:appearance-none [&::-webkit-slider-thumb]:rounded-md [&::-webkit-slider-thumb]:border-2 [&::-webkit-slider-thumb]:border-zinc-950 [&::-webkit-slider-thumb]:bg-zinc-200 [&::-webkit-slider-thumb]:shadow-lg"
+        />
       </div>
-      <div className="flex gap-1.5">
-        {[1, 2, 3, 4, 5].map((n) => (
-          <button
-            key={n}
-            onClick={() => onChange(n)}
-            className={`h-8 flex-1 rounded-lg transition-colors ${
-              n <= value ? 'bg-indigo-500' : 'bg-zinc-800'
-            }`}
-          />
-        ))}
-      </div>
+      <span className="text-sm font-medium text-zinc-200">{label}</span>
     </div>
   )
 }

@@ -193,10 +193,12 @@ export interface EnduranceSession {
 export interface RecoveryCheckin {
   id: string
   date: string // YYYY-MM-DD
-  sleepQuality: 1 | 2 | 3 | 4 | 5
+  // Retirés du formulaire (curseurs en trop) : encore optionnels pour ne pas perdre les
+  // anciens check-ins déjà enregistrés, mais plus jamais écrits.
+  sleepQuality?: 1 | 2 | 3 | 4 | 5
+  stressLevel?: 1 | 2 | 3 | 4 | 5
   sleepHours?: number
   muscleFatigue: 1 | 2 | 3 | 4 | 5
-  stressLevel: 1 | 2 | 3 | 4 | 5
   motivation: 1 | 2 | 3 | 4 | 5
   bodyBatteryScore: number // 0-100 computed
   notes?: string
