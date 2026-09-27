@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { HeartPulse, Dumbbell, Footprints, Activity, Flame, Gauge, Moon, Flame as StreakIcon, Sunrise, Pencil, Check } from 'lucide-react'
+import { HeartPulse, Dumbbell, Footprints, Activity, Flame, Gauge, Moon, Flame as StreakIcon, Sunrise, Pencil, Check, BatteryCharging, Repeat, History, ClipboardCheck } from 'lucide-react'
 import { AreaChart, Area, CartesianGrid, ResponsiveContainer, Tooltip, XAxis, YAxis } from 'recharts'
 import { getDb, newId } from '../../lib/db'
 import { todayStr, formatDate } from '../../lib/date'
@@ -204,7 +204,9 @@ export default function RecoveryPage() {
 
       <div className="mb-4 grid grid-cols-2 gap-2">
         <div className="glass rounded-2xl p-5 text-center">
-          <p className="text-xs uppercase tracking-wide text-zinc-500">Body Battery</p>
+          <p className={`flex items-center justify-center gap-1 text-xs uppercase tracking-wide text-zinc-500`}>
+            <BatteryCharging size={12} className={scoreColor} /> Body Battery
+          </p>
           <p className={`mt-1 text-4xl font-bold ${scoreColor}`}>{score}</p>
           <p className="mt-1 text-[10px] text-zinc-500">
             {todayCheckin
@@ -259,7 +261,7 @@ export default function RecoveryPage() {
       <div className="glass mb-4 rounded-2xl p-3.5">
         <div className="mb-1 flex items-center justify-between">
           <p className="flex items-center gap-1 text-xs text-zinc-500">
-            <Gauge size={12} /> Charge aiguë/chronique (ACWR)
+            <Gauge size={12} style={{ color: acwr ? ACWR_COLOR[acwr.risk] : undefined }} /> Charge aiguë/chronique (ACWR)
           </p>
           {acwr && (
             <span
@@ -296,7 +298,7 @@ export default function RecoveryPage() {
       <div className="mb-4 grid grid-cols-2 gap-2">
         <div className="glass rounded-2xl p-3.5">
           <p className="flex items-center gap-1 text-xs text-zinc-500">
-            <Moon size={12} /> Dette de sommeil (7j)
+            <Moon size={12} className={sleepDebt && sleepDebt.totalDebtMin > 120 ? 'text-red-400' : 'text-indigo-300'} /> Dette de sommeil (7j)
           </p>
           <p className={`mt-1 text-xl font-bold ${sleepDebt && sleepDebt.totalDebtMin > 120 ? 'text-red-400' : 'text-indigo-300'}`}>
             {sleepDebt && sleepDebt.daysWithData > 0 ? (sleepDebt.totalDebtMin > 0 ? `-${Math.round(sleepDebt.totalDebtMin / 60)}h` : '0h') : '—'}
@@ -307,7 +309,7 @@ export default function RecoveryPage() {
         </div>
         <div className="glass rounded-2xl p-3.5">
           <p className="flex items-center gap-1 text-xs text-zinc-500">
-            <StreakIcon size={12} /> {streak && streak.activeDaysStreak > 0 ? 'Jours actifs' : 'Jours de repos'}
+            <StreakIcon size={12} className="text-orange-400" /> {streak && streak.activeDaysStreak > 0 ? 'Jours actifs' : 'Jours de repos'}
           </p>
           <p className="mt-1 text-xl font-bold text-orange-400">
             {streak ? (streak.activeDaysStreak > 0 ? streak.activeDaysStreak : streak.restDaysStreak) : '—'}
@@ -320,7 +322,7 @@ export default function RecoveryPage() {
         <div className="glass mb-4 rounded-2xl p-3.5">
           <div className="mb-1 flex items-center justify-between">
             <p className="flex items-center gap-1 text-xs text-zinc-500">
-              <Gauge size={12} /> Monotonie & Contrainte (7j)
+              <Repeat size={12} style={{ color: MONOTONY_COLOR[monotony.risk] }} /> Monotonie & Contrainte (7j)
             </p>
             <span
               className="rounded-full px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide"
@@ -417,7 +419,9 @@ export default function RecoveryPage() {
       {recovery && (
         <section className="glass mb-6 rounded-2xl p-4">
           <div className="mb-3 flex items-center justify-between">
-            <h2 className="text-xs font-medium uppercase tracking-wide text-zinc-500">Charge du jour</h2>
+            <h2 className="flex items-center gap-1.5 text-xs font-medium uppercase tracking-wide text-zinc-500">
+              <Flame size={13} style={{ color: bandColor }} /> Charge du jour
+            </h2>
             <span
               className="rounded-full px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide"
               style={{ backgroundColor: `${bandColor}22`, color: bandColor }}
@@ -476,7 +480,9 @@ export default function RecoveryPage() {
 
       {muscleFreshness.length > 0 && (
         <section className="glass mb-6 rounded-2xl p-4">
-          <p className="mb-2 text-xs font-medium uppercase tracking-wide text-zinc-500">Fraîcheur par groupe musculaire</p>
+          <p className="mb-2 flex items-center gap-1.5 text-xs font-medium uppercase tracking-wide text-zinc-500">
+            <Dumbbell size={13} className="text-teal-400" /> Fraîcheur par groupe musculaire
+          </p>
           <div className="flex flex-wrap gap-1.5">
             {muscleFreshness.map((f) => (
               <span
@@ -501,7 +507,8 @@ export default function RecoveryPage() {
 
       <section className="glass mb-6 rounded-2xl p-4">
         <div className="mb-3 flex items-center justify-between">
-          <h2 className="text-xs font-medium uppercase tracking-wide text-zinc-500">
+          <h2 className="flex items-center gap-1.5 text-xs font-medium uppercase tracking-wide text-zinc-500">
+            <ClipboardCheck size={13} className="text-indigo-300" />
             {showForm && todayCheckin ? 'Modifier le check-in du jour' : 'Check-in du jour'}
           </h2>
           {!showForm && (
@@ -570,7 +577,9 @@ export default function RecoveryPage() {
       </section>
 
       <section>
-        <h2 className="mb-2 text-sm font-medium text-zinc-400">Historique</h2>
+        <h2 className="mb-2 flex items-center gap-1.5 text-sm font-medium text-zinc-400">
+          <History size={15} className="text-zinc-500" /> Historique
+        </h2>
         {chartData.length >= 2 && (
           <div className="glass mb-3 rounded-2xl p-3">
             <div className="h-32 w-full">
