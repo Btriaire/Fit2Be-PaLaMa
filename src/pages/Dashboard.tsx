@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
-import { Activity, Apple, Camera, ChevronLeft, ChevronRight, Dumbbell, Flame, Footprints, HeartPulse, ImagePlus, Loader2, Moon, Plus, RefreshCw, Settings, Sparkles, Timer, TrendingUp } from 'lucide-react'
+import { Activity, Apple, Camera, ChevronLeft, ChevronRight, Dumbbell, Flame, Footprints, HeartPulse, ImagePlus, Loader2, Moon, Plus, RefreshCw, Sparkles, Timer, TrendingUp, User } from 'lucide-react'
 import { getDb } from '../lib/db'
 import { getAllWorkouts, estimateWorkoutCalories } from '../lib/workouts'
 import { isSameDay, todayStr, addDays, formatFullDate } from '../lib/date'
@@ -203,8 +203,23 @@ export default function Dashboard() {
             >
               <RefreshCw size={20} className={syncing ? 'animate-spin' : ''} />
             </button>
-            <Link to="/settings" aria-label="Réglages" className="flex h-11 w-11 items-center justify-center rounded-full bg-zinc-950/40 text-white active:bg-zinc-900">
-              <Settings size={20} />
+            {/* "Moi" — point d'entrée unique et reconnaissable vers le profil/réglages,
+                façon avatar NutriTracker : la photo si elle existe, sinon l'initiale
+                sur fond de couleur, plutôt qu'une icône engrenage abstraite. */}
+            <Link
+              to="/settings"
+              aria-label="Moi"
+              className="flex h-11 w-11 items-center justify-center overflow-hidden rounded-full bg-zinc-950/40 text-white ring-1 ring-white/10 active:bg-zinc-900"
+            >
+              {settings.profilePhotoDataUrl ? (
+                <img src={settings.profilePhotoDataUrl} alt="" className="h-full w-full object-cover" />
+              ) : settings.firstName ? (
+                <span className="flex h-full w-full items-center justify-center bg-orange-500/30 text-sm font-bold text-orange-200">
+                  {settings.firstName[0].toUpperCase()}
+                </span>
+              ) : (
+                <User size={20} />
+              )}
             </Link>
           </div>
         </div>
