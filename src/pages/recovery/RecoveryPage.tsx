@@ -35,6 +35,17 @@ import type { RecoveryCheckin } from '../../types'
 
 const SCALE_LABELS: Record<number, string> = { 1: 'Très faible', 2: 'Faible', 3: 'Moyen', 4: 'Bon', 5: 'Excellent' }
 
+// Fatigue musculaire, 1-10 : les anciens libellés réutilisaient l'échelle de qualité inversée
+// (valeur haute = "Très faible") — incompréhensible pour ce curseur précis. Ceux-ci décrivent
+// directement le niveau de fatigue ressenti, en 5 paliers sur 10 crans (curseur plus fin).
+function muscleFatigueLabel(v: number): string {
+  if (v <= 2) return 'Aucune fatigue'
+  if (v <= 4) return 'Légère'
+  if (v <= 6) return 'Modérée'
+  if (v <= 8) return 'Élevée'
+  return 'Épuisement'
+}
+
 const BAND_COLOR: Record<DailyRecovery['band'], string> = {
   aucune: '#71717a',
   légère: '#2f4bd6',
@@ -68,7 +79,8 @@ const MONOTONY_COLOR: Record<MonotonyRisk, string> = {
 function computeSubjectiveScore(c: { sleepHours: number; muscleFatigue: number; motivation: number }, sleepTargetMin: number) {
   const sleepScore = Math.max(1, Math.min(5, Math.round(((c.sleepHours * 60) / sleepTargetMin) * 5)))
   const positive = sleepScore + c.motivation
-  const negative = 6 - c.muscleFatigue
+  // muscleFatigue est sur 10 (plus de nuances que motivation/sommeil) : ramené sur 5 pour peser pareil.
+  const negative = Math.max(1, Math.min(5, Math.round((11 - c.muscleFatigue) / 2)))
   return Math.round(((positive + negative) / 15) * 100)
 }
 
@@ -79,7 +91,7 @@ export default function RecoveryPage() {
   // le 20/09 et rien d'autre ne l'alimente côté serveur — c'est le seul repli qui marche
   // vraiment (voir lib/fitHealth.ts effectiveSleepMinutes).
   const [sleepHours, setSleepHours] = useState(7)
-  const [muscleFatigue, setMuscleFatigue] = useState(3)
+  const [muscleFatigue, setMuscleFatigue] = useState(5)
   const [motivation, setMotivation] = useState(3)
   const [recovery, setRecovery] = useState<DailyRecovery | null>(null)
   const [acwr, setAcwr] = useState<Acwr | null>(null)
@@ -155,7 +167,7 @@ export default function RecoveryPage() {
       id: keepId,
       date: todayStr(),
       sleepHours,
-      muscleFatigue: muscleFatigue as 1 | 2 | 3 | 4 | 5,
+      muscleFatigue,
       motivation: motivation as 1 | 2 | 3 | 4 | 5,
       bodyBatteryScore: score,
     }
@@ -528,7 +540,7 @@ export default function RecoveryPage() {
             </p>
             <div className="grid grid-cols-2 gap-2 text-sm">
               <SummaryStat label="Heures de sommeil" value={todayCheckin.sleepHours != null ? formatHoursLabel(todayCheckin.sleepHours) : '—'} />
-              <SummaryStat label="Fatigue musculaire" value={SCALE_LABELS[6 - todayCheckin.muscleFatigue]} />
+              <SummaryStat label="Fatigue musculaire" value={muscleFatigueLabel(todayCheckin.muscleFatigue)} />
               <SummaryStat label="Motivation" value={SCALE_LABELS[todayCheckin.motivation]} />
             </div>
           </div>
@@ -553,8 +565,24 @@ export default function RecoveryPage() {
               <p className="mt-1 text-[10px] text-zinc-600">Google Fit ne remonte plus le sommeil depuis le 20/09 : cette valeur remplace la sienne partout.</p>
             </div>
             <div className="flex items-end justify-center gap-8 py-2">
-              <DjFader label="Fatigue musculaire" value={muscleFatigue} onChange={setMuscleFatigue} invert color="#e2361c" />
-              <DjFader label="Motivation" value={motivation} onChange={setMotivation} color="#2f4bd6" />
+              <DjFader
+                label="Fatigue musculaire"
+                value={muscleFatigue}
+                onChange={setMuscleFatigue}
+                min={1}
+                max={10}
+                labelFor={muscleFatigueLabel}
+                color="#e2361c"
+              />
+              <DjFader
+                label="Motivation"
+                value={motivation}
+                onChange={setMotivation}
+                min={1}
+                max={5}
+                labelFor={(v) => SCALE_LABELS[v]}
+                color="#2f4bd6"
+              />
             </div>
             <div className="flex gap-2">
               {todayCheckin && (
@@ -644,54 +672,61 @@ function SummaryStat({ label, value }: { label: string; value: string }) {
 
 // Curseur vertical façon fader de console DJ : un <input type="range"> horizontal pivoté
 // à -90°, repères de graduation façon table de mixage, jauge colorée qui monte avec la valeur.
+// `min`/`max`/`labelFor` sont propres à chaque usage : la fatigue musculaire et la motivation
+// n'ont ni la même plage ni le même vocabulaire, pas question de leur imposer la même échelle.
 function DjFader({
   label,
   value,
   onChange,
-  invert,
+  min,
+  max,
   color,
+  labelFor,
 }: {
   label: string
   value: number
   onChange: (v: number) => void
-  invert?: boolean
+  min: number
+  max: number
   color: string
+  labelFor: (v: number) => string
 }) {
-  const fillPct = ((value - 1) / 4) * 100
+  const fillPct = ((value - min) / (max - min)) * 100
+  const valueText = labelFor(value)
   return (
-    <div className="flex flex-col items-center gap-2">
+    <div className="flex flex-col items-center gap-1.5">
       <span className="text-xs font-semibold" style={{ color }}>
-        {SCALE_LABELS[invert ? 6 - value : value]}
+        {valueText}
       </span>
-      <div className="relative flex h-36 w-16 items-center justify-center rounded-2xl bg-zinc-900 py-3">
-        {/* Graduations façon table de mixage */}
-        <div className="pointer-events-none absolute inset-y-3 left-1/2 flex w-8 -translate-x-1/2 flex-col justify-between">
-          {[5, 4, 3, 2, 1].map((n) => (
+      <div className="relative flex h-28 w-12 items-center justify-center rounded-xl bg-zinc-900 py-2">
+        {/* Graduations façon table de mixage — juste des repères visuels, indépendants du pas réel */}
+        <div className="pointer-events-none absolute inset-y-2 left-1/2 flex w-6 -translate-x-1/2 flex-col justify-between">
+          {[0, 1, 2, 3, 4].map((n) => (
             <div key={n} className="h-px w-full bg-zinc-800" />
           ))}
         </div>
         {/* Rail rempli depuis le bas, sous le curseur pivoté */}
         <div
-          className="pointer-events-none absolute bottom-3 left-1/2 w-1.5 -translate-x-1/2 rounded-full transition-[height]"
+          className="pointer-events-none absolute bottom-2 left-1/2 w-1 -translate-x-1/2 rounded-full transition-[height]"
           style={{ height: `calc(${fillPct}% * 0.86)`, backgroundColor: color }}
         />
         <input
           type="range"
-          min={1}
-          max={5}
+          min={min}
+          max={max}
           step={1}
           value={value}
           onChange={(e) => onChange(Number(e.target.value))}
           aria-label={label}
-          aria-valuetext={SCALE_LABELS[invert ? 6 - value : value]}
-          className="h-16 w-32 -rotate-90 cursor-pointer touch-none appearance-none bg-transparent
-            [&::-moz-range-thumb]:h-9 [&::-moz-range-thumb]:w-14 [&::-moz-range-thumb]:rounded-md [&::-moz-range-thumb]:border-2 [&::-moz-range-thumb]:border-zinc-950 [&::-moz-range-thumb]:bg-zinc-200 [&::-moz-range-thumb]:shadow-lg
-            [&::-moz-range-track]:h-1.5 [&::-moz-range-track]:rounded-full [&::-moz-range-track]:bg-transparent
-            [&::-webkit-slider-runnable-track]:h-1.5 [&::-webkit-slider-runnable-track]:rounded-full [&::-webkit-slider-runnable-track]:bg-transparent
-            [&::-webkit-slider-thumb]:mt-[-13.5px] [&::-webkit-slider-thumb]:h-9 [&::-webkit-slider-thumb]:w-14 [&::-webkit-slider-thumb]:appearance-none [&::-webkit-slider-thumb]:rounded-md [&::-webkit-slider-thumb]:border-2 [&::-webkit-slider-thumb]:border-zinc-950 [&::-webkit-slider-thumb]:bg-zinc-200 [&::-webkit-slider-thumb]:shadow-lg"
+          aria-valuetext={valueText}
+          className="h-12 w-24 -rotate-90 cursor-pointer touch-none appearance-none bg-transparent
+            [&::-moz-range-thumb]:h-6 [&::-moz-range-thumb]:w-9 [&::-moz-range-thumb]:rounded [&::-moz-range-thumb]:border-2 [&::-moz-range-thumb]:border-zinc-950 [&::-moz-range-thumb]:bg-zinc-200 [&::-moz-range-thumb]:shadow-lg
+            [&::-moz-range-track]:h-1 [&::-moz-range-track]:rounded-full [&::-moz-range-track]:bg-transparent
+            [&::-webkit-slider-runnable-track]:h-1 [&::-webkit-slider-runnable-track]:rounded-full [&::-webkit-slider-runnable-track]:bg-transparent
+            [&::-webkit-slider-thumb]:mt-[-9.5px] [&::-webkit-slider-thumb]:h-6 [&::-webkit-slider-thumb]:w-9 [&::-webkit-slider-thumb]:appearance-none [&::-webkit-slider-thumb]:rounded [&::-webkit-slider-thumb]:border-2 [&::-webkit-slider-thumb]:border-zinc-950 [&::-webkit-slider-thumb]:bg-zinc-200 [&::-webkit-slider-thumb]:shadow-lg"
         />
       </div>
-      <span className="text-sm font-medium text-zinc-200">{label}</span>
+      <span className="text-xs font-medium text-zinc-300">{label}</span>
     </div>
   )
 }

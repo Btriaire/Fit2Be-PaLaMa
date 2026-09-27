@@ -198,7 +198,7 @@ export interface RecoveryCheckin {
   sleepQuality?: 1 | 2 | 3 | 4 | 5
   stressLevel?: 1 | 2 | 3 | 4 | 5
   sleepHours?: number
-  muscleFatigue: 1 | 2 | 3 | 4 | 5
+  muscleFatigue: number // 1-10 (les anciens check-ins vont de 1 à 5, sous-ensemble valide)
   motivation: 1 | 2 | 3 | 4 | 5
   bodyBatteryScore: number // 0-100 computed
   notes?: string
