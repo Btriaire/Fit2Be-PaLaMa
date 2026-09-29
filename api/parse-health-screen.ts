@@ -62,7 +62,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       method: 'POST',
       headers: { Authorization: `Bearer ${apiKey}`, 'Content-Type': 'application/json' },
       body: JSON.stringify({
-        model: 'qwen/qwen3.6-27b',
+        model: 'qwen/qwen3.8-27b',
         temperature: 0.1,
         max_tokens: 768,
         response_format: { type: 'json_object' },
