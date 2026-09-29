@@ -73,6 +73,17 @@ export default function EndurancePage() {
     [readiness, timeBudget, customPrograms],
   )
 
+  // Un groupe par type d'activité (vélo, tapis...), chacun replié par défaut.
+  const programGroups = useMemo(() => {
+    const byType = new Map<EnduranceActivityType, EnduranceProgram[]>()
+    for (const p of visibleCoachingPrograms) {
+      const list = byType.get(p.activityType)
+      if (list) list.push(p)
+      else byType.set(p.activityType, [p])
+    }
+    return [...byType.entries()]
+  }, [visibleCoachingPrograms])
+
   const weekStart = startOfWeek()
   const weekSessions = useMemo(() => sessions.filter((s) => s.startedAt >= weekStart), [sessions, weekStart])
   const daySessions = useMemo(() => sessions.filter((s) => isSameDay(s.startedAt, selectedDate)), [sessions, selectedDate])
@@ -159,24 +170,16 @@ export default function EndurancePage() {
             {visibleCoachingPrograms.length === 0 && (
               <p className="text-xs text-zinc-600">Aucun programme ne rentre dans ce temps — essaie un budget plus large.</p>
             )}
-            {visibleCoachingPrograms.map((p) => (
-              <button
-                key={p.id}
-                onClick={() => setPreviewProgram(p)}
-                className="glass flex w-full items-center gap-2.5 rounded-lg px-3 py-2 text-left active:scale-[0.98] transition-transform"
-              >
-                <span className="flex h-7 w-7 shrink-0 items-center justify-center rounded-md bg-orange-500/15 text-orange-400">
-                  <Timer size={14} />
-                </span>
-                <div className="min-w-0 flex-1">
-                  <p className="text-sm font-medium leading-tight">{p.name}</p>
-                  <p className="truncate text-[11px] leading-tight text-zinc-500">
-                    {p.focus}
-                    {customPrograms.some((cp) => cp.id === p.id) ? ' · perso' : ''}
-                  </p>
-                </div>
-                <ChevronRight size={14} className="shrink-0 text-zinc-600" />
-              </button>
+            {/* Regroupés par type d'activité (vélo/tapis/...), chaque groupe replié par défaut —
+                sinon les 13+ modèles s'affichent tous d'un coup dès qu'on ouvre "Programmes Coaching". */}
+            {programGroups.map(([activityType, programs]) => (
+              <ProgramGroup
+                key={activityType}
+                activityType={activityType}
+                programs={programs}
+                customPrograms={customPrograms}
+                onSelect={setPreviewProgram}
+              />
             ))}
           </div>
           <button
@@ -388,6 +391,58 @@ export default function EndurancePage() {
         </div>
       )}
       </div>
+    </div>
+  )
+}
+
+// Un groupe replié par type d'activité (vélo, tapis...) : évite d'afficher les 13+ modèles
+// d'un coup dès qu'on déplie "Programmes Coaching".
+function ProgramGroup({
+  activityType,
+  programs,
+  customPrograms,
+  onSelect,
+}: {
+  activityType: EnduranceActivityType
+  programs: EnduranceProgram[]
+  customPrograms: CustomEnduranceProgram[]
+  onSelect: (p: EnduranceProgram) => void
+}) {
+  const [open, setOpen] = useCollapsible(`endurance-coaching-group-${activityType}`)
+  return (
+    <div>
+      <button
+        onClick={() => setOpen((v) => !v)}
+        className="flex w-full items-center justify-between rounded-lg bg-zinc-900/60 px-3 py-2 text-left text-xs font-medium text-zinc-300 active:bg-zinc-900"
+      >
+        <span>
+          {ENDURANCE_ACTIVITY_META[activityType].label} <span className="text-zinc-600">· {programs.length}</span>
+        </span>
+        <ChevronDown size={14} className={`text-zinc-600 transition-transform ${open ? 'rotate-180' : ''}`} />
+      </button>
+      <Collapsible open={open}>
+        <div className="space-y-1.5 pt-1.5">
+          {programs.map((p) => (
+            <button
+              key={p.id}
+              onClick={() => onSelect(p)}
+              className="glass flex w-full items-center gap-2.5 rounded-lg px-3 py-2 text-left active:scale-[0.98] transition-transform"
+            >
+              <span className="flex h-7 w-7 shrink-0 items-center justify-center rounded-md bg-orange-500/15 text-orange-400">
+                <Timer size={14} />
+              </span>
+              <div className="min-w-0 flex-1">
+                <p className="text-sm font-medium leading-tight">{p.name}</p>
+                <p className="truncate text-[11px] leading-tight text-zinc-500">
+                  {p.focus}
+                  {customPrograms.some((cp) => cp.id === p.id) ? ' · perso' : ''}
+                </p>
+              </div>
+              <ChevronRight size={14} className="shrink-0 text-zinc-600" />
+            </button>
+          ))}
+        </div>
+      </Collapsible>
     </div>
   )
 }
