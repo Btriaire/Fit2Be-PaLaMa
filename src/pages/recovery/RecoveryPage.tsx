@@ -28,7 +28,7 @@ import BackButton from '../../components/BackButton'
 import { pushRecord, deleteRecord } from '../../lib/cloudSync'
 import { analyzeRecovery, type RecoveryInsight } from '../../lib/aiInsights'
 import { pullCardiacRangeFromNutriTracker, type RemoteCardiacDay } from '../../lib/nutriTrackerSync'
-import { syncGoogleFit } from '../../lib/googleFit'
+import { syncGoogleFit, getGoogleFitForDate } from '../../lib/googleFit'
 import { getMuscleGroupFreshness, type MuscleGroupFreshness } from '../../lib/workouts'
 import { Sparkles, Loader2 } from 'lucide-react'
 import type { RecoveryCheckin } from '../../types'
@@ -87,10 +87,11 @@ function computeSubjectiveScore(c: { sleepHours: number; muscleFatigue: number; 
 export default function RecoveryPage() {
   const navigate = useNavigate()
   const [checkins, setCheckins] = useState<RecoveryCheckin[]>([])
-  // Durée en heures, saisie manuellement : Google Fit ne transmet plus le sommeil depuis
-  // le 20/09 et rien d'autre ne l'alimente côté serveur — c'est le seul repli qui marche
-  // vraiment (voir lib/fitHealth.ts effectiveSleepMinutes).
+  // Durée en heures : pré-remplie depuis Google Fit quand la nuit est déjà synchronisée
+  // (voir refresh ci-dessous), sinon saisie manuellement. Un check-in déjà validé
+  // aujourd'hui garde toujours la valeur enregistrée — jamais écrasée par le sync.
   const [sleepHours, setSleepHours] = useState(7)
+  const [sleepHoursSource, setSleepHoursSource] = useState<'googlefit' | 'manual' | 'none'>('none')
   const [muscleFatigue, setMuscleFatigue] = useState(5)
   const [motivation, setMotivation] = useState(3)
   const [recovery, setRecovery] = useState<DailyRecovery | null>(null)
@@ -126,9 +127,22 @@ export default function RecoveryPage() {
     setMuscleFreshness(await getMuscleGroupFreshness())
     const today = all.find((c) => c.date === todayStr())
     if (today) {
+      // Check-in déjà validé : sa valeur (éventuellement corrigée à la main) prime toujours.
       setSleepHours(today.sleepHours ?? 7)
+      setSleepHoursSource(today.sleepHours != null ? 'manual' : 'none')
       setMuscleFatigue(today.muscleFatigue)
       setMotivation(today.motivation)
+    } else {
+      // Pas encore de check-in aujourd'hui : pré-remplit avec la nuit déjà synchronisée
+      // par Google Fit (syncGoogleFit vient de tourner juste au-dessus), pour ne pas
+      // demander une saisie manuelle d'une donnée qu'on a déjà.
+      const gf = await getGoogleFitForDate(todayStr())
+      if (gf?.sleepMinutes != null) {
+        setSleepHours(Math.round((gf.sleepMinutes / 60) * 4) / 4)
+        setSleepHoursSource('googlefit')
+      } else {
+        setSleepHoursSource('none')
+      }
     }
   }
 
@@ -549,7 +563,10 @@ export default function RecoveryPage() {
             <div>
               <div className="mb-1.5 flex items-center justify-between text-sm">
                 <span className="text-zinc-300">Heures de sommeil</span>
-                <span className="text-xs text-zinc-500">{formatHoursLabel(sleepHours)}</span>
+                <span className="flex items-center gap-1 text-xs text-zinc-500">
+                  {sleepHoursSource === 'googlefit' && <Check size={11} className="text-teal-400" />}
+                  {formatHoursLabel(sleepHours)}
+                </span>
               </div>
               <input
                 type="range"
@@ -557,12 +574,19 @@ export default function RecoveryPage() {
                 max={12}
                 step={0.25}
                 value={sleepHours}
-                onChange={(e) => setSleepHours(Number(e.target.value))}
+                onChange={(e) => {
+                  setSleepHours(Number(e.target.value))
+                  setSleepHoursSource('manual')
+                }}
                 aria-label="Heures de sommeil"
                 aria-valuetext={formatHoursLabel(sleepHours)}
                 className="h-11 w-full cursor-pointer accent-indigo-500"
               />
-              <p className="mt-1 text-[10px] text-zinc-600">Google Fit ne remonte plus le sommeil depuis le 20/09 : cette valeur remplace la sienne partout.</p>
+              <p className="mt-1 text-[10px] text-zinc-600">
+                {sleepHoursSource === 'googlefit'
+                  ? 'Récupéré automatiquement depuis Google Fit — ajuste si besoin.'
+                  : "Google Fit n'a pas encore transmis cette nuit : saisis-la manuellement."}
+              </p>
             </div>
             <div className="flex items-end justify-center gap-8 py-2">
               <DjFader

@@ -1,10 +1,10 @@
 import { useEffect, useMemo, useState } from 'react'
 import { useLocation, useNavigate } from 'react-router-dom'
-import { Footprints, Plus, Trash2, X } from 'lucide-react'
+import { Footprints, Plus, Route, Trash2, X } from 'lucide-react'
 import { getDb, newId } from '../../lib/db'
 import { MET_ACTIVITIES, computeCaloriesForUser } from '../../lib/met'
 import { getSettings } from '../../lib/settings'
-import { isToday, formatTime, formatDate, dayKey } from '../../lib/date'
+import { isToday, formatTime, formatDate, dayKey, todayStr, addDays } from '../../lib/date'
 import { pushActivityToNutriTracker } from '../../lib/nutriTrackerSync'
 import { pushRecord, deleteRecord } from '../../lib/cloudSync'
 import { ACTIVITY_PHOTOS } from '../../lib/activityPhotos'
@@ -39,7 +39,12 @@ export default function ActivitiesPage() {
     const all = await db.getAllFromIndex('activities', 'byLoggedAt')
     setLogs(all.reverse())
     const endurance = await getEnduranceSessions()
-    setMarcheSessions(endurance.filter((s) => s.activityType === 'marche'))
+    // Les marches "steps-YYYY-MM-DD" sont auto-loggées chaque jour depuis les pas Google
+    // Fit (voir stepsActivity.ts) — une par jour, systématiquement. Les mélanger ici avec
+    // de vraies sorties (GPS ou saisies à la main) noyait le journal dans du bruit
+    // identique jour après jour ; elles restent visibles ailleurs (Pas du Dashboard,
+    // Progression) mais n'ont rien à faire dans un journal d'activités délibérées.
+    setMarcheSessions(endurance.filter((s) => s.activityType === 'marche' && !s.id.startsWith('steps-')))
   }
 
   useEffect(() => {
@@ -47,8 +52,40 @@ export default function ActivitiesPage() {
   }, [])
 
   const todayLogs = useMemo(() => logs.filter((l) => isToday(l.loggedAt)), [logs])
-  const todayCalories = todayLogs.reduce((sum, l) => sum + l.caloriesBurned, 0)
+  const todayWalks = useMemo(() => marcheSessions.filter((s) => isToday(s.startedAt)), [marcheSessions])
+  const todayCalories = todayLogs.reduce((sum, l) => sum + l.caloriesBurned, 0) + todayWalks.reduce((sum, s) => sum + s.caloriesBurned, 0)
   const lifeMetScore = Math.round(todayLogs.reduce((sum, l) => sum + l.metValue * (l.durationMin / 60), 0) * 10)
+
+  // Un seul fil chronologique au lieu de deux blocs disjoints (Journal, puis Marche plus
+  // bas sans lien de date) : sinon une marche d'il y a 3 semaines se retrouvait collée à
+  // une activité d'aujourd'hui, sans aucun repère temporel entre les deux.
+  type TimelineItem =
+    | { kind: 'activity'; at: number; log: ActivityLog }
+    | { kind: 'walk'; at: number; session: EnduranceSession }
+  const timeline = useMemo<TimelineItem[]>(
+    () =>
+      [
+        ...logs.map((log): TimelineItem => ({ kind: 'activity', at: log.loggedAt, log })),
+        ...marcheSessions.map((session): TimelineItem => ({ kind: 'walk', at: session.startedAt, session })),
+      ].sort((a, b) => b.at - a.at),
+    [logs, marcheSessions],
+  )
+  const timelineGroups = useMemo(() => {
+    const groups: { dateStr: string; items: TimelineItem[] }[] = []
+    for (const item of timeline) {
+      const dateStr = dayKey(item.at)
+      const last = groups[groups.length - 1]
+      if (last && last.dateStr === dateStr) last.items.push(item)
+      else groups.push({ dateStr, items: [item] })
+    }
+    return groups
+  }, [timeline])
+
+  function dayGroupLabel(dateStr: string): string {
+    if (dateStr === todayStr()) return "Aujourd'hui"
+    if (dateStr === addDays(todayStr(), -1)) return 'Hier'
+    return formatDate(new Date(`${dateStr}T12:00:00`).getTime())
+  }
 
   async function addLog(entry: Omit<ActivityLog, 'id' | 'loggedAt'>) {
     const db = await getDb()
@@ -108,77 +145,84 @@ export default function ActivitiesPage() {
 
       <section>
         <h2 className="mb-2 text-sm font-medium text-zinc-400">Journal</h2>
-        {logs.length === 0 && <p className="text-sm text-zinc-500">Rien pour l'instant.</p>}
-        <ul className="space-y-2">
-          {logs.map((l) => {
-            const activityId = MET_ACTIVITIES.find((a) => a.label === l.label)?.id
-            return (
-              <li key={l.id} className="glass flex items-center justify-between rounded-xl p-3">
-                <div className="flex items-center gap-2.5">
-                  {activityId && ACTIVITY_PHOTOS[activityId] ? (
-                    <img src={ACTIVITY_PHOTOS[activityId]} alt="" className="h-10 w-10 shrink-0 rounded-lg object-cover" />
+        {timeline.length === 0 && <p className="text-sm text-zinc-500">Rien pour l'instant.</p>}
+        <div className="space-y-4">
+          {timelineGroups.map((group) => (
+            <div key={group.dateStr}>
+              <p className="mb-1.5 px-1 text-[11px] font-medium uppercase tracking-wide text-zinc-600">{dayGroupLabel(group.dateStr)}</p>
+              <ul className="space-y-2">
+                {group.items.map((item) =>
+                  item.kind === 'activity' ? (
+                    <ActivityLogRow key={item.log.id} log={item.log} onDelete={removeLog} />
                   ) : (
-                    <span className="h-10 w-10 shrink-0 rounded-lg bg-zinc-900" />
-                  )}
-                  <div>
-                    <p className="text-sm font-medium">{l.label}</p>
-                    <p className="text-xs text-zinc-500">
-                      {l.durationMin} min · {formatTime(l.loggedAt)}
-                    </p>
-                  </div>
-                </div>
-                <div className="flex items-center gap-2">
-                  <p className="text-sm font-semibold text-teal-400">{l.caloriesBurned} kcal</p>
-                  <button
-                    onClick={() => removeLog(l.id)}
-                    className="shrink-0 rounded-full p-1 text-zinc-600 active:bg-red-500/10 active:text-red-400"
-                    aria-label="Supprimer l'activité"
-                  >
-                    <Trash2 size={14} />
-                  </button>
-                </div>
-              </li>
-            )
-          })}
-        </ul>
+                    <WalkRow key={item.session.id} session={item.session} onOpen={() => navigate(`/endurance/session/${item.session.id}`)} />
+                  ),
+                )}
+              </ul>
+            </div>
+          ))}
+        </div>
       </section>
-
-      {marcheSessions.length > 0 && (
-        <section className="mt-6">
-          <h2 className="mb-2 text-sm font-medium text-zinc-400">Marche (historique)</h2>
-          <ul className="space-y-2">
-            {marcheSessions.map((s) => (
-              <li key={s.id}>
-                <button
-                  onClick={() => navigate(`/endurance/session/${s.id}`)}
-                  className="glass flex w-full items-center justify-between rounded-xl p-3 text-left active:bg-zinc-900/80"
-                >
-                  <div className="flex items-center gap-2.5">
-                    <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-zinc-900">
-                      <Footprints size={18} className="text-teal-400" />
-                    </span>
-                    <div>
-                      <p className="text-sm font-medium">
-                        Marche {s.distanceKm ? `· ${s.distanceKm.toFixed(1)} km` : ''}
-                      </p>
-                      <p className="text-xs text-zinc-500">
-                        {formatDate(s.startedAt)} · {s.durationMin} min
-                      </p>
-                    </div>
-                  </div>
-                  <p className="text-sm font-semibold text-teal-400">{s.caloriesBurned} kcal</p>
-                </button>
-              </li>
-            ))}
-          </ul>
-        </section>
-      )}
 
       {formOpen && (
         <ActivityForm onSubmit={addLog} onClose={() => setFormOpen(false)} filterIds={navState.filterIds} />
       )}
       </div>
     </div>
+  )
+}
+
+function ActivityLogRow({ log, onDelete }: { log: ActivityLog; onDelete: (id: string) => void }) {
+  const activityId = MET_ACTIVITIES.find((a) => a.label === log.label)?.id
+  return (
+    <li className="glass flex items-center justify-between rounded-xl p-3">
+      <div className="flex items-center gap-2.5">
+        {activityId && ACTIVITY_PHOTOS[activityId] ? (
+          <img src={ACTIVITY_PHOTOS[activityId]} alt="" className="h-10 w-10 shrink-0 rounded-lg object-cover" />
+        ) : (
+          <span className="h-10 w-10 shrink-0 rounded-lg bg-zinc-900" />
+        )}
+        <div>
+          <p className="text-sm font-medium">{log.label}</p>
+          <p className="text-xs text-zinc-500">
+            {log.durationMin} min · {formatTime(log.loggedAt)}
+          </p>
+        </div>
+      </div>
+      <div className="flex items-center gap-2">
+        <p className="text-sm font-semibold text-teal-400">{log.caloriesBurned} kcal</p>
+        <button
+          onClick={() => onDelete(log.id)}
+          className="shrink-0 rounded-full p-1 text-zinc-600 active:bg-red-500/10 active:text-red-400"
+          aria-label="Supprimer l'activité"
+        >
+          <Trash2 size={14} />
+        </button>
+      </div>
+    </li>
+  )
+}
+
+// Icône Route (plutôt que Footprints, déjà utilisée pour "Journal"/l'en-tête de page) pour
+// distinguer d'un coup d'œil une sortie marche trackée (GPS ou saisie) d'une activité loisir.
+function WalkRow({ session, onOpen }: { session: EnduranceSession; onOpen: () => void }) {
+  return (
+    <li>
+      <button onClick={onOpen} className="glass flex w-full items-center justify-between rounded-xl p-3 text-left active:bg-zinc-900/80">
+        <div className="flex items-center gap-2.5">
+          <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-zinc-900">
+            <Route size={18} className="text-teal-400" />
+          </span>
+          <div>
+            <p className="text-sm font-medium">Marche {session.distanceKm ? `· ${session.distanceKm.toFixed(1)} km` : ''}</p>
+            <p className="text-xs text-zinc-500">
+              {formatTime(session.startedAt)} · {session.durationMin} min
+            </p>
+          </div>
+        </div>
+        <p className="text-sm font-semibold text-teal-400">{session.caloriesBurned} kcal</p>
+      </button>
+    </li>
   )
 }
 
