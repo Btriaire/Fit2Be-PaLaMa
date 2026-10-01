@@ -4,6 +4,7 @@ import { computeCaloriesForUser, computeCaloriesFromHr, computeCaloriesFromPhase
 import { computeHrZone } from './heartRate'
 import { pushActivityToNutriTracker } from './nutriTrackerSync'
 import { pushRecord, deleteRecord } from './cloudSync'
+import { toMachineStats, type ParsedMachineResult } from './machineScan'
 import type { Settings } from './settings'
 import type { ActivityCategory, ActivityLog, EnduranceActivityType, EnduranceSession, HealthScreenCapture, MachineStats, PhaseLogEntry, RoutePoint } from '../types'
 
@@ -162,6 +163,42 @@ export async function updateEnduranceActivityType(
     date: dayKey(updated.startedAt),
   })
 
+  return updated
+}
+
+/** Attache une photo (écran de machine) à une sortie déjà enregistrée — notamment une
+ * activité importée (Google Fit...) qui n'a jamais eu de photo puisqu'elle n'a pas été
+ * créée via le scan. Les métriques machine (watts, FC pic, dénivelé...) sont de toute
+ * façon nouvelles (une activité importée n'en a pas) et toujours ajoutées ; distance, FC
+ * moyenne et calories ne sont complétées que si absentes — on ne réécrit jamais une
+ * valeur déjà connue (ex: Google Fit) avec l'estimation OCR de la machine. */
+export async function attachSessionPhoto(
+  id: string,
+  photoDataUrl: string,
+  scan: ParsedMachineResult,
+  settings: Settings,
+): Promise<EnduranceSession | null> {
+  const db = await getDb()
+  const session = await db.get('endurance', id)
+  if (!session) return null
+
+  const avgHeartRate = session.avgHeartRate ?? scan.avgHeartRate ?? undefined
+  const hrZone =
+    avgHeartRate != null && session.avgHeartRate == null
+      ? computeHrZone(avgHeartRate, settings.ageYears, settings.restingHeartRateBpm)
+      : session.hrZone
+
+  const updated: EnduranceSession = {
+    ...session,
+    photoDataUrl,
+    machineStats: { ...session.machineStats, ...toMachineStats(scan) },
+    distanceKm: session.distanceKm ?? scan.distanceKm ?? undefined,
+    avgHeartRate,
+    hrZone,
+    caloriesBurned: session.caloriesBurned || scan.calories || session.caloriesBurned,
+  }
+  await db.put('endurance', updated)
+  pushRecord('endurance', updated.id, updated)
   return updated
 }
 

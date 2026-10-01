@@ -1,18 +1,20 @@
 import { SOURCE_LABEL, inferSource } from '../../lib/dataSource'
-import { useEffect, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { useNavigate, useParams } from 'react-router-dom'
-import { ChevronLeft, Timer, Route, HeartPulse, Flame, Zap, Gauge, Mountain, Trash2, TrendingUp, Activity, Pencil, Check, X, Split } from 'lucide-react'
+import { ChevronLeft, Timer, Route, HeartPulse, Flame, Zap, Gauge, Mountain, Trash2, TrendingUp, Activity, Pencil, Check, X, Split, Camera, Loader2 } from 'lucide-react'
 import {
   getEnduranceSession,
   getEnduranceSessions,
   deleteEnduranceSession,
   updateEnduranceActivityType,
+  attachSessionPhoto,
   splitWalkIntoActivity,
   WALK_SPLIT_ACTIVITIES,
   computePaceMinPerKm,
   formatPace,
   ENDURANCE_ACTIVITY_META,
 } from '../../lib/endurance'
+import { scanMachineResults, compressImageForDisplay } from '../../lib/machineScan'
 import { getSettings } from '../../lib/settings'
 import { computeCaloriesFromPhaseLog } from '../../lib/met'
 import { HR_ZONE_META, computeMaxHr } from '../../lib/heartRate'
@@ -77,7 +79,30 @@ export default function EnduranceSessionDetail() {
   const [splitActivity, setSplitActivity] = useState(WALK_SPLIT_ACTIVITIES[0])
   const [splitMinutes, setSplitMinutes] = useState('15')
   const [splitting, setSplitting] = useState(false)
+  const [scanning, setScanning] = useState(false)
+  const [scanError, setScanError] = useState<string | null>(null)
+  const photoInputRef = useRef<HTMLInputElement>(null)
   const settings = getSettings()
+
+  // Une activité importée (Google Fit, NutriTracker...) n'a jamais été créée via le scan
+  // machine et n'a donc jamais de photo ni de données machine (watts, FC pic...) — on
+  // permet de les ajouter après coup plutôt que de les perdre définitivement.
+  async function handlePhotoFile(e: React.ChangeEvent<HTMLInputElement>) {
+    const files = Array.from(e.target.files ?? [])
+    e.target.value = ''
+    if (files.length === 0 || !session) return
+    setScanning(true)
+    setScanError(null)
+    try {
+      const [result, photoDataUrl] = await Promise.all([scanMachineResults(files), compressImageForDisplay(files[0])])
+      const updated = await attachSessionPhoto(session.id, photoDataUrl, result, settings)
+      if (updated) setSession(updated)
+    } catch (err) {
+      setScanError(err instanceof Error ? err.message : 'Analyse impossible — réessaie.')
+    } finally {
+      setScanning(false)
+    }
+  }
 
   useEffect(() => {
     if (!sessionId) return
@@ -170,10 +195,28 @@ export default function EnduranceSessionDetail() {
       </div>
 
       <div className="px-4 pt-4">
-        {session.photoDataUrl && (
+        {session.photoDataUrl ? (
           <button onClick={() => setPhotoViewerOpen(true)} className="glass mb-4 block w-full overflow-hidden rounded-2xl">
             <img src={session.photoDataUrl} alt="Capture scannée" className="max-h-64 w-full object-contain" />
           </button>
+        ) : (
+          <div className="mb-4">
+            <input ref={photoInputRef} type="file" accept="image/*" multiple className="hidden" onChange={handlePhotoFile} />
+            <button
+              onClick={() => photoInputRef.current?.click()}
+              disabled={scanning}
+              className="flex w-full items-center justify-center gap-1.5 rounded-xl border border-dashed border-zinc-700 py-3 text-sm font-medium text-zinc-400 active:bg-zinc-900 disabled:opacity-60"
+            >
+              {scanning ? <Loader2 size={16} className="animate-spin" /> : <Camera size={16} />}
+              {scanning ? 'Analyse en cours…' : "Ajouter une photo de l'écran machine"}
+            </button>
+            {scanError && <p className="mt-1.5 text-center text-xs text-red-400">{scanError}</p>}
+            {!scanError && (
+              <p className="mt-1.5 text-center text-[10px] text-zinc-600">
+                Utile pour une activité importée (Google Fit...) : récupère watts, FC pic, dénivelé — ce que l'import seul ne donne pas.
+              </p>
+            )}
+          </div>
         )}
 
         {editingType && (
