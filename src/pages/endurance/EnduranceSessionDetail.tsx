@@ -15,6 +15,7 @@ import {
   ENDURANCE_ACTIVITY_META,
 } from '../../lib/endurance'
 import { scanMachineResults, compressImageForDisplay } from '../../lib/machineScan'
+import { isSynthetic } from '../../lib/enduranceMerge'
 import { getSettings } from '../../lib/settings'
 import { computeCaloriesFromPhaseLog } from '../../lib/met'
 import { HR_ZONE_META, computeMaxHr } from '../../lib/heartRate'
@@ -179,7 +180,7 @@ export default function EnduranceSessionDetail() {
         </div>
         <div className="absolute inset-x-0 bottom-0 flex items-end justify-between px-4 pb-3">
           <div>
-            <h1 className="text-xl font-semibold text-white drop-shadow">{meta.label}</h1>
+            <h1 className="text-xl font-semibold text-white drop-shadow">{isSynthetic(session) ? 'Pas du quotidien' : meta.label}</h1>
             <p className="text-xs text-zinc-300 drop-shadow">
               {formatDate(session.startedAt)} · {formatTime(session.startedAt)}
             </p>
@@ -195,7 +196,7 @@ export default function EnduranceSessionDetail() {
       </div>
 
       <div className="px-4 pt-4">
-        {session.photoDataUrl ? (
+        {isSynthetic(session) ? null : session.photoDataUrl ? (
           <button onClick={() => setPhotoViewerOpen(true)} className="glass mb-4 block w-full overflow-hidden rounded-2xl">
             <img src={session.photoDataUrl} alt="Capture scannée" className="max-h-64 w-full object-contain" />
           </button>
@@ -368,7 +369,7 @@ export default function EnduranceSessionDetail() {
         {session.machineStats && (
           <section className="glass mb-4 rounded-2xl p-4">
             <h2 className="mb-3 flex items-center gap-1.5 text-xs font-medium uppercase tracking-wide text-zinc-500">
-              <Zap size={13} className="text-orange-400" /> Données machine
+              <Zap size={13} className="text-orange-400" /> {session.machineStats.machineType === 'other' ? 'Données de la montre' : 'Données machine'}
             </h2>
             <div className="grid grid-cols-2 gap-2">
               {session.machineStats.avgWatts != null && (

@@ -10,10 +10,15 @@ import { syncGoogleFit, getGoogleFitDays } from './googleFit'
 import { pushRecord, deleteRecord } from './cloudSync'
 import { computeCaloriesFromSteps } from './met'
 import type { Settings } from './settings'
-import type { EnduranceSession, GoogleFitDay } from '../types'
+import type { EnduranceActivityType, EnduranceSession, GoogleFitDay } from '../types'
 
 const STEPS_THRESHOLD = 3000
 const BACKFILL_DAYS = 14
+
+/** Sorties faites à pied : leurs pas sont déjà dans le compteur du jour. */
+const ON_FOOT_TYPES = new Set<EnduranceActivityType>(['marche', 'course', 'tapis'])
+/** Activités loguées dans "Activités" qui sont de la marche (hors catégorie quotidien). */
+const WALKING_ACTIVITY_LABELS = new Set(['Marche rapide', 'Randonnée', 'Réunion en marchant'])
 
 function syntheticId(date: string) {
   return `steps-${date}`
@@ -38,14 +43,6 @@ async function processDay(day: GoogleFitDay, settings: Settings): Promise<void> 
     return
   }
 
-  // Une vraie séance de marche a déjà été importée de NutriTracker pour ce
-  // jour-là (via l'import d'activités) — pas la peine de doubler.
-  const alreadyImported = existing.some((s) => s.activityType === 'marche' && s.externalId !== id)
-  if (alreadyImported) {
-    await removeSyntheticIfPresent()
-    return
-  }
-
   const rawDurationMin = day.activeMinutes > 0 ? day.activeMinutes : Math.round(day.steps / 100)
   // Ne PAS utiliser day.activeCaloriesBurned ici : ce champ vient de
   // com.google.calories.expended côté Google Fit, qui inclut le métabolisme
@@ -57,20 +54,29 @@ async function processDay(day: GoogleFitDay, settings: Settings): Promise<void> 
   // NEAT (pas × poids), qui ne compte que la dépense en plus du repos.
   const rawCalories = computeCaloriesFromSteps(day.steps, settings)
 
-  // Le total de pas du jour inclut déjà ceux faits en jardinant, en faisant
-  // les courses, etc. — si ces activités sont loguées séparément (catégorie
-  // "quotidien"), on retire leur durée de la Marche auto-générée pour ne pas
-  // compter ces pas deux fois dans le bilan calorique.
+  // Le total de pas du jour inclut aussi ceux des sorties enregistrées à part
+  // (marche, course, tapis — importées de la montre ou saisies) et des activités
+  // du quotidien loguées (jardinage, courses...). On les retire pour que cette
+  // entrée ne garde que le mouvement "restant" de la journée : avant, une seule
+  // vraie marche importée faisait disparaître tous les autres pas du jour, et
+  // une course n'était pas déduite du tout (ses pas comptaient deux fois).
   const dayActivities = await db.getAllFromIndex('activities', 'byLoggedAt', IDBKeyRange.bound(dayStart, dayEnd))
-  const overlapMin = dayActivities.filter((a) => a.category === 'quotidien').reduce((s, a) => s + a.durationMin, 0)
+  const activityMin = dayActivities.filter((a) => a.category === 'quotidien' || WALKING_ACTIVITY_LABELS.has(a.label)).reduce((s, a) => s + a.durationMin, 0)
+  const onFootMin = existing.filter((s) => s.id !== id && ON_FOOT_TYPES.has(s.activityType)).reduce((s, e) => s + e.durationMin, 0)
+  const overlapMin = activityMin + onFootMin
   const durationMin = Math.max(0, rawDurationMin - overlapMin)
 
-  if (durationMin === 0) {
+  // En dessous de 10 min restantes, ce n'est plus que du bruit de fond.
+  if (durationMin < 10) {
     await removeSyntheticIfPresent()
     return
   }
 
   const caloriesBurned = Math.round(rawCalories * (durationMin / rawDurationMin))
+  const deducted = [
+    onFootMin > 0 ? `${onFootMin} min de sorties enregistrées` : null,
+    activityMin > 0 ? `${activityMin} min d'activités du quotidien` : null,
+  ].filter(Boolean)
 
   const session: EnduranceSession = {
     id,
@@ -80,7 +86,9 @@ async function processDay(day: GoogleFitDay, settings: Settings): Promise<void> 
     caloriesBurned,
     externalId: id,
     source: 'googlefit',
-    ...(overlapMin > 0 ? { notes: `Ajusté : ${overlapMin} min déjà comptées dans une activité "Quotidien" loguée ce jour-là.` } : {}),
+    ...(deducted.length > 0
+      ? { notes: `Pas du quotidien hors séances : ${day.steps.toLocaleString('fr-FR')} pas au total, dont ${deducted.join(' et ')} déjà comptées à part.` }
+      : {}),
   }
   // Sans ce garde-fou, chaque ouverture de l'app réécrivait et repoussait vers
   // le VPS les 14 jours de marche, même inchangés (~14 POST /api/cloudsync).
@@ -98,6 +106,11 @@ async function processDay(day: GoogleFitDay, settings: Settings): Promise<void> 
  * rétroactivement corrige aussi la Marche déjà générée pour ce jour-là. */
 export async function autoLogWalkFromStepsIfNeeded(settings: Settings): Promise<void> {
   await syncGoogleFit(BACKFILL_DAYS)
+  await processStepsWalks(settings)
+}
+
+/** Même calcul, sans resynchroniser Google Fit (déjà fait par l'appelant). */
+export async function processStepsWalks(settings: Settings): Promise<void> {
   const days = await getGoogleFitDays(BACKFILL_DAYS)
   for (const day of days) {
     await processDay(day, settings)

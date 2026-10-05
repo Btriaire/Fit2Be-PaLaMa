@@ -1,10 +1,13 @@
 import { useEffect, useMemo, useState } from 'react'
 import { useLocation, useNavigate } from 'react-router-dom'
-import { Activity, ChevronDown, ChevronLeft, ChevronRight, Flame, HeartPulse, Plus, Route, Trash2, TrendingUp, Timer, X } from 'lucide-react'
+import { Activity, ChevronDown, ChevronRight, Flame, Footprints, HeartPulse, Loader2, Plus, RefreshCw, Route, Trash2, TrendingUp, Timer, Watch, X } from 'lucide-react'
 import { ENDURANCE_ACTIVITY_META, computePaceMinPerKm, formatPace, getEnduranceSessions, logEnduranceSession, deleteEnduranceSession, getLoggedActivityTypes } from '../../lib/endurance'
 import { getSettings } from '../../lib/settings'
 import { HR_ZONE_META } from '../../lib/heartRate'
-import { formatDate, formatTime, formatFullDate, isToday, isSameDay, todayStr, addDays } from '../../lib/date'
+import { formatDate, formatTime, isToday, todayStr, addDays, dayKey } from '../../lib/date'
+import { refreshFitData, lastFitRefreshAt, formatAgo, onFitRefreshed } from '../../lib/fitSync'
+import { getGoogleFitDays } from '../../lib/googleFit'
+import { isSynthetic } from '../../lib/enduranceMerge'
 import { type ParsedMachineResult } from '../../lib/machineScan'
 import { ENDURANCE_PROGRAMS, programDurationMin, type EnduranceProgram } from '../../lib/endurancePrograms'
 import { getCustomEndurancePrograms, saveCustomEnduranceProgram, deleteCustomEnduranceProgram, type CustomEnduranceProgram } from '../../lib/customEndurancePrograms'
@@ -40,7 +43,12 @@ export default function EndurancePage() {
   const [sessions, setSessions] = useState<EnduranceSession[]>([])
   const [loggedTypes, setLoggedTypes] = useState<Array<{ activityType: EnduranceActivityType; lastDate: number }>>([])
   const [formOpen, setFormOpen] = useState(navState.openForm ?? false)
-  const [selectedDate, setSelectedDate] = useState(todayStr())
+  const [formType, setFormType] = useState<EnduranceActivityType | undefined>(undefined)
+  const [historyDays, setHistoryDays] = useState(30)
+  const [stepsByDay, setStepsByDay] = useState<Record<string, number>>({})
+  const [syncing, setSyncing] = useState(false)
+  const [lastSync, setLastSync] = useState<number | null>(() => lastFitRefreshAt())
+  const [notice, setNotice] = useState<string | null>(null)
   const [viewerPhoto, setViewerPhoto] = useState<string | null>(null)
   const [previewProgram, setPreviewProgram] = useState<EnduranceProgram | null>(null)
   const [pendingProgram, setPendingProgram] = useState<EnduranceProgram | null>(null)
@@ -58,12 +66,45 @@ export default function EndurancePage() {
   async function refresh() {
     setSessions(await getEnduranceSessions())
     setLoggedTypes(await getLoggedActivityTypes())
+    const days = await getGoogleFitDays(60)
+    setStepsByDay(Object.fromEntries(days.map((d) => [d.date, d.steps])))
+  }
+
+  async function syncWatch(force: boolean) {
+    setSyncing(true)
+    try {
+      const r = await refreshFitData(settings, { force })
+      setLastSync(r.at)
+      if (force) {
+        const parts = [r.imported > 0 ? `${r.imported} séance(s) importée(s)` : 'Aucune nouvelle séance', r.merged > 0 ? `${r.merged} doublon(s) fusionné(s)` : null]
+        setNotice(parts.filter(Boolean).join(' · '))
+      }
+    } catch {
+      if (force) setNotice('Synchro impossible pour le moment — réessaie plus tard.')
+    } finally {
+      setSyncing(false)
+      refresh()
+    }
   }
 
   useEffect(() => {
     refresh()
     refreshCustomPrograms()
+    // En arrivant sur la page, récupère les séances de la montre si la dernière synchro date.
+    const last = lastFitRefreshAt()
+    if (!last || Date.now() - last > 10 * 60_000) void syncWatch(false)
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
+
+  useEffect(
+    () =>
+      onFitRefreshed(() => {
+        setLastSync(lastFitRefreshAt())
+        void refresh()
+      }),
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [],
+  )
 
   const visibleCoachingPrograms = useMemo(
     () =>
@@ -85,11 +126,51 @@ export default function EndurancePage() {
   }, [visibleCoachingPrograms])
 
   const weekStart = startOfWeek()
-  const weekSessions = useMemo(() => sessions.filter((s) => s.startedAt >= weekStart), [sessions, weekStart])
-  const daySessions = useMemo(() => sessions.filter((s) => isSameDay(s.startedAt, selectedDate)), [sessions, selectedDate])
+  const weekSessions = useMemo(() => sessions.filter((s) => s.startedAt >= weekStart && !isSynthetic(s)), [sessions, weekStart])
   const weekDistance = weekSessions.reduce((s, e) => s + (e.distanceKm ?? 0), 0)
   const weekZone2Min = weekSessions.filter((s) => s.hrZone === 2).reduce((s, e) => s + e.durationMin, 0)
   const todayCalories = sessions.filter((s) => isToday(s.startedAt)).reduce((s, e) => s + e.caloriesBurned, 0)
+
+  // Démarrage rapide : les types réellement pratiqués, du plus récent au plus ancien.
+  const quickTypes = useMemo(() => {
+    const seen: EnduranceActivityType[] = []
+    for (const s of [...sessions].sort((a, b) => b.startedAt - a.startedAt)) {
+      if (isSynthetic(s) || seen.includes(s.activityType)) continue
+      seen.push(s.activityType)
+    }
+    for (const t of ['marche', 'course', 'velo'] as EnduranceActivityType[]) if (!seen.includes(t)) seen.push(t)
+    return seen.slice(0, 5)
+  }, [sessions])
+
+  // Historique en liste groupée par jour (au lieu d'une navigation jour par jour).
+  const historyGroups = useMemo(() => {
+    const since = new Date(`${addDays(todayStr(), -(historyDays - 1))}T00:00:00`).getTime()
+    const groups: { date: string; items: EnduranceSession[] }[] = []
+    for (const s of [...sessions].filter((x) => x.startedAt >= since).sort((a, b) => b.startedAt - a.startedAt)) {
+      const date = dayKey(s.startedAt)
+      const last = groups[groups.length - 1]
+      if (last && last.date === date) last.items.push(s)
+      else groups.push({ date, items: [s] })
+    }
+    // Les vraies séances d'abord, la marche auto (pas du jour) en fin de journée.
+    for (const g of groups) g.items.sort((a, b) => Number(isSynthetic(a)) - Number(isSynthetic(b)) || b.startedAt - a.startedAt)
+    return groups
+  }, [sessions, historyDays])
+  const olderCount = useMemo(() => {
+    const since = new Date(`${addDays(todayStr(), -(historyDays - 1))}T00:00:00`).getTime()
+    return sessions.filter((x) => x.startedAt < since).length
+  }, [sessions, historyDays])
+
+  function openForm(type?: EnduranceActivityType) {
+    setFormType(type)
+    setFormOpen(true)
+  }
+
+  function dayLabel(date: string): string {
+    if (date === todayStr()) return "Aujourd'hui"
+    if (date === addDays(todayStr(), -1)) return 'Hier'
+    return formatDate(new Date(`${date}T12:00:00`).getTime())
+  }
 
   async function addSession(input: {
     activityType: EnduranceActivityType
@@ -106,9 +187,15 @@ export default function EndurancePage() {
     phaseLog?: PhaseLogEntry[]
     healthCapture?: HealthScreenCapture
   }) {
-    await logEnduranceSession(input, settings)
+    const saved = await logEnduranceSession(input, settings)
     setFormOpen(false)
+    // Une saisie neuve n'a jamais d'externalId : si elle en a un, c'est qu'elle a rejoint une séance importée.
+    if (saved.externalId) {
+      setNotice('Cette séance était déjà importée de ta montre : fusionnée en une seule, calories comptées une fois.')
+    }
     refresh()
+    // Recalcule la marche auto du jour (les pas d'une sortie à pied n'y comptent plus).
+    void refreshFitData(settings).catch(() => {})
   }
 
   async function removeSession(id: string) {
@@ -131,16 +218,67 @@ export default function EndurancePage() {
       </div>
 
       <div className="px-4 pt-4">
-      <div className="mb-6 grid grid-cols-2 gap-2">
-        <div className="glass rounded-2xl p-3.5">
-          <p className="text-xs text-zinc-500">Distance (semaine)</p>
-          <p className="mt-1 text-2xl font-bold text-teal-400">{weekDistance.toFixed(1)} km</p>
+      <div className="mb-4 grid grid-cols-3 gap-2">
+        <div className="glass rounded-2xl p-3">
+          <p className="text-[11px] text-zinc-500">Séances (sem.)</p>
+          <p className="mt-0.5 text-xl font-bold text-teal-400">{weekSessions.length}</p>
         </div>
-        <div className="glass rounded-2xl p-3.5">
-          <p className="text-xs text-zinc-500">Zone 2 (semaine)</p>
-          <p className="mt-1 text-2xl font-bold text-teal-400">{weekZone2Min} min</p>
+        <div className="glass rounded-2xl p-3">
+          <p className="text-[11px] text-zinc-500">Distance</p>
+          <p className="mt-0.5 text-xl font-bold text-teal-400">
+            {weekDistance.toFixed(1)}
+            <span className="ml-0.5 text-xs font-medium">km</span>
+          </p>
+        </div>
+        <div className="glass rounded-2xl p-3">
+          <p className="text-[11px] text-zinc-500">Zone 2</p>
+          <p className="mt-0.5 text-xl font-bold text-teal-400">
+            {weekZone2Min}
+            <span className="ml-0.5 text-xs font-medium">min</span>
+          </p>
         </div>
       </div>
+
+      <button
+        onClick={() => openForm()}
+        className="flex w-full items-center justify-center gap-1.5 rounded-2xl bg-teal-500 py-3.5 text-sm font-semibold text-zinc-950 active:bg-teal-400"
+      >
+        <Plus size={16} /> Enregistrer une sortie
+      </button>
+      <div className="mt-2 flex gap-1.5 overflow-x-auto pb-1" aria-label="Démarrage rapide">
+        {quickTypes.map((t) => (
+          <button
+            key={t}
+            onClick={() => openForm(t)}
+            className="shrink-0 rounded-full bg-zinc-900 px-3 py-2 text-xs font-medium text-zinc-300 active:bg-zinc-800"
+          >
+            + {ENDURANCE_ACTIVITY_META[t].label}
+          </button>
+        ))}
+      </div>
+
+      <div className="mb-5 mt-2 flex items-center justify-between gap-2 rounded-xl bg-zinc-900/60 px-3 py-2">
+        <span className="flex min-w-0 items-center gap-1.5 text-[11px] text-zinc-400">
+          <Watch size={13} className="shrink-0 text-teal-300" />
+          <span className="truncate">Montre · synchro {formatAgo(lastSync)}</span>
+        </span>
+        <button
+          onClick={() => syncWatch(true)}
+          disabled={syncing}
+          className="flex shrink-0 items-center gap-1 rounded-full px-2 py-1 text-[11px] font-semibold text-teal-300 active:bg-zinc-800 disabled:opacity-60"
+        >
+          {syncing ? <Loader2 size={12} className="animate-spin" /> : <RefreshCw size={12} />} Synchroniser
+        </button>
+      </div>
+
+      {notice && (
+        <div className="mb-4 flex items-start gap-2 rounded-xl border border-teal-500/30 bg-teal-500/10 p-3 text-xs text-teal-200" role="status">
+          <span className="flex-1">{notice}</span>
+          <button onClick={() => setNotice(null)} className="shrink-0 rounded-full p-0.5 text-teal-300 active:bg-zinc-800" aria-label="Fermer">
+            <X size={14} />
+          </button>
+        </div>
+      )}
 
       {todayCalories > 0 && (
         <p className="mb-4 px-1 text-xs text-zinc-500">
@@ -191,13 +329,6 @@ export default function EndurancePage() {
         </Collapsible>
       </section>
 
-      <button
-        onClick={() => setFormOpen(true)}
-        className="mb-6 flex w-full items-center justify-center gap-1.5 rounded-xl bg-teal-500 py-3 text-sm font-semibold text-zinc-950 active:bg-teal-400"
-      >
-        <Plus size={16} /> Enregistrer une sortie
-      </button>
-
       {loggedTypes.length > 0 && (
         <section className="mb-6">
           <h2 className="mb-2 text-sm font-medium text-zinc-400">Progression</h2>
@@ -217,111 +348,48 @@ export default function EndurancePage() {
       )}
 
       <section>
-        <div className="glass mb-3 flex items-center justify-between rounded-2xl p-2">
-          <button
-            onClick={() => setSelectedDate((d) => addDays(d, -1))}
-            className="rounded-full p-2 text-zinc-400 active:bg-zinc-900"
-            aria-label="Jour précédent"
-          >
-            <ChevronLeft size={18} />
-          </button>
-          <button onClick={() => setSelectedDate(todayStr())} className="flex-1 text-center text-sm font-medium capitalize">
-            {formatFullDate(selectedDate)}
-          </button>
-          <button
-            onClick={() => setSelectedDate((d) => addDays(d, 1))}
-            disabled={selectedDate >= todayStr()}
-            className="rounded-full p-2 text-zinc-400 active:bg-zinc-900 disabled:opacity-30"
-            aria-label="Jour suivant"
-          >
-            <ChevronRight size={18} />
-          </button>
-        </div>
-
         <h2 className="mb-2 text-sm font-medium text-zinc-400">Historique</h2>
-        {daySessions.length === 0 && <p className="text-sm text-zinc-500">Rien ce jour-là.</p>}
-        <ul className="space-y-2">
-          {daySessions.map((s) => {
-            const meta = ENDURANCE_ACTIVITY_META[s.activityType]
-            const pace = s.distanceKm ? computePaceMinPerKm(s.durationMin, s.distanceKm) : null
-            const zoneMeta = s.hrZone ? HR_ZONE_META[s.hrZone] : null
-            return (
-              <li
-                key={s.id}
-                onClick={() => navigate(`/endurance/session/${s.id}`)}
-                className="glass rounded-xl p-3 active:bg-zinc-900/80"
-              >
-                <div className="mb-1 flex items-center justify-between">
-                  <div className="flex items-center gap-2">
-                    {s.photoDataUrl && (
+        {historyGroups.length === 0 && <p className="text-sm text-zinc-500">Aucune sortie sur les {historyDays} derniers jours.</p>}
+        <div className="space-y-4">
+          {historyGroups.map((g) => (
+            <div key={g.date}>
+              <p className="mb-1.5 flex items-baseline justify-between px-1 text-[11px] font-medium uppercase tracking-wide text-zinc-500">
+                <span>{dayLabel(g.date)}</span>
+                <span className="normal-case tracking-normal text-zinc-600">{g.items.reduce((sum, x) => sum + x.caloriesBurned, 0)} kcal</span>
+              </p>
+              <ul className="space-y-2">
+                {g.items.map((s) =>
+                  isSynthetic(s) ? (
+                    <li key={s.id}>
                       <button
-                        onClick={(e) => {
-                          e.stopPropagation()
-                          setViewerPhoto(s.photoDataUrl!)
-                        }}
-                        className="shrink-0"
+                        onClick={() => navigate(`/endurance/session/${s.id}`)}
+                        className="flex w-full items-center gap-2.5 rounded-xl border border-dashed border-zinc-800 px-3 py-2 text-left text-xs text-zinc-400 active:bg-zinc-900"
                       >
-                        <img src={s.photoDataUrl} alt="Capture scannée" className="h-9 w-9 rounded-lg object-cover" />
+                        <Footprints size={14} className="shrink-0 text-teal-400" />
+                        <span className="flex-1">
+                          Pas du quotidien
+                          {stepsByDay[g.date] != null && <span className="text-zinc-500"> · {stepsByDay[g.date].toLocaleString('fr-FR')} pas</span>}
+                          <span className="text-zinc-500"> · {s.durationMin} min · auto</span>
+                        </span>
+                        <span className="font-semibold text-orange-400/80">{s.caloriesBurned} kcal</span>
                       </button>
-                    )}
-                    <p className="text-sm font-medium">{meta.label}</p>
-                  </div>
-                  <div className="flex items-center gap-2">
-                    <p className="text-xs text-zinc-500">
-                      {formatDate(s.startedAt)} · {formatTime(s.startedAt)}
-                    </p>
-                    <button
-                      onClick={(e) => {
-                        e.stopPropagation()
-                        removeSession(s.id)
-                      }}
-                      className="shrink-0 rounded-full p-1 text-zinc-600 active:bg-red-500/10 active:text-red-400"
-                      aria-label="Supprimer la sortie"
-                    >
-                      <Trash2 size={14} />
-                    </button>
-                  </div>
-                </div>
-                <div className="flex flex-wrap items-center gap-x-3 gap-y-1 text-xs text-zinc-400">
-                  <span className="flex items-center gap-1">
-                    <Timer size={12} /> {s.durationMin} min
-                  </span>
-                  {s.distanceKm && (
-                    <span className="flex items-center gap-1">
-                      <Route size={12} /> {s.distanceKm} km
-                    </span>
-                  )}
-                  {pace && <span>{formatPace(pace)}</span>}
-                  {s.avgHeartRate && (
-                    <span className="flex items-center gap-1">
-                      <HeartPulse size={12} /> {s.avgHeartRate} bpm
-                    </span>
-                  )}
-                  {zoneMeta && (
-                    <span className="rounded-full px-1.5 py-0.5 text-[10px] font-semibold" style={{ backgroundColor: `${zoneMeta.color}22`, color: zoneMeta.color }}>
-                      Z{s.hrZone} · {zoneMeta.label}
-                    </span>
-                  )}
-                  <span className="ml-auto font-semibold text-orange-400">{s.caloriesBurned} kcal</span>
-                </div>
-                {s.machineStats && (
-                  <div className="mt-1.5 flex flex-wrap items-center gap-x-3 gap-y-1 text-[11px] text-zinc-500">
-                    {s.machineStats.avgWatts != null && <span>{s.machineStats.avgWatts} W moy.</span>}
-                    {s.machineStats.avgMets != null && <span>{s.machineStats.avgMets} METs</span>}
-                    {s.machineStats.peakHeartRate != null && <span>pic {s.machineStats.peakHeartRate} bpm</span>}
-                    {s.machineStats.peakWatts != null && <span>pic {s.machineStats.peakWatts} W</span>}
-                    {s.machineStats.elevationGainM != null && <span>+{s.machineStats.elevationGainM} m</span>}
-                  </div>
+                    </li>
+                  ) : (
+                    <SessionRow key={s.id} session={s} onOpen={() => navigate(`/endurance/session/${s.id}`)} onDelete={() => removeSession(s.id)} onPhoto={setViewerPhoto} />
+                  ),
                 )}
-                {s.route && s.route.length > 1 && (
-                  <div className="mt-2">
-                    <RouteMap route={s.route} className="h-28 w-full" />
-                  </div>
-                )}
-              </li>
-            )
-          })}
-        </ul>
+              </ul>
+            </div>
+          ))}
+        </div>
+        {olderCount > 0 && (
+          <button
+            onClick={() => setHistoryDays((d) => d + 30)}
+            className="mt-3 w-full rounded-xl py-2.5 text-xs font-medium text-zinc-400 active:bg-zinc-900"
+          >
+            Voir 30 jours de plus ({olderCount} plus ancienne{olderCount > 1 ? 's' : ''})
+          </button>
+        )}
       </section>
 
       {formOpen && (
@@ -332,8 +400,9 @@ export default function EndurancePage() {
             setPendingProgram(null)
           }}
           initialScan={navState.scanResult}
-          initialDate={selectedDate}
+          initialDate={todayStr()}
           initialProgram={pendingProgram}
+          initialActivityType={formType}
         />
       )}
 
@@ -444,5 +513,96 @@ function ProgramGroup({
         </div>
       </Collapsible>
     </div>
+  )
+}
+
+function SessionRow({
+  session: s,
+  onOpen,
+  onDelete,
+  onPhoto,
+}: {
+  session: EnduranceSession
+  onOpen: () => void
+  onDelete: () => void
+  onPhoto: (dataUrl: string) => void
+}) {
+  const meta = ENDURANCE_ACTIVITY_META[s.activityType]
+  const pace = s.distanceKm ? computePaceMinPerKm(s.durationMin, s.distanceKm) : null
+  const zoneMeta = s.hrZone ? HR_ZONE_META[s.hrZone] : null
+  return (
+    <li onClick={onOpen} className="glass rounded-xl p-3 active:bg-zinc-900/80">
+      <div className="mb-1 flex items-center justify-between">
+        <div className="flex min-w-0 items-center gap-2">
+          {s.photoDataUrl && (
+            <button
+              onClick={(e) => {
+                e.stopPropagation()
+                onPhoto(s.photoDataUrl!)
+              }}
+              className="shrink-0"
+            >
+              <img src={s.photoDataUrl} alt="Capture scannée" className="h-9 w-9 rounded-lg object-cover" />
+            </button>
+          )}
+          <p className="truncate text-sm font-medium">{meta.label}</p>
+          {s.externalId && (
+            <span className="shrink-0 rounded-full bg-zinc-800 px-1.5 py-0.5 text-[10px] text-zinc-400" title="Importée de la montre / Google Fit">
+              <Watch size={10} className="-mt-px mr-0.5 inline" />
+              montre
+            </span>
+          )}
+        </div>
+        <div className="flex shrink-0 items-center gap-2">
+          <p className="text-xs text-zinc-500">{formatTime(s.startedAt)}</p>
+          <button
+            onClick={(e) => {
+              e.stopPropagation()
+              onDelete()
+            }}
+            className="shrink-0 rounded-full p-1 text-zinc-600 active:bg-red-500/10 active:text-red-400"
+            aria-label="Supprimer la sortie"
+          >
+            <Trash2 size={14} />
+          </button>
+        </div>
+      </div>
+      <div className="flex flex-wrap items-center gap-x-3 gap-y-1 text-xs text-zinc-400">
+        <span className="flex items-center gap-1">
+          <Timer size={12} /> {s.durationMin} min
+        </span>
+        {s.distanceKm != null && s.distanceKm > 0 && (
+          <span className="flex items-center gap-1">
+            <Route size={12} /> {s.distanceKm} km
+          </span>
+        )}
+        {pace && <span>{formatPace(pace)}</span>}
+        {s.avgHeartRate && (
+          <span className="flex items-center gap-1">
+            <HeartPulse size={12} /> {s.avgHeartRate} bpm
+          </span>
+        )}
+        {zoneMeta && (
+          <span className="rounded-full px-1.5 py-0.5 text-[10px] font-semibold" style={{ backgroundColor: `${zoneMeta.color}22`, color: zoneMeta.color }}>
+            Z{s.hrZone} · {zoneMeta.label}
+          </span>
+        )}
+        <span className="ml-auto font-semibold text-orange-400">{s.caloriesBurned} kcal</span>
+      </div>
+      {s.machineStats && s.machineStats.machineType !== 'other' && (
+        <div className="mt-1.5 flex flex-wrap items-center gap-x-3 gap-y-1 text-[11px] text-zinc-500">
+          {s.machineStats.avgWatts != null && <span>{s.machineStats.avgWatts} W moy.</span>}
+          {s.machineStats.avgMets != null && <span>{s.machineStats.avgMets} METs</span>}
+          {s.machineStats.peakHeartRate != null && <span>pic {s.machineStats.peakHeartRate} bpm</span>}
+          {s.machineStats.peakWatts != null && <span>pic {s.machineStats.peakWatts} W</span>}
+          {s.machineStats.elevationGainM != null && <span>+{s.machineStats.elevationGainM} m</span>}
+        </div>
+      )}
+      {s.route && s.route.length > 1 && (
+        <div className="mt-2">
+          <RouteMap route={s.route} className="h-28 w-full" />
+        </div>
+      )}
+    </li>
   )
 }

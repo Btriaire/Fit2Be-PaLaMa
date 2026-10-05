@@ -80,12 +80,30 @@ describe('Marche automatique depuis les pas Google Fit', () => {
     expect(s.notes).toContain('20 min')
   })
 
-  it('ne double pas une vraie séance de marche déjà importée pour ce jour', async () => {
+  it('déduit une vraie marche importée mais garde le reste des pas du jour', async () => {
     const db = await getDb()
     await db.put('endurance', { id: 'real-1', activityType: 'marche', startedAt: noon - 3600_000, durationMin: 45, caloriesBurned: 200, externalId: 'healthkit-abc' })
     await autoLogWalkFromStepsIfNeeded(PROFILE)
-    const all = await sessions()
-    expect(all.map((s) => s.id)).toEqual(['real-1'])
+    const synthetic = (await sessions()).find((s) => s.id === `steps-${DAY}`)
+    expect(synthetic?.durationMin).toBe(15) // 60 min actives − 45 min déjà comptées
+    expect(synthetic?.caloriesBurned).toBe(86) // 343 × 15/60
+    expect(synthetic?.notes).toContain('45 min de sorties enregistrées')
+  })
+
+  it('déduit aussi une course (ses pas sont dans le compteur), pas un vélo', async () => {
+    const db = await getDb()
+    await db.put('endurance', { id: 'run', activityType: 'course', startedAt: noon, durationMin: 20, caloriesBurned: 250 })
+    await db.put('endurance', { id: 'bike', activityType: 'velo', startedAt: noon, durationMin: 30, caloriesBurned: 250 })
+    await autoLogWalkFromStepsIfNeeded(PROFILE)
+    const synthetic = (await sessions()).find((s) => s.id === `steps-${DAY}`)
+    expect(synthetic?.durationMin).toBe(40)
+  })
+
+  it('ne garde rien quand les sorties couvrent presque toute l’activité du jour', async () => {
+    const db = await getDb()
+    await db.put('endurance', { id: 'real-1', activityType: 'marche', startedAt: noon, durationMin: 55, caloriesBurned: 200, externalId: 'healthkit-abc' })
+    await autoLogWalkFromStepsIfNeeded(PROFILE)
+    expect((await sessions()).map((s) => s.id)).toEqual(['real-1'])
   })
 
   it('rattrape aussi les jours passés, pas seulement aujourd’hui', async () => {

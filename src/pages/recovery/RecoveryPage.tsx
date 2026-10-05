@@ -1,8 +1,8 @@
 import { useEffect, useMemo, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { HeartPulse, Dumbbell, Footprints, Activity, Flame, Gauge, Moon, Flame as StreakIcon, Sunrise, Pencil, Check, BatteryCharging, Repeat, History, ClipboardCheck } from 'lucide-react'
+import { HeartPulse, Dumbbell, Footprints, Activity, Flame, Gauge, Moon, Flame as StreakIcon, Sunrise, BatteryCharging, Repeat, History } from 'lucide-react'
 import { AreaChart, Area, CartesianGrid, ResponsiveContainer, Tooltip, XAxis, YAxis } from 'recharts'
-import { getDb, newId } from '../../lib/db'
+import { getDb } from '../../lib/db'
 import { todayStr, formatDate } from '../../lib/date'
 import { getSettings } from '../../lib/settings'
 import { computeBodyComposition } from '../../lib/met'
@@ -25,26 +25,14 @@ import {
 } from '../../lib/recovery'
 import ActivityHero from '../../components/ActivityHero'
 import BackButton from '../../components/BackButton'
-import { pushRecord, deleteRecord } from '../../lib/cloudSync'
 import { analyzeRecovery, type RecoveryInsight } from '../../lib/aiInsights'
 import { pullCardiacRangeFromNutriTracker, type RemoteCardiacDay } from '../../lib/nutriTrackerSync'
-import { syncGoogleFit, getGoogleFitForDate } from '../../lib/googleFit'
+import { syncGoogleFit } from '../../lib/googleFit'
 import { getMuscleGroupFreshness, type MuscleGroupFreshness } from '../../lib/workouts'
 import { Sparkles, Loader2 } from 'lucide-react'
+import DailyCheckinCard from '../../components/DailyCheckinCard'
+import { computeSubjectiveScore, type CheckinDraft } from '../../lib/checkin'
 import type { RecoveryCheckin } from '../../types'
-
-const SCALE_LABELS: Record<number, string> = { 1: 'Très faible', 2: 'Faible', 3: 'Moyen', 4: 'Bon', 5: 'Excellent' }
-
-// Fatigue musculaire, 1-10 : les anciens libellés réutilisaient l'échelle de qualité inversée
-// (valeur haute = "Très faible") — incompréhensible pour ce curseur précis. Ceux-ci décrivent
-// directement le niveau de fatigue ressenti, en 5 paliers sur 10 crans (curseur plus fin).
-function muscleFatigueLabel(v: number): string {
-  if (v <= 2) return 'Aucune fatigue'
-  if (v <= 4) return 'Légère'
-  if (v <= 6) return 'Modérée'
-  if (v <= 8) return 'Élevée'
-  return 'Épuisement'
-}
 
 const BAND_COLOR: Record<DailyRecovery['band'], string> = {
   aucune: '#71717a',
@@ -73,35 +61,17 @@ const MONOTONY_COLOR: Record<MonotonyRisk, string> = {
   élevé: '#e2361c',
 }
 
-// Qualité du sommeil et stress ont été retirés du check-in (curseurs en trop, jamais très
-// fiables en auto-évaluation) : le sommeil vient maintenant des heures réelles saisies
-// à côté (curseur "Heures de sommeil"), comparées à l'objectif des Réglages.
-function computeSubjectiveScore(c: { sleepHours: number; muscleFatigue: number; motivation: number }, sleepTargetMin: number) {
-  const sleepScore = Math.max(1, Math.min(5, Math.round(((c.sleepHours * 60) / sleepTargetMin) * 5)))
-  const positive = sleepScore + c.motivation
-  // muscleFatigue est sur 10 (plus de nuances que motivation/sommeil) : ramené sur 5 pour peser pareil.
-  const negative = Math.max(1, Math.min(5, Math.round((11 - c.muscleFatigue) / 2)))
-  return Math.round(((positive + negative) / 15) * 100)
-}
-
 export default function RecoveryPage() {
   const navigate = useNavigate()
   const [checkins, setCheckins] = useState<RecoveryCheckin[]>([])
-  // Durée en heures : pré-remplie depuis Google Fit quand la nuit est déjà synchronisée
-  // (voir refresh ci-dessous), sinon saisie manuellement. Un check-in déjà validé
-  // aujourd'hui garde toujours la valeur enregistrée — jamais écrasée par le sync.
-  const [sleepHours, setSleepHours] = useState(7)
-  const [sleepHoursSource, setSleepHoursSource] = useState<'googlefit' | 'manual' | 'none'>('none')
-  const [muscleFatigue, setMuscleFatigue] = useState(5)
-  const [motivation, setMotivation] = useState(3)
+  // Valeurs en cours du check-in (carte partagée avec l'Accueil), pour le score en direct.
+  const [draft, setDraft] = useState<CheckinDraft | null>(null)
   const [recovery, setRecovery] = useState<DailyRecovery | null>(null)
   const [acwr, setAcwr] = useState<Acwr | null>(null)
   const [sleepDebt, setSleepDebt] = useState<SleepDebt | null>(null)
   const [streak, setStreak] = useState<ActivityStreak | null>(null)
   const [readiness, setReadiness] = useState<Readiness | null>(null)
   const [monotony, setMonotony] = useState<TrainingMonotony | null>(null)
-  const [savedFlash, setSavedFlash] = useState(false)
-  const [editing, setEditing] = useState(false)
   const [aiLoading, setAiLoading] = useState(false)
   const [aiResult, setAiResult] = useState<RecoveryInsight | null>(null)
   const [aiError, setAiError] = useState(false)
@@ -125,25 +95,11 @@ export default function RecoveryPage() {
     setMonotony(await computeTrainingMonotony(settings.ageYears))
     pullCardiacRangeFromNutriTracker(14).then(setCardiac)
     setMuscleFreshness(await getMuscleGroupFreshness())
-    const today = all.find((c) => c.date === todayStr())
-    if (today) {
-      // Check-in déjà validé : sa valeur (éventuellement corrigée à la main) prime toujours.
-      setSleepHours(today.sleepHours ?? 7)
-      setSleepHoursSource(today.sleepHours != null ? 'manual' : 'none')
-      setMuscleFatigue(today.muscleFatigue)
-      setMotivation(today.motivation)
-    } else {
-      // Pas encore de check-in aujourd'hui : pré-remplit avec la nuit déjà synchronisée
-      // par Google Fit (syncGoogleFit vient de tourner juste au-dessus), pour ne pas
-      // demander une saisie manuelle d'une donnée qu'on a déjà.
-      const gf = await getGoogleFitForDate(todayStr())
-      if (gf?.sleepMinutes != null) {
-        setSleepHours(Math.round((gf.sleepMinutes / 60) * 4) / 4)
-        setSleepHoursSource('googlefit')
-      } else {
-        setSleepHoursSource('none')
-      }
-    }
+  }
+
+  async function reloadCheckins() {
+    const all = await (await getDb()).getAllFromIndex('recovery', 'byDate')
+    setCheckins(all.reverse())
   }
 
   useEffect(() => {
@@ -152,50 +108,18 @@ export default function RecoveryPage() {
   }, [])
 
   const todayCheckin = checkins.find((c) => c.date === todayStr())
-  const subjective = computeSubjectiveScore({ sleepHours, muscleFatigue, motivation }, settings.sleepTargetMin)
+  const subjective = draft ? computeSubjectiveScore(draft, settings.sleepTargetMin) : null
   const loadPenalty = recovery?.bodyBatteryPenalty ?? 0
-  // Toujours recalculé en direct — un check-in validé plus tôt dans la
+  // Toujours recalculé en direct — un check-in fait plus tôt dans la
   // journée ne doit pas figer le score si une séance est loggée après coup.
-  const score = Math.max(0, subjective - loadPenalty)
+  const score = subjective != null ? Math.max(0, subjective - loadPenalty) : null
 
   useEffect(() => {
+    if (subjective == null) return
     computeReadiness(settings.ageYears, subjective, settings.sleepTargetMin).then(setReadiness)
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [subjective, recovery])
 
-  async function submit() {
-    const db = await getDb()
-    // La date n'est pas une clé unique en base (seul l'id l'est) — un check-in
-    // du jour peut exister sous un id différent de celui déjà en mémoire
-    // (ex: rechargement entre-temps). On les fusionne au lieu d'en créer un
-    // second, pour garantir qu'un jour = un seul check-in.
-    const existingForToday = await db.getAllFromIndex('recovery', 'byDate', todayStr())
-    const keepId = todayCheckin?.id ?? existingForToday[0]?.id ?? newId()
-    for (const extra of existingForToday) {
-      if (extra.id !== keepId) {
-        await db.delete('recovery', extra.id)
-        deleteRecord('recovery', extra.id)
-      }
-    }
-    const checkin: RecoveryCheckin = {
-      id: keepId,
-      date: todayStr(),
-      sleepHours,
-      muscleFatigue,
-      motivation: motivation as 1 | 2 | 3 | 4 | 5,
-      bodyBatteryScore: score,
-    }
-    await db.put('recovery', checkin)
-    pushRecord('recovery', checkin.id, checkin)
-    refresh()
-    setSavedFlash(true)
-    setTimeout(() => {
-      setSavedFlash(false)
-      setEditing(false)
-    }, 1500)
-  }
-
-  const showForm = !todayCheckin || editing
   const chartData = useMemo(
     () =>
       [...checkins]
@@ -205,7 +129,7 @@ export default function RecoveryPage() {
     [checkins],
   )
 
-  const scoreColor = score >= 70 ? 'text-indigo-300' : score >= 40 ? 'text-orange-400' : 'text-red-400'
+  const scoreColor = score == null ? 'text-zinc-500' : score >= 70 ? 'text-indigo-300' : score >= 40 ? 'text-orange-400' : 'text-red-400'
   const bandColor = recovery ? BAND_COLOR[recovery.band] : BAND_COLOR.aucune
 
   return (
@@ -233,13 +157,9 @@ export default function RecoveryPage() {
           <p className={`flex items-center justify-center gap-1 text-xs uppercase tracking-wide text-zinc-500`}>
             <BatteryCharging size={12} className={scoreColor} /> Body Battery
           </p>
-          <p className={`mt-1 text-4xl font-bold ${scoreColor}`}>{score}</p>
+          <p className={`mt-1 text-4xl font-bold ${scoreColor}`}>{score ?? '—'}</p>
           <p className="mt-1 text-[10px] text-zinc-500">
-            {todayCheckin
-              ? todayCheckin.bodyBatteryScore !== score
-                ? 'Recalculé avec ton activité'
-                : 'Check-in enregistré'
-              : 'Aperçu — valide ton check-in'}
+            {todayCheckin ? (loadPenalty > 0 ? 'Ressenti − charge du jour' : 'Selon ton check-in') : 'Aperçu — fais ton check-in ci-dessous'}
           </p>
         </div>
         <div className="glass rounded-2xl p-5 text-center">
@@ -251,6 +171,15 @@ export default function RecoveryPage() {
             {readiness?.sleepComponent != null ? 'Charge + sommeil + ressenti' : 'Charge + ressenti (pas de sommeil connu)'}
           </p>
         </div>
+      </div>
+
+      <div className="mb-4">
+        <DailyCheckinCard
+          onChange={(d, saved) => {
+            setDraft(d)
+            if (saved) void reloadCheckins()
+          }}
+        />
       </div>
 
       <div className="glass mb-4 rounded-2xl p-3.5">
@@ -531,103 +460,6 @@ export default function RecoveryPage() {
         </section>
       )}
 
-      <section className="glass mb-6 rounded-2xl p-4">
-        <div className="mb-3 flex items-center justify-between">
-          <h2 className="flex items-center gap-1.5 text-xs font-medium uppercase tracking-wide text-zinc-500">
-            <ClipboardCheck size={13} className="text-indigo-300" />
-            {showForm && todayCheckin ? 'Modifier le check-in du jour' : 'Check-in du jour'}
-          </h2>
-          {!showForm && (
-            <button
-              onClick={() => setEditing(true)}
-              className="flex items-center gap-1 rounded-full bg-zinc-900 px-2.5 py-1 text-[11px] font-medium text-indigo-300 active:bg-zinc-800"
-            >
-              <Pencil size={11} /> Modifier
-            </button>
-          )}
-        </div>
-
-        {!showForm && todayCheckin ? (
-          <div>
-            <p className="mb-3 flex items-center gap-1.5 text-xs text-teal-400">
-              <Check size={13} /> Déjà validé aujourd'hui — modifie-le plutôt que d'en refaire un nouveau.
-            </p>
-            <div className="grid grid-cols-2 gap-2 text-sm">
-              <SummaryStat label="Heures de sommeil" value={todayCheckin.sleepHours != null ? formatHoursLabel(todayCheckin.sleepHours) : '—'} />
-              <SummaryStat label="Fatigue musculaire" value={muscleFatigueLabel(todayCheckin.muscleFatigue)} />
-              <SummaryStat label="Motivation" value={SCALE_LABELS[todayCheckin.motivation]} />
-            </div>
-          </div>
-        ) : (
-          <div className="space-y-4">
-            <div>
-              <div className="mb-1.5 flex items-center justify-between text-sm">
-                <span className="text-zinc-300">Heures de sommeil</span>
-                <span className="flex items-center gap-1 text-xs text-zinc-500">
-                  {sleepHoursSource === 'googlefit' && <Check size={11} className="text-teal-400" />}
-                  {formatHoursLabel(sleepHours)}
-                </span>
-              </div>
-              <input
-                type="range"
-                min={0}
-                max={12}
-                step={0.25}
-                value={sleepHours}
-                onChange={(e) => {
-                  setSleepHours(Number(e.target.value))
-                  setSleepHoursSource('manual')
-                }}
-                aria-label="Heures de sommeil"
-                aria-valuetext={formatHoursLabel(sleepHours)}
-                className="h-11 w-full cursor-pointer accent-indigo-500"
-              />
-              <p className="mt-1 text-[10px] text-zinc-600">
-                {sleepHoursSource === 'googlefit'
-                  ? 'Récupéré automatiquement depuis Google Fit — ajuste si besoin.'
-                  : "Google Fit n'a pas encore transmis cette nuit : saisis-la manuellement."}
-              </p>
-            </div>
-            <div className="flex items-end justify-center gap-8 py-2">
-              <DjFader
-                label="Fatigue musculaire"
-                value={muscleFatigue}
-                onChange={setMuscleFatigue}
-                min={1}
-                max={10}
-                labelFor={muscleFatigueLabel}
-                color="#e2361c"
-              />
-              <DjFader
-                label="Motivation"
-                value={motivation}
-                onChange={setMotivation}
-                min={1}
-                max={5}
-                labelFor={(v) => SCALE_LABELS[v]}
-                color="#2f4bd6"
-              />
-            </div>
-            <div className="flex gap-2">
-              {todayCheckin && (
-                <button
-                  onClick={() => setEditing(false)}
-                  className="rounded-xl bg-zinc-900 px-4 py-3 text-sm font-medium text-zinc-400 active:bg-zinc-800"
-                >
-                  Annuler
-                </button>
-              )}
-              <button
-                onClick={submit}
-                className="flex-1 rounded-xl bg-indigo-500 py-3 text-sm font-semibold text-zinc-950 active:bg-indigo-400"
-              >
-                {savedFlash ? 'Enregistré ✓' : todayCheckin ? 'Mettre à jour le check-in' : 'Valider le check-in du jour'}
-              </button>
-            </div>
-          </div>
-        )}
-      </section>
-
       <section>
         <h2 className="mb-2 flex items-center gap-1.5 text-sm font-medium text-zinc-400">
           <History size={15} className="text-zinc-500" /> Historique
@@ -676,81 +508,6 @@ export default function RecoveryPage() {
         </ul>
       </section>
       </div>
-    </div>
-  )
-}
-
-function formatHoursLabel(h: number): string {
-  const totalMin = Math.round(h * 60)
-  return `${Math.floor(totalMin / 60)}h${String(totalMin % 60).padStart(2, '0')}`
-}
-
-function SummaryStat({ label, value }: { label: string; value: string }) {
-  return (
-    <div className="rounded-lg bg-zinc-900 px-3 py-2">
-      <p className="text-[11px] text-zinc-500">{label}</p>
-      <p className="font-medium text-zinc-200">{value}</p>
-    </div>
-  )
-}
-
-// Curseur vertical façon fader de console DJ : un <input type="range"> horizontal pivoté
-// à -90°, repères de graduation façon table de mixage, jauge colorée qui monte avec la valeur.
-// `min`/`max`/`labelFor` sont propres à chaque usage : la fatigue musculaire et la motivation
-// n'ont ni la même plage ni le même vocabulaire, pas question de leur imposer la même échelle.
-function DjFader({
-  label,
-  value,
-  onChange,
-  min,
-  max,
-  color,
-  labelFor,
-}: {
-  label: string
-  value: number
-  onChange: (v: number) => void
-  min: number
-  max: number
-  color: string
-  labelFor: (v: number) => string
-}) {
-  const fillPct = ((value - min) / (max - min)) * 100
-  const valueText = labelFor(value)
-  return (
-    <div className="flex flex-col items-center gap-1.5">
-      <span className="text-xs font-semibold" style={{ color }}>
-        {valueText}
-      </span>
-      <div className="relative flex h-28 w-12 items-center justify-center rounded-xl bg-zinc-900 py-2">
-        {/* Graduations façon table de mixage — juste des repères visuels, indépendants du pas réel */}
-        <div className="pointer-events-none absolute inset-y-2 left-1/2 flex w-6 -translate-x-1/2 flex-col justify-between">
-          {[0, 1, 2, 3, 4].map((n) => (
-            <div key={n} className="h-px w-full bg-zinc-800" />
-          ))}
-        </div>
-        {/* Rail rempli depuis le bas, sous le curseur pivoté */}
-        <div
-          className="pointer-events-none absolute bottom-2 left-1/2 w-1 -translate-x-1/2 rounded-full transition-[height]"
-          style={{ height: `calc(${fillPct}% * 0.86)`, backgroundColor: color }}
-        />
-        <input
-          type="range"
-          min={min}
-          max={max}
-          step={1}
-          value={value}
-          onChange={(e) => onChange(Number(e.target.value))}
-          aria-label={label}
-          aria-valuetext={valueText}
-          className="h-12 w-24 -rotate-90 cursor-pointer touch-none appearance-none bg-transparent
-            [&::-moz-range-thumb]:h-6 [&::-moz-range-thumb]:w-9 [&::-moz-range-thumb]:rounded [&::-moz-range-thumb]:border-2 [&::-moz-range-thumb]:border-zinc-950 [&::-moz-range-thumb]:bg-zinc-200 [&::-moz-range-thumb]:shadow-lg
-            [&::-moz-range-track]:h-1 [&::-moz-range-track]:rounded-full [&::-moz-range-track]:bg-transparent
-            [&::-webkit-slider-runnable-track]:h-1 [&::-webkit-slider-runnable-track]:rounded-full [&::-webkit-slider-runnable-track]:bg-transparent
-            [&::-webkit-slider-thumb]:mt-[-9.5px] [&::-webkit-slider-thumb]:h-6 [&::-webkit-slider-thumb]:w-9 [&::-webkit-slider-thumb]:appearance-none [&::-webkit-slider-thumb]:rounded [&::-webkit-slider-thumb]:border-2 [&::-webkit-slider-thumb]:border-zinc-950 [&::-webkit-slider-thumb]:bg-zinc-200 [&::-webkit-slider-thumb]:shadow-lg"
-        />
-      </div>
-      <span className="text-xs font-medium text-zinc-300">{label}</span>
     </div>
   )
 }

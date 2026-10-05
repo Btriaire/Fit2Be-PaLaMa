@@ -2,8 +2,7 @@ import { Suspense, lazy, useEffect, useState } from 'react'
 import { Route, Routes, useNavigate } from 'react-router-dom'
 import { getDb } from './lib/db'
 import { restoreFromCloudIfNeeded, pushProfileRecord } from './lib/cloudSync'
-import { autoImportNutriTrackerActivitiesIfNeeded } from './lib/nutriTrackerImport'
-import { autoLogWalkFromStepsIfNeeded } from './lib/stepsActivity'
+import { refreshFitData } from './lib/fitSync'
 import { syncLatestWeightFromNutriTracker } from './lib/weight'
 import { getSettings, hasStoredSettings } from './lib/settings'
 import { effectiveCalorieTarget } from './lib/calorieTarget'
@@ -56,9 +55,11 @@ function App() {
 
   useEffect(() => {
     if (auth !== 'ok') return
-    getDb().then(restoreFromCloudIfNeeded)
-    autoImportNutriTrackerActivitiesIfNeeded(getSettings())
-    autoLogWalkFromStepsIfNeeded(getSettings())
+    // Restaure d'abord depuis le VPS (nouvel appareil), puis synchronise la montre :
+    // la fusion des doublons doit voir les séances déjà connues.
+    getDb()
+      .then(restoreFromCloudIfNeeded)
+      .finally(() => void refreshFitData(getSettings()).catch(() => {}))
     void syncLatestWeightFromNutriTracker()
     // Pousse le profil (âge, sexe, taille, FC repos) au boot, pas seulement
     // à la sauvegarde des Réglages — sinon un profil jamais retouché depuis
@@ -88,8 +89,7 @@ function App() {
     // restaient figés sur l'ancien poids tant qu'on ne rouvrait pas Diet.
     function onVisible() {
       if (document.visibilityState === 'visible') {
-        autoImportNutriTrackerActivitiesIfNeeded(getSettings())
-        autoLogWalkFromStepsIfNeeded(getSettings())
+        void refreshFitData(getSettings()).catch(() => {})
         void syncLatestWeightFromNutriTracker()
       }
     }

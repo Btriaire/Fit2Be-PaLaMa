@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from 'react'
 import { useLocation, useNavigate } from 'react-router-dom'
-import { Footprints, Plus, Route, Trash2, X } from 'lucide-react'
+import { Activity, Footprints, Plus, Route, Trash2, Watch, X } from 'lucide-react'
 import { getDb, newId } from '../../lib/db'
 import { MET_ACTIVITIES, computeCaloriesForUser } from '../../lib/met'
 import { getSettings } from '../../lib/settings'
@@ -8,10 +8,25 @@ import { isToday, formatTime, formatDate, dayKey, todayStr, addDays } from '../.
 import { pushActivityToNutriTracker } from '../../lib/nutriTrackerSync'
 import { pushRecord, deleteRecord } from '../../lib/cloudSync'
 import { ACTIVITY_PHOTOS } from '../../lib/activityPhotos'
-import { getEnduranceSessions } from '../../lib/endurance'
+import { ENDURANCE_ACTIVITY_META, getEnduranceSessions, logEnduranceSession } from '../../lib/endurance'
+import { isSynthetic } from '../../lib/enduranceMerge'
+import { getGoogleFitDays } from '../../lib/googleFit'
+import { onFitRefreshed, refreshFitData } from '../../lib/fitSync'
 import ActivityHero from '../../components/ActivityHero'
 import BackButton from '../../components/BackButton'
-import type { ActivityCategory, ActivityLog, EnduranceSession } from '../../types'
+import type { ActivityCategory, ActivityLog, EnduranceActivityType, EnduranceSession } from '../../types'
+
+/** Activités du formulaire qui sont en fait de l'endurance : elles sont enregistrées comme
+ * une sortie Endurance (un seul endroit, avec distance/FC/progression, fusion avec la
+ * montre) plutôt qu'en activité générique — c'était la source des marches "en double". */
+const MET_TO_ENDURANCE: Record<string, EnduranceActivityType> = {
+  'running-10kmh': 'course',
+  'running-8kmh': 'course',
+  'cycling-moderate': 'velo',
+  swimming: 'natation',
+  hiking: 'marche',
+  'walking-brisk': 'marche',
+}
 
 const CATEGORY_SECTION_LABEL: Partial<Record<ActivityCategory, string>> = {
   outdoor: 'Sport',
@@ -31,29 +46,38 @@ export default function ActivitiesPage() {
   const navigate = useNavigate()
   const navState = (location.state as NavState) ?? {}
   const [logs, setLogs] = useState<ActivityLog[]>([])
-  const [marcheSessions, setMarcheSessions] = useState<EnduranceSession[]>([])
+  const [sessions, setSessions] = useState<EnduranceSession[]>([])
+  const [autoWalks, setAutoWalks] = useState<Record<string, EnduranceSession>>({})
+  const [stepsByDay, setStepsByDay] = useState<Record<string, number>>({})
   const [formOpen, setFormOpen] = useState(navState.openForm ?? false)
+  const [notice, setNotice] = useState<string | null>(null)
 
   async function refresh() {
     const db = await getDb()
     const all = await db.getAllFromIndex('activities', 'byLoggedAt')
     setLogs(all.reverse())
     const endurance = await getEnduranceSessions()
-    // Les marches "steps-YYYY-MM-DD" sont auto-loggées chaque jour depuis les pas Google
-    // Fit (voir stepsActivity.ts) — une par jour, systématiquement. Les mélanger ici avec
-    // de vraies sorties (GPS ou saisies à la main) noyait le journal dans du bruit
-    // identique jour après jour ; elles restent visibles ailleurs (Pas du Dashboard,
-    // Progression) mais n'ont rien à faire dans un journal d'activités délibérées.
-    setMarcheSessions(endurance.filter((s) => s.activityType === 'marche' && !s.id.startsWith('steps-')))
+    // Journée complète : activités + sorties (marche, course, vélo… importées ou saisies).
+    // La marche auto "pas du jour" n'est pas une ligne (elle se répétait identique chaque
+    // jour) : elle est résumée dans l'en-tête du jour, avec le nombre de pas.
+    setSessions(endurance.filter((s) => !isSynthetic(s)))
+    setAutoWalks(Object.fromEntries(endurance.filter(isSynthetic).map((s) => [s.id.slice('steps-'.length), s])))
+    const days = await getGoogleFitDays(60)
+    setStepsByDay(Object.fromEntries(days.map((d) => [d.date, d.steps])))
   }
 
   useEffect(() => {
     refresh()
+    return onFitRefreshed(() => void refresh())
   }, [])
 
   const todayLogs = useMemo(() => logs.filter((l) => isToday(l.loggedAt)), [logs])
-  const todayWalks = useMemo(() => marcheSessions.filter((s) => isToday(s.startedAt)), [marcheSessions])
-  const todayCalories = todayLogs.reduce((sum, l) => sum + l.caloriesBurned, 0) + todayWalks.reduce((sum, s) => sum + s.caloriesBurned, 0)
+  const todaySessions = useMemo(() => sessions.filter((s) => isToday(s.startedAt)), [sessions])
+  // Même total que "kcal brûlées" de l'Accueil : activités + sorties + pas du quotidien.
+  const todayCalories =
+    todayLogs.reduce((sum, l) => sum + l.caloriesBurned, 0) +
+    todaySessions.reduce((sum, s) => sum + s.caloriesBurned, 0) +
+    (autoWalks[todayStr()]?.caloriesBurned ?? 0)
   const lifeMetScore = Math.round(todayLogs.reduce((sum, l) => sum + l.metValue * (l.durationMin / 60), 0) * 10)
 
   // Un seul fil chronologique au lieu de deux blocs disjoints (Journal, puis Marche plus
@@ -61,14 +85,14 @@ export default function ActivitiesPage() {
   // une activité d'aujourd'hui, sans aucun repère temporel entre les deux.
   type TimelineItem =
     | { kind: 'activity'; at: number; log: ActivityLog }
-    | { kind: 'walk'; at: number; session: EnduranceSession }
+    | { kind: 'session'; at: number; session: EnduranceSession }
   const timeline = useMemo<TimelineItem[]>(
     () =>
       [
         ...logs.map((log): TimelineItem => ({ kind: 'activity', at: log.loggedAt, log })),
-        ...marcheSessions.map((session): TimelineItem => ({ kind: 'walk', at: session.startedAt, session })),
+        ...sessions.map((session): TimelineItem => ({ kind: 'session', at: session.startedAt, session })),
       ].sort((a, b) => b.at - a.at),
-    [logs, marcheSessions],
+    [logs, sessions],
   )
   const timelineGroups = useMemo(() => {
     const groups: { dateStr: string; items: TimelineItem[] }[] = []
@@ -87,13 +111,31 @@ export default function ActivitiesPage() {
     return formatDate(new Date(`${dateStr}T12:00:00`).getTime())
   }
 
-  async function addLog(entry: Omit<ActivityLog, 'id' | 'loggedAt'>) {
+  async function addLog(entry: Omit<ActivityLog, 'id' | 'loggedAt'>, metId: string) {
+    const enduranceType = MET_TO_ENDURANCE[metId]
+    if (enduranceType) {
+      const saved = await logEnduranceSession(
+        { activityType: enduranceType, durationMin: entry.durationMin, startedAt: Date.now() - entry.durationMin * 60_000 },
+        getSettings(),
+      )
+      setFormOpen(false)
+      setNotice(
+        saved.externalId
+          ? `Déjà enregistrée par ta montre : ${ENDURANCE_ACTIVITY_META[enduranceType].label.toLowerCase()} fusionnée, comptée une seule fois.`
+          : `${ENDURANCE_ACTIVITY_META[enduranceType].label} ajoutée à tes sorties Endurance (distance et FC modifiables dans le détail).`,
+      )
+      refresh()
+      // Recalcule la marche auto du jour (les pas de cette sortie ne doivent plus y compter).
+      void refreshFitData(getSettings()).catch(() => {})
+      return
+    }
     const db = await getDb()
     const log: ActivityLog = { ...entry, id: newId(), loggedAt: Date.now(), source: 'manual' }
     await db.put('activities', log)
     pushRecord('activities', log.id, log)
     setFormOpen(false)
     refresh()
+    if (log.category === 'quotidien') void refreshFitData(getSettings()).catch(() => {})
 
     const googleFitType = MET_ACTIVITIES.find((a) => a.label === entry.label)?.googleFitType ?? 97
     void pushActivityToNutriTracker({
@@ -143,19 +185,37 @@ export default function ActivitiesPage() {
         <Plus size={16} /> Ajouter une activité
       </button>
 
+      {notice && (
+        <div className="-mt-3 mb-5 flex items-start gap-2 rounded-xl border border-teal-500/30 bg-teal-500/10 p-3 text-xs text-teal-200" role="status">
+          <span className="flex-1">{notice}</span>
+          <button onClick={() => setNotice(null)} className="shrink-0 rounded-full p-0.5 text-teal-300 active:bg-zinc-800" aria-label="Fermer">
+            <X size={14} />
+          </button>
+        </div>
+      )}
+
       <section>
         <h2 className="mb-2 text-sm font-medium text-zinc-400">Journal</h2>
         {timeline.length === 0 && <p className="text-sm text-zinc-500">Rien pour l'instant.</p>}
         <div className="space-y-4">
           {timelineGroups.map((group) => (
             <div key={group.dateStr}>
-              <p className="mb-1.5 px-1 text-[11px] font-medium uppercase tracking-wide text-zinc-600">{dayGroupLabel(group.dateStr)}</p>
+              <p className="mb-1.5 flex items-baseline justify-between gap-2 px-1 text-[11px] font-medium uppercase tracking-wide text-zinc-500">
+                <span>{dayGroupLabel(group.dateStr)}</span>
+                {stepsByDay[group.dateStr] != null && (
+                  <span className="flex items-center gap-1 normal-case tracking-normal text-zinc-500">
+                    <Footprints size={11} className="text-teal-400" />
+                    {stepsByDay[group.dateStr].toLocaleString('fr-FR')} pas
+                    {autoWalks[group.dateStr] && <span className="text-zinc-600">· +{autoWalks[group.dateStr].caloriesBurned} kcal hors sorties</span>}
+                  </span>
+                )}
+              </p>
               <ul className="space-y-2">
                 {group.items.map((item) =>
                   item.kind === 'activity' ? (
                     <ActivityLogRow key={item.log.id} log={item.log} onDelete={removeLog} />
                   ) : (
-                    <WalkRow key={item.session.id} session={item.session} onOpen={() => navigate(`/endurance/session/${item.session.id}`)} />
+                    <SessionRow key={item.session.id} session={item.session} onOpen={() => navigate(`/endurance/session/${item.session.id}`)} />
                   ),
                 )}
               </ul>
@@ -203,20 +263,24 @@ function ActivityLogRow({ log, onDelete }: { log: ActivityLog; onDelete: (id: st
   )
 }
 
-// Icône Route (plutôt que Footprints, déjà utilisée pour "Journal"/l'en-tête de page) pour
-// distinguer d'un coup d'œil une sortie marche trackée (GPS ou saisie) d'une activité loisir.
-function WalkRow({ session, onOpen }: { session: EnduranceSession; onOpen: () => void }) {
+// Une sortie Endurance (marche, course, vélo… importée de la montre ou saisie) : même
+// enregistrement que dans Endurance, on y renvoie pour le détail.
+function SessionRow({ session, onOpen }: { session: EnduranceSession; onOpen: () => void }) {
+  const meta = ENDURANCE_ACTIVITY_META[session.activityType]
   return (
     <li>
       <button onClick={onOpen} className="glass flex w-full items-center justify-between rounded-xl p-3 text-left active:bg-zinc-900/80">
         <div className="flex items-center gap-2.5">
           <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-zinc-900">
-            <Route size={18} className="text-teal-400" />
+            {session.activityType === 'marche' ? <Route size={18} className="text-teal-400" /> : <Activity size={18} className="text-teal-400" />}
           </span>
           <div>
-            <p className="text-sm font-medium">Marche {session.distanceKm ? `· ${session.distanceKm.toFixed(1)} km` : ''}</p>
+            <p className="flex items-center gap-1.5 text-sm font-medium">
+              {meta.label} {session.distanceKm ? `· ${session.distanceKm.toFixed(1)} km` : ''}
+              {session.externalId && <Watch size={12} className="text-zinc-500" aria-label="Importée de la montre" />}
+            </p>
             <p className="text-xs text-zinc-500">
-              {formatTime(session.startedAt)} · {session.durationMin} min
+              {formatTime(session.startedAt)} · {session.durationMin} min · Endurance
             </p>
           </div>
         </div>
@@ -231,7 +295,7 @@ function ActivityForm({
   onClose,
   filterIds,
 }: {
-  onSubmit: (entry: Omit<ActivityLog, 'id' | 'loggedAt'>) => void
+  onSubmit: (entry: Omit<ActivityLog, 'id' | 'loggedAt'>, metId: string) => void
   onClose: () => void
   filterIds?: string[]
 }) {
@@ -255,7 +319,7 @@ function ActivityForm({
       metValue: activity.met,
       durationMin: dur,
       caloriesBurned: computeCaloriesForUser(activity.met, dur, settings),
-    })
+    }, activity.id)
   }
 
   return (
@@ -291,7 +355,10 @@ function ActivityForm({
                       ) : (
                         <div className="h-16 w-16 shrink-0 rounded-lg bg-zinc-900" />
                       )}
-                      <span className={`text-sm ${a.id === activityId ? 'font-semibold text-teal-400' : 'text-zinc-200'}`}>{a.label}</span>
+                      <span className="min-w-0">
+                        <span className={`block text-sm ${a.id === activityId ? 'font-semibold text-teal-400' : 'text-zinc-200'}`}>{a.label}</span>
+                        {MET_TO_ENDURANCE[a.id] && <span className="mt-0.5 block text-[10px] text-zinc-500">→ enregistrée dans Endurance</span>}
+                      </span>
                     </button>
                   </li>
                 ))}

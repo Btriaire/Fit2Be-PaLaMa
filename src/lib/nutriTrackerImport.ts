@@ -6,7 +6,7 @@
 // être réimportée.
 
 import { inferSource } from './dataSource'
-import { getDb, newId } from './db'
+import { getDb } from './db'
 import { pullActivityHistoryFromNutriTracker, type RemoteActivity } from './nutriTrackerSync'
 import { pushRecord } from './cloudSync'
 import { ENDURANCE_ACTIVITY_META } from './endurance'
@@ -73,20 +73,58 @@ function matchEnduranceType(a: RemoteActivity): EnduranceActivityType | null {
   return NAME_TO_ENDURANCE_NORMALIZED.get(normalize(a.name)) ?? GOOGLE_FIT_TYPE_TO_ENDURANCE.get(a.activityType) ?? null
 }
 
+/** Une séance déjà importée peut s'enrichir côté montre après coup (FC, distance
+ * qui arrivent avec la synchro suivante, durée corrigée). On met donc à jour ses
+ * chiffres — sauf si on l'a enrichie à la main (photo, données machine, ressenti),
+ * auquel cas on ne fait que combler ce qui manque. */
+function refreshImported(local: EnduranceSession, a: RemoteActivity): EnduranceSession | null {
+  const distanceKm = a.distanceM != null ? Math.round((a.distanceM / 1000) * 100) / 100 : undefined
+  const userEnriched = !!local.photoDataUrl || local.rpe != null || (!!local.machineStats && local.machineStats.machineType !== 'other')
+  const next: EnduranceSession = {
+    ...local,
+    distanceKm: local.distanceKm ?? distanceKm,
+    avgHeartRate: local.avgHeartRate ?? a.heartRateAvg ?? undefined,
+  }
+  if (!userEnriched) {
+    if (a.durationMin > 0) next.durationMin = a.durationMin
+    if (distanceKm != null) next.distanceKm = distanceKm
+    if (a.heartRateAvg != null) next.avgHeartRate = a.heartRateAvg
+    if (a.caloriesBurned != null) next.caloriesBurned = a.caloriesBurned
+  }
+  const changed =
+    next.durationMin !== local.durationMin ||
+    next.distanceKm !== local.distanceKm ||
+    next.avgHeartRate !== local.avgHeartRate ||
+    next.caloriesBurned !== local.caloriesBurned
+  if (!changed) return null
+  if (next.distanceKm === undefined) delete next.distanceKm
+  if (next.avgHeartRate === undefined) delete next.avgHeartRate
+  return next
+}
+
 export async function importNutriTrackerActivityHistory(days: number, settings: Settings): Promise<number> {
   const remote = await pullActivityHistoryFromNutriTracker(days)
   if (remote.length === 0) return 0
 
   const db = await getDb()
   const [existingEndurance, existingActivities] = await Promise.all([db.getAll('endurance'), db.getAll('activities')])
+  const enduranceByExternalId = new Map(existingEndurance.filter((s) => s.externalId).map((s) => [s.externalId as string, s]))
   const alreadyImported = new Set<string>([
-    ...existingEndurance.map((s) => s.externalId).filter((v): v is string => !!v),
+    ...enduranceByExternalId.keys(),
     ...existingActivities.map((a) => a.externalId).filter((v): v is string => !!v),
   ])
 
   let imported = 0
   for (const a of remote) {
-    if (alreadyImported.has(a.id)) continue
+    if (alreadyImported.has(a.id)) {
+      const local = enduranceByExternalId.get(a.id)
+      const refreshed = local ? refreshImported(local, a) : null
+      if (refreshed) {
+        await db.put('endurance', refreshed)
+        pushRecord('endurance', refreshed.id, refreshed)
+      }
+      continue
+    }
     const startedAt = a.startMs ?? new Date(`${a.date}T12:00:00`).getTime()
     const enduranceType = matchEnduranceType(a)
     const distanceKm = a.distanceM != null ? Math.round((a.distanceM / 1000) * 100) / 100 : undefined
@@ -108,7 +146,10 @@ export async function importNutriTrackerActivityHistory(days: number, settings: 
           ? { machineType: 'other', avgSpeedKph: a.avgSpeedKmh ?? undefined, elevationGainM: a.elevationGainM ?? undefined }
           : undefined
       const session: EnduranceSession = {
-        id: newId(),
+        // Id déterministe : deux imports simultanés (démarrage + bouton, ou deux
+        // appareils) réécrivent le même enregistrement au lieu d'en créer deux —
+        // c'est ce qui avait dupliqué trois séances Apple Health en prod.
+        id: `import-${a.id}`,
         activityType: enduranceType,
         startedAt,
         durationMin: a.durationMin,
@@ -130,7 +171,7 @@ export async function importNutriTrackerActivityHistory(days: number, settings: 
           ? Math.round((a.caloriesBurned / (settings.bodyWeightKg * (a.durationMin / 60))) * 10) / 10
           : 4
       const log: ActivityLog = {
-        id: newId(),
+        id: `import-${a.id}`,
         category: 'outdoor',
         label: a.name,
         metValue,
@@ -148,21 +189,5 @@ export async function importNutriTrackerActivityHistory(days: number, settings: 
   return imported
 }
 
-const AUTO_IMPORT_KEY = 'fit2be:lastNutriTrackerAutoImport'
-const AUTO_IMPORT_MIN_INTERVAL_MS = 15 * 60_000
-
-/** Même import que le bouton manuel des Réglages, mais déclenché tout seul
- * au démarrage de l'app — jusqu'ici il fallait penser à aller taper sur ce
- * bouton pour que les séances loggées côté NutriTracker (dont "Marche",
- * "Marche rapide", "Randonnée") apparaissent ici. Un throttle localStorage
- * évite de refaire l'appel à chaque ouverture rapprochée de l'app. */
-export async function autoImportNutriTrackerActivitiesIfNeeded(settings: Settings): Promise<void> {
-  try {
-    const last = Number(localStorage.getItem(AUTO_IMPORT_KEY) ?? 0)
-    if (Date.now() - last < AUTO_IMPORT_MIN_INTERVAL_MS) return
-    localStorage.setItem(AUTO_IMPORT_KEY, String(Date.now()))
-    await importNutriTrackerActivityHistory(30, settings)
-  } catch {
-    // best effort — un échec ici ne doit jamais bloquer le chargement de l'app
-  }
-}
+// Déclenchement automatique (démarrage, retour au premier plan, bouton Synchro) :
+// voir refreshFitData() dans fitSync.ts, qui sérialise import, fusion et marche auto.

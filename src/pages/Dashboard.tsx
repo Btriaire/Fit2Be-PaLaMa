@@ -6,8 +6,7 @@ import { getAllWorkouts, estimateWorkoutCalories } from '../lib/workouts'
 import { isSameDay, todayStr, addDays, formatFullDate } from '../lib/date'
 import { getSettings } from '../lib/settings'
 import { syncGoogleFit, getGoogleFitForDate } from '../lib/googleFit'
-import { autoLogWalkFromStepsIfNeeded } from '../lib/stepsActivity'
-import { importNutriTrackerActivityHistory } from '../lib/nutriTrackerImport'
+import { onFitRefreshed, refreshFitData } from '../lib/fitSync'
 import { syncLatestWeightFromNutriTracker } from '../lib/weight'
 import { scanMachineResults } from '../lib/machineScan'
 import { getDailyPhoto, saveDailyPhoto } from '../lib/dailyPhoto'
@@ -19,8 +18,8 @@ import { ENDURANCE_ACTIVITY_META } from '../lib/endurance'
 import ActivityRing from '../components/ActivityRing'
 import SyncStatusLine from '../components/SyncStatusLine'
 import FitStatusLine from '../components/FitStatusLine'
-import FatigueCard from '../components/FatigueCard'
-import { isHighFatigue } from '../lib/fatigue'
+import DailyCheckinCard from '../components/DailyCheckinCard'
+import { isHighFatigueCheckin, type CheckinDraft } from '../lib/checkin'
 import { effectiveSleepMinutes } from '../lib/fitHealth'
 import { computePersonalGoals, DEFAULT_SESSIONS_GOAL, DEFAULT_STEPS_GOAL, type PersonalGoals } from '../lib/personalGoals'
 import { computeTrainingAlerts, type TrainingAlert } from '../lib/trainingAlerts'
@@ -28,7 +27,7 @@ import { mostNeglected, weeklyVolumeByGroup } from '../lib/weeklyVolume'
 import { getMuscleGroupVolume } from '../lib/workouts'
 import { effectiveCalorieTarget } from '../lib/calorieTarget'
 import ActivityHero, { type HeroKey } from '../components/ActivityHero'
-import type { ActivityLog, DailyFatigue, DailyPhoto, EnduranceSession, GoogleFitDay, NutritionEntry, RecoveryCheckin, Workout } from '../types'
+import type { ActivityLog, DailyPhoto, EnduranceSession, GoogleFitDay, NutritionEntry, RecoveryCheckin, Workout } from '../types'
 
 const MOOD_EMOJI: Record<number, string> = { 1: '😞', 2: '🙁', 3: '😐', 4: '🙂', 5: '😄' }
 
@@ -54,7 +53,7 @@ export default function Dashboard() {
   const [alerts, setAlerts] = useState<TrainingAlert[]>([])
   const [goals, setGoals] = useState<PersonalGoals>({ steps: DEFAULT_STEPS_GOAL, sessions: DEFAULT_SESSIONS_GOAL, adapted: false })
   const [neglected, setNeglected] = useState<string[]>([])
-  const [fatigue, setFatigue] = useState<DailyFatigue | null>(null)
+  const [checkinDraft, setCheckinDraft] = useState<CheckinDraft | null>(null)
   const settings = getSettings()
   const quote = getQuoteOfTheDay()
 
@@ -75,11 +74,7 @@ export default function Dashboard() {
   async function forceSyncNow() {
     setSyncing(true)
     try {
-      await Promise.all([
-        syncGoogleFit(14, { force: true }).then(() => autoLogWalkFromStepsIfNeeded(settings)),
-        importNutriTrackerActivityHistory(30, settings),
-        syncLatestWeightFromNutriTracker(),
-      ])
+      await Promise.all([refreshFitData(settings, { force: true }).catch(() => null), syncLatestWeightFromNutriTracker()])
       await refreshLocalState(selectedDate)
     } finally {
       setSyncing(false)
@@ -130,6 +125,10 @@ export default function Dashboard() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [selectedDate])
 
+  // La synchro montre (import, fusion des doublons, pas du jour) tourne en fond : on
+  // recharge quand elle se termine pour afficher les vrais chiffres.
+  useEffect(() => onFitRefreshed(() => void refreshLocalState(selectedDate)), [selectedDate])
+
   const todayWorkouts = workouts.filter((w) => isSameDay(w.startedAt, selectedDate) && w.finishedAt)
   const todayGymCalories = todayWorkouts.reduce((s, w) => s + estimateWorkoutCalories(w, settings), 0)
   const todayActivityCalories = activities.filter((a) => isSameDay(a.loggedAt, selectedDate)).reduce((s, a) => s + a.caloriesBurned, 0)
@@ -139,7 +138,9 @@ export default function Dashboard() {
 
   const isToday = selectedDate === todayStr()
   const stepsToday = googleFit?.steps ?? null
-  const sleepMin = effectiveSleepMinutes(googleFit, recovery?.sleepHours)
+  // Une durée corrigée à la main dans le check-in prime sur Google Fit.
+  const sleepMin =
+    isToday && checkinDraft?.sleepSource === 'manual' ? Math.round(checkinDraft.sleepHours * 60) : effectiveSleepMinutes(googleFit, recovery?.sleepHours)
 
   const windowEnd = new Date(`${selectedDate}T23:59:59`).getTime()
   const windowStart = windowEnd - 7 * 86_400_000
@@ -151,7 +152,7 @@ export default function Dashboard() {
 
   const lastSession = latestSession(workouts, endurance, activities)
   const suggestion = isToday
-    ? nextAction({ sleepMin, load, sessionsToday, eaten: todayNutritionCalories, alerts, neglected, fatigue })
+    ? nextAction({ sleepMin, load, sessionsToday, eaten: todayNutritionCalories, alerts, neglected, checkin: checkinDraft })
     : null
 
   // Même logique que la page Diet : la cible de base + les calories brûlées du jour.
@@ -229,7 +230,14 @@ export default function Dashboard() {
         {scanError && <p className="text-center text-xs text-red-400">{scanError}</p>}
 
         {isToday && <FitStatusLine refreshKey={googleFit?.syncedAt ?? 0} />}
-        {isToday && <FatigueCard date={selectedDate} onChange={setFatigue} />}
+        {isToday && (
+          <DailyCheckinCard
+            onChange={(draft, saved) => {
+              setCheckinDraft(draft)
+              if (saved) setRecovery(saved)
+            }}
+          />
+        )}
 
         <section className="glass rounded-3xl p-4" aria-label="Objectifs du jour">
           <div className="flex items-start justify-between gap-2">
@@ -399,13 +407,13 @@ function nextAction(ctx: {
   eaten: number
   alerts: TrainingAlert[]
   neglected: string[]
-  fatigue: DailyFatigue | null
+  checkin: Pick<CheckinDraft, 'generalFatigue' | 'muscleFatigue'> | null
 }): Suggestion {
   if (ctx.sleepMin != null && ctx.sleepMin < 360)
     return { to: '/recovery', title: 'Nuit courte — vas-y en douceur', detail: 'Moins de 6 h de sommeil : privilégie une séance légère ou de la récupération.' }
   if (ctx.load && (ctx.load.band === 'importante' || ctx.load.band === 'intense'))
     return { to: '/recovery', title: 'Grosse charge aujourd’hui', detail: 'Étirements, marche ou repos : laisse le corps encaisser.' }
-  if (isHighFatigue(ctx.fatigue))
+  if (isHighFatigueCheckin(ctx.checkin))
     return { to: '/recovery', title: 'Tu te sens fatigué — allège', detail: 'Fatigue élevée déclarée : privilégie une séance légère, des étirements ou du repos.' }
   const deload = ctx.alerts.find((a) => a.level === 'warn')
   if (deload) return { to: deload.to, title: deload.title, detail: deload.detail }

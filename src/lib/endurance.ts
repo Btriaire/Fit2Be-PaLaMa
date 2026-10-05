@@ -5,6 +5,7 @@ import { computeHrZone } from './heartRate'
 import { pushActivityToNutriTracker } from './nutriTrackerSync'
 import { pushRecord, deleteRecord } from './cloudSync'
 import { toMachineStats, type ParsedMachineResult } from './machineScan'
+import { dedupeSessions, isImported, isSameWorkout } from './enduranceMerge'
 import type { Settings } from './settings'
 import type { ActivityCategory, ActivityLog, EnduranceActivityType, EnduranceSession, HealthScreenCapture, MachineStats, PhaseLogEntry, RoutePoint } from '../types'
 
@@ -110,18 +111,44 @@ export async function logEnduranceSession(
     ...(input.healthCapture ? { healthCapture: input.healthCapture } : {}),
   }
   const db = await getDb()
+  // La même séance a peut-être déjà été importée de la montre (Apple Santé/Google
+  // Fit) : NutriTracker la connaît alors déjà, la repousser y compterait ses
+  // calories deux fois.
+  const alreadyImported = (await db.getAll('endurance')).some((s) => isImported(s) && isSameWorkout(s, session))
   await db.put('endurance', session)
   pushRecord('endurance', session.id, session)
 
-  void pushActivityToNutriTracker({
-    name: meta.label,
-    activityType: meta.googleFitType,
-    durationMin: input.durationMin,
-    caloriesBurned,
-    date: dayKey(session.startedAt),
-  })
+  if (!alreadyImported) {
+    void pushActivityToNutriTracker({
+      name: meta.label,
+      activityType: meta.googleFitType,
+      durationMin: input.durationMin,
+      caloriesBurned,
+      date: dayKey(session.startedAt),
+    })
+  }
 
-  return session
+  // Fusionne immédiatement avec un éventuel doublon importé, et renvoie la séance qui reste.
+  const { absorbedInto } = await dedupeEnduranceSessions()
+  const keeperId = absorbedInto[session.id] ?? session.id
+  return (await db.get('endurance', keeperId)) ?? session
+}
+
+/** Supprime les doublons (même séance importée deux fois, ou importée + saisie/scannée
+ * à la main) en fusionnant leurs infos dans l'enregistrement le plus riche. Idempotent,
+ * sans effet quand il n'y a rien à fusionner. Renvoie le détail des fusions. */
+export async function dedupeEnduranceSessions() {
+  const db = await getDb()
+  const result = dedupeSessions(await db.getAll('endurance'))
+  for (const s of result.updated) {
+    await db.put('endurance', s)
+    pushRecord('endurance', s.id, s)
+  }
+  for (const id of result.removedIds) {
+    await db.delete('endurance', id)
+    deleteRecord('endurance', id)
+  }
+  return result
 }
 
 export async function deleteEnduranceSession(id: string) {

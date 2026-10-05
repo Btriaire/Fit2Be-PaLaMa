@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from 'react'
-import { Camera, HeartPulse, Loader2, MapPin, Pause, SkipForward, Timer, X } from 'lucide-react'
+import { Camera, HeartPulse, Loader2, MapPin, Pause, Pencil, SkipForward, Timer, X } from 'lucide-react'
 import { ENDURANCE_ACTIVITY_META } from '../../lib/endurance'
 import { getSettings } from '../../lib/settings'
 import { todayStr } from '../../lib/date'
@@ -20,6 +20,7 @@ export function EnduranceForm({
   initialScan,
   initialDate,
   initialProgram,
+  initialActivityType,
 }: {
   onSubmit: (input: {
     activityType: EnduranceActivityType
@@ -40,10 +41,17 @@ export function EnduranceForm({
   initialScan?: ParsedMachineResult
   initialDate: string
   initialProgram?: EnduranceProgram | null
+  /** Type pré-sélectionné (boutons de démarrage rapide de la page Endurance). */
+  initialActivityType?: EnduranceActivityType
 }) {
   const [activityType, setActivityType] = useState<EnduranceActivityType>(
-    initialScan ? machineTypeToActivityType(initialScan.machineType) : initialProgram ? initialProgram.activityType : 'course',
+    initialScan
+      ? machineTypeToActivityType(initialScan.machineType)
+      : initialProgram
+        ? initialProgram.activityType
+        : (initialActivityType ?? 'marche'),
   )
+  const [mode, setMode] = useState<'saisie' | 'direct' | 'photo'>(initialScan ? 'photo' : 'saisie')
   const [duration, setDuration] = useState(initialScan?.durationMin ? String(initialScan.durationMin) : '30')
   const [distance, setDistance] = useState(initialScan?.distanceKm ? String(initialScan.distanceKm) : '')
   const [avgHr, setAvgHr] = useState(initialScan?.avgHeartRate ? String(initialScan.avgHeartRate) : '')
@@ -147,7 +155,8 @@ export function EnduranceForm({
       route: savedRoute ?? undefined,
       caloriesBurned: scanCalories ?? undefined,
       machineStats: scanStats ?? undefined,
-      startedAt: date === todayStr() ? Date.now() : new Date(`${date}T12:00:00`).getTime(),
+      // Heure de DÉBUT (et non d'enregistrement) : sert à rapprocher la séance de celle de la montre.
+      startedAt: date === todayStr() ? Date.now() - dur * 60_000 : new Date(`${date}T12:00:00`).getTime(),
       photoDataUrl: photoDataUrl ?? undefined,
       rpe: sessionRpe ?? undefined,
       programId: activeProgram?.id,
@@ -451,12 +460,15 @@ export function EnduranceForm({
             </button>
           </div>
         )}
-        <div className="mb-4 grid grid-cols-2 gap-1.5">
+
+        <div className="-mx-4 mb-3 flex gap-1.5 overflow-x-auto px-4 pb-1" role="radiogroup" aria-label="Type de sortie">
           {(Object.keys(ENDURANCE_ACTIVITY_META) as EnduranceActivityType[]).map((key) => (
             <button
               key={key}
+              role="radio"
+              aria-checked={key === activityType}
               onClick={() => setActivityType(key)}
-              className={`rounded-lg px-2.5 py-2.5 text-left text-xs font-medium ${
+              className={`shrink-0 rounded-full px-3.5 py-2 text-xs font-medium ${
                 key === activityType ? 'bg-teal-500 text-zinc-950' : 'bg-zinc-900 text-zinc-300'
               }`}
             >
@@ -465,6 +477,63 @@ export function EnduranceForm({
           ))}
         </div>
 
+        <div className="mb-4 grid grid-cols-3 gap-1 rounded-xl bg-zinc-900 p-1" role="tablist" aria-label="Comment l'enregistrer">
+          {(
+            [
+              ['saisie', 'Saisie', <Pencil key="i" size={14} />],
+              ['direct', 'En direct', <Timer key="i" size={14} />],
+              ['photo', 'Photo', <Camera key="i" size={14} />],
+            ] as const
+          ).map(([key, label, icon]) => (
+            <button
+              key={key}
+              role="tab"
+              aria-selected={mode === key}
+              onClick={() => setMode(key)}
+              className={`flex items-center justify-center gap-1.5 rounded-lg py-2 text-xs font-semibold ${
+                mode === key ? 'bg-zinc-700 text-white' : 'text-zinc-400'
+              }`}
+            >
+              {icon}
+              {label}
+            </button>
+          ))}
+        </div>
+
+        {mode === 'direct' && (
+          <div className="mb-4">
+        {gpsCapable && (
+          <button
+            onClick={() => {
+              setSavedRoute(null)
+              gps.start()
+            }}
+            className="mb-2 flex w-full items-center justify-center gap-1.5 rounded-xl border border-teal-500/40 bg-teal-500/10 py-3 text-sm font-semibold text-teal-400 active:bg-teal-500/20"
+          >
+            <MapPin size={16} /> Suivre en direct (GPS)
+          </button>
+        )}
+        {indoorCapable && (
+          <button
+            onClick={() => startIndoorChrono()}
+            className="mb-2 flex w-full items-center justify-center gap-1.5 rounded-xl border border-teal-500/40 bg-teal-500/10 py-3 text-sm font-semibold text-teal-400 active:bg-teal-500/20"
+          >
+            <Timer size={16} /> Démarrer le chrono en direct
+          </button>
+        )}
+            {!gpsCapable && !indoorCapable && (
+              <p className="mb-2 rounded-xl bg-zinc-900 p-3 text-center text-xs text-zinc-500">
+                Pas de suivi en direct pour ce type — saisis la séance ou scanne l'écran de la machine.
+              </p>
+            )}
+            <p className="text-center text-[11px] text-zinc-500">
+              {gpsCapable ? 'Trace GPS, distance et allure en direct.' : 'Chrono avec relances vocales ; la difficulté ressentie est demandée à la fin.'}
+            </p>
+          </div>
+        )}
+
+        {mode === 'photo' && (
+          <div className="mb-4">
         <input
           ref={fileInputRef}
           type="file"
@@ -491,30 +560,6 @@ export function EnduranceForm({
         <p className="mb-2 text-center text-[11px] text-zinc-600">
           Tu peux sélectionner plusieurs photos si le tableau ne tient pas sur un seul écran.
         </p>
-        {scanError && <p className="mb-3 text-center text-xs text-red-400">{scanError}</p>}
-        {scanStats && !scanError && (
-          <div className="mb-3 rounded-xl border border-orange-500/30 bg-orange-500/5 p-3">
-            <div className="mb-1.5 flex items-center justify-center gap-2">
-              {photoDataUrl && (
-                <button type="button" onClick={() => setPhotoViewerOpen(true)} className="shrink-0">
-                  <img src={photoDataUrl} alt="Capture scannée" className="h-10 w-10 rounded-lg object-cover" />
-                </button>
-              )}
-              <p className="text-center text-xs font-medium text-orange-400">Photo(s) analysée(s)</p>
-            </div>
-            <div className="flex flex-wrap justify-center gap-x-3 gap-y-1 text-[11px] text-zinc-400">
-              {scanCalories != null && <span>{scanCalories} kcal</span>}
-              {scanStats.avgWatts != null && <span>{scanStats.avgWatts} W moy.</span>}
-              {scanStats.avgSpeedKph != null && <span>{scanStats.avgSpeedKph} km/h moy.</span>}
-              {scanStats.avgMets != null && <span>{scanStats.avgMets} METs</span>}
-              {scanStats.peakHeartRate != null && <span>pic {scanStats.peakHeartRate} bpm</span>}
-              {scanStats.peakWatts != null && <span>pic {scanStats.peakWatts} W</span>}
-              {scanStats.peakSpeedKph != null && <span>pic {scanStats.peakSpeedKph} km/h</span>}
-              {scanStats.elevationGainM != null && <span>+{scanStats.elevationGainM} m dénivelé</span>}
-            </div>
-          </div>
-        )}
-
         <input
           ref={healthFileInputRef}
           type="file"
@@ -540,6 +585,32 @@ export function EnduranceForm({
         <p className="mb-2 text-center text-[11px] text-zinc-600">
           Capture d'écran du détail "Fréquence cardiaque" de ta séance — zones et récupération.
         </p>
+          </div>
+        )}
+
+        {scanError && <p className="mb-3 text-center text-xs text-red-400">{scanError}</p>}
+        {scanStats && !scanError && (
+          <div className="mb-3 rounded-xl border border-orange-500/30 bg-orange-500/5 p-3">
+            <div className="mb-1.5 flex items-center justify-center gap-2">
+              {photoDataUrl && (
+                <button type="button" onClick={() => setPhotoViewerOpen(true)} className="shrink-0">
+                  <img src={photoDataUrl} alt="Capture scannée" className="h-10 w-10 rounded-lg object-cover" />
+                </button>
+              )}
+              <p className="text-center text-xs font-medium text-orange-400">Photo(s) analysée(s)</p>
+            </div>
+            <div className="flex flex-wrap justify-center gap-x-3 gap-y-1 text-[11px] text-zinc-400">
+              {scanCalories != null && <span>{scanCalories} kcal</span>}
+              {scanStats.avgWatts != null && <span>{scanStats.avgWatts} W moy.</span>}
+              {scanStats.avgSpeedKph != null && <span>{scanStats.avgSpeedKph} km/h moy.</span>}
+              {scanStats.avgMets != null && <span>{scanStats.avgMets} METs</span>}
+              {scanStats.peakHeartRate != null && <span>pic {scanStats.peakHeartRate} bpm</span>}
+              {scanStats.peakWatts != null && <span>pic {scanStats.peakWatts} W</span>}
+              {scanStats.peakSpeedKph != null && <span>pic {scanStats.peakSpeedKph} km/h</span>}
+              {scanStats.elevationGainM != null && <span>+{scanStats.elevationGainM} m dénivelé</span>}
+            </div>
+          </div>
+        )}
         {healthScanError && <p className="mb-3 text-center text-xs text-red-400">{healthScanError}</p>}
         {healthCapture && !healthScanError && (
           <div className="mb-3 rounded-xl border border-indigo-500/30 bg-indigo-500/5 p-3">
@@ -559,75 +630,74 @@ export function EnduranceForm({
             </div>
           </div>
         )}
-
-        <label className="mb-1 block text-xs text-zinc-500">Date de la séance</label>
-        <input
-          type="date"
-          value={date}
-          max={todayStr()}
-          onChange={(e) => setDate(e.target.value)}
-          className="mb-3 w-full rounded-lg bg-zinc-900 px-3 py-2.5 text-center outline-none focus:ring-1 focus:ring-teal-500"
-        />
-        <p className="-mt-2 mb-4 text-center text-[11px] text-zinc-600">
-          Photo prise plus tard ? Change la date pour l'attribuer au bon jour.
-        </p>
-
-        {gpsCapable && (
-          <button
-            onClick={() => {
-              setSavedRoute(null)
-              gps.start()
-            }}
-            className="mb-4 flex w-full items-center justify-center gap-1.5 rounded-xl border border-teal-500/40 bg-teal-500/10 py-3 text-sm font-semibold text-teal-400 active:bg-teal-500/20"
-          >
-            <MapPin size={16} /> Suivre en direct (GPS)
-          </button>
-        )}
-
-        {indoorCapable && (
-          <button
-            onClick={() => startIndoorChrono()}
-            className="mb-4 flex w-full items-center justify-center gap-1.5 rounded-xl border border-teal-500/40 bg-teal-500/10 py-3 text-sm font-semibold text-teal-400 active:bg-teal-500/20"
-          >
-            <Timer size={16} /> Démarrer le chrono en direct
-          </button>
-        )}
-
         {savedRoute && (
           <div className="mb-3">
             <RouteMap route={savedRoute} className="h-32 w-full" />
           </div>
         )}
 
-        <label className="mb-1 block text-xs text-zinc-500">Durée (minutes)</label>
-        <input
-          inputMode="numeric"
-          value={duration}
-          onChange={(e) => setDuration(e.target.value)}
-          className="mb-3 w-full rounded-lg bg-zinc-900 px-3 py-2.5 text-center outline-none focus:ring-1 focus:ring-teal-500"
-        />
-
-        {meta.hasDistance && (
-          <>
-            <label className="mb-1 block text-xs text-zinc-500">Distance (km, optionnel)</label>
+        <label className="mb-1 block text-xs text-zinc-500">Durée</label>
+        <div className="mb-3 flex items-center gap-1.5">
+          {[15, 30, 45, 60].map((m) => (
+            <button
+              key={m}
+              onClick={() => setDuration(String(m))}
+              className={`rounded-lg px-2.5 py-2.5 text-xs font-medium ${duration === String(m) ? 'bg-teal-500 text-zinc-950' : 'bg-zinc-900 text-zinc-300'}`}
+            >
+              {m}
+            </button>
+          ))}
+          <div className="relative flex-1">
             <input
-              inputMode="decimal"
-              value={distance}
-              onChange={(e) => setDistance(e.target.value)}
-              placeholder="ex: 8.5"
-              className="mb-3 w-full rounded-lg bg-zinc-900 px-3 py-2.5 text-center outline-none focus:ring-1 focus:ring-teal-500"
+              inputMode="numeric"
+              value={duration}
+              onChange={(e) => setDuration(e.target.value)}
+              aria-label="Durée en minutes"
+              className="w-full rounded-lg bg-zinc-900 py-2.5 pl-3 pr-10 text-center outline-none focus:ring-1 focus:ring-teal-500"
             />
-          </>
-        )}
+            <span className="pointer-events-none absolute right-3 top-1/2 -translate-y-1/2 text-xs text-zinc-500">min</span>
+          </div>
+        </div>
 
-        <label className="mb-1 block text-xs text-zinc-500">FC moyenne (bpm, optionnel)</label>
-        <input
-          inputMode="numeric"
-          value={avgHr}
-          onChange={(e) => setAvgHr(e.target.value)}
-          placeholder="ex: 145"
-          className="w-full rounded-lg bg-zinc-900 px-3 py-2.5 text-center outline-none focus:ring-1 focus:ring-teal-500"
-        />
+        <div className={`mb-3 grid gap-2 ${meta.hasDistance ? 'grid-cols-2' : 'grid-cols-1'}`}>
+          {meta.hasDistance && (
+            <div>
+              <label className="mb-1 block text-xs text-zinc-500">Distance (km)</label>
+              <input
+                inputMode="decimal"
+                value={distance}
+                onChange={(e) => setDistance(e.target.value)}
+                placeholder="optionnel"
+                className="w-full rounded-lg bg-zinc-900 px-3 py-2.5 text-center outline-none focus:ring-1 focus:ring-teal-500"
+              />
+            </div>
+          )}
+          <div>
+            <label className="mb-1 block text-xs text-zinc-500">FC moyenne (bpm)</label>
+            <input
+              inputMode="numeric"
+              value={avgHr}
+              onChange={(e) => setAvgHr(e.target.value)}
+              placeholder="optionnel"
+              className="w-full rounded-lg bg-zinc-900 px-3 py-2.5 text-center outline-none focus:ring-1 focus:ring-teal-500"
+            />
+          </div>
+        </div>
+
+        <div className="flex items-center justify-between gap-3">
+          <label htmlFor="endurance-date" className="text-xs text-zinc-500">
+            Date
+          </label>
+          <input
+            id="endurance-date"
+            type="date"
+            value={date}
+            max={todayStr()}
+            onChange={(e) => setDate(e.target.value)}
+            className="rounded-lg bg-zinc-900 px-3 py-2 text-sm outline-none focus:ring-1 focus:ring-teal-500"
+          />
+        </div>
+        <p className="mt-1 text-[11px] text-zinc-500">Si ta montre a déjà enregistré cette séance, les deux sont fusionnées automatiquement.</p>
         </div>
 
         <div className="shrink-0 border-t border-zinc-800 p-4" style={{ paddingBottom: 'calc(env(safe-area-inset-bottom) + 16px)' }}>

@@ -7,11 +7,10 @@ import { useNavigate } from 'react-router-dom'
 import { ChevronLeft, Download, Upload, RefreshCw, Sparkles, User, Camera } from 'lucide-react'
 import { getSettings, saveSettings, type Sex } from '../lib/settings'
 import { getDb } from '../lib/db'
-import { importNutriTrackerActivityHistory } from '../lib/nutriTrackerImport'
+import { refreshFitData } from '../lib/fitSync'
 import { consolidateData, totalDuplicates, type ConsolidationResult } from '../lib/dataConsolidation'
 import { compressImageToDataUrl } from '../lib/image'
-import { syncGoogleFit, getTodayGoogleFit } from '../lib/googleFit'
-import { autoLogWalkFromStepsIfNeeded } from '../lib/stepsActivity'
+import { getTodayGoogleFit } from '../lib/googleFit'
 import { playMotivation, type MotivationVoiceId } from '../lib/motivationVoice'
 
 export default function SettingsPage() {
@@ -91,8 +90,9 @@ export default function SettingsPage() {
     setNtImporting(true)
     setNtImportFlash(null)
     try {
-      const count = await importNutriTrackerActivityHistory(30, getSettings())
-      setNtImportFlash(count > 0 ? `${count} activité(s) importée(s)` : 'Rien de nouveau à importer')
+      const r = await refreshFitData(getSettings(), { force: true })
+      const parts = [r.imported > 0 ? `${r.imported} activité(s) importée(s)` : 'Rien de nouveau à importer', r.merged > 0 ? `${r.merged} doublon(s) fusionné(s)` : null]
+      setNtImportFlash(parts.filter(Boolean).join(' · '))
     } catch {
       setNtImportFlash('Échec — vérifie ta connexion et réessaie')
     } finally {
@@ -105,8 +105,7 @@ export default function SettingsPage() {
     setGfSyncing(true)
     setGfFlash(null)
     try {
-      await syncGoogleFit(14, { force: true })
-      await autoLogWalkFromStepsIfNeeded(getSettings())
+      await refreshFitData(getSettings(), { force: true })
       const today = await getTodayGoogleFit()
       setGfFlash(today ? `${today.steps.toLocaleString('fr-FR')} pas aujourd'hui` : 'Rien de disponible pour l\'instant')
     } catch {
