@@ -29,8 +29,8 @@ export default function AddPage() {
   function selectCategory(id: CatId) {
     if (id === 'endurance') navigate('/endurance')
     else if (id === 'musculation') navigate('/gym')
-    else if (id === 'loisirs') navigate('/activities', { state: { openForm: true, filterIds: LOISIRS_INTENSE_IDS } })
-    else navigate('/activities', { state: { openForm: true, filterIds: DETENTE_IDS } })
+    else if (id === 'loisirs') navigate('/endurance', { state: { openActivity: true, filterIds: LOISIRS_INTENSE_IDS } })
+    else navigate('/endurance', { state: { openActivity: true, filterIds: DETENTE_IDS } })
   }
 
   return (

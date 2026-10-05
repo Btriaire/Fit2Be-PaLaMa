@@ -1,12 +1,11 @@
 import { NavLink } from 'react-router-dom'
-import { Activity, Dumbbell, Home, HeartPulse, Apple, Footprints } from 'lucide-react'
+import { Activity, Dumbbell, Home, HeartPulse, Apple } from 'lucide-react'
 import clsx from 'clsx'
 
 const NAV_ITEMS = [
   { to: '/', label: 'Accueil', icon: Home },
   { to: '/gym', label: 'Gym', icon: Dumbbell },
-  { to: '/endurance', label: 'Endurance', icon: Activity },
-  { to: '/activities', label: 'Activités', icon: Footprints },
+  { to: '/endurance', label: 'Activité', icon: Activity },
   { to: '/recovery', label: 'Récup', icon: HeartPulse },
   { to: '/nutrition', label: 'Diet', icon: Apple },
 ]

@@ -1,7 +1,12 @@
 import { useEffect, useMemo, useState } from 'react'
 import { useLocation, useNavigate } from 'react-router-dom'
 import { Activity, ChevronDown, ChevronRight, Flame, Footprints, HeartPulse, Loader2, Plus, RefreshCw, Route, Trash2, TrendingUp, Timer, Watch, X } from 'lucide-react'
-import { ENDURANCE_ACTIVITY_META, computePaceMinPerKm, formatPace, getEnduranceSessions, logEnduranceSession, deleteEnduranceSession, getLoggedActivityTypes } from '../../lib/endurance'
+import { ENDURANCE_ACTIVITY_META, MET_TO_ENDURANCE, computePaceMinPerKm, formatPace, getEnduranceSessions, logEnduranceSession, deleteEnduranceSession, getLoggedActivityTypes } from '../../lib/endurance'
+import { getDb, newId } from '../../lib/db'
+import { pushRecord, deleteRecord } from '../../lib/cloudSync'
+import { pushActivityToNutriTracker } from '../../lib/nutriTrackerSync'
+import { MET_ACTIVITIES } from '../../lib/met'
+import { AddActivitySheet, ActivityLogRow } from '../activities/AddActivitySheet'
 import { getSettings } from '../../lib/settings'
 import { HR_ZONE_META } from '../../lib/heartRate'
 import { formatDate, formatTime, isToday, todayStr, addDays, dayKey } from '../../lib/date'
@@ -19,20 +24,27 @@ import CustomProgramBuilder from './CustomProgramBuilder'
 import RouteMap from '../../components/RouteMap'
 import ActivityHero from '../../components/ActivityHero'
 import BackButton from '../../components/BackButton'
-import type { EnduranceActivityType, EnduranceSession, HealthScreenCapture, MachineStats, PhaseLogEntry, RoutePoint } from '../../types'
+import type { ActivityLog, EnduranceActivityType, EnduranceSession, HealthScreenCapture, MachineStats, PhaseLogEntry, RoutePoint } from '../../types'
 import { ProgramPreview } from './ProgramPreview'
 import { EnduranceForm } from './EnduranceForm'
 
 interface NavState {
   openForm?: boolean
   scanResult?: ParsedMachineResult
+  /** Ouvre directement le choix d'activité (raccourcis de la page Ajouter, ancien lien Activités). */
+  openActivity?: boolean
+  filterIds?: string[]
 }
+
+type JournalItem = { kind: 'session'; at: number; session: EnduranceSession } | { kind: 'activity'; at: number; log: ActivityLog }
 
 export default function EndurancePage() {
   const navigate = useNavigate()
   const location = useLocation()
   const navState = (location.state as NavState) ?? {}
   const [sessions, setSessions] = useState<EnduranceSession[]>([])
+  const [logs, setLogs] = useState<ActivityLog[]>([])
+  const [addOpen, setAddOpen] = useState(navState.openActivity ?? false)
   const [loggedTypes, setLoggedTypes] = useState<Array<{ activityType: EnduranceActivityType; lastDate: number }>>([])
   const [formOpen, setFormOpen] = useState(navState.openForm ?? false)
   const [formType, setFormType] = useState<EnduranceActivityType | undefined>(undefined)
@@ -57,6 +69,7 @@ export default function EndurancePage() {
 
   async function refresh() {
     setSessions(await getEnduranceSessions())
+    setLogs(await (await getDb()).getAll('activities'))
     setLoggedTypes(await getLoggedActivityTypes())
     const days = await getGoogleFitDays(60)
     setStepsByDay(Object.fromEntries(days.map((d) => [d.date, d.steps])))
@@ -123,7 +136,11 @@ export default function EndurancePage() {
   const weekSessions = useMemo(() => sessions.filter((s) => s.startedAt >= weekStart && !isSynthetic(s)), [sessions, weekStart])
   const weekDistance = weekSessions.reduce((s, e) => s + (e.distanceKm ?? 0), 0)
   const weekZone2Min = weekSessions.filter((s) => s.hrZone === 2).reduce((s, e) => s + e.durationMin, 0)
-  const todayCalories = sessions.filter((s) => isToday(s.startedAt)).reduce((s, e) => s + e.caloriesBurned, 0)
+  // Même total que "kcal brûlées" de l'Accueil : sorties + activités + pas du quotidien.
+  const todayCalories =
+    sessions.filter((s) => isToday(s.startedAt)).reduce((sum, e) => sum + e.caloriesBurned, 0) +
+    logs.filter((l) => isToday(l.loggedAt)).reduce((sum, l) => sum + l.caloriesBurned, 0)
+  const lifeMetScore = Math.round(logs.filter((l) => isToday(l.loggedAt)).reduce((sum, l) => sum + l.metValue * (l.durationMin / 60), 0) * 10)
 
   // Démarrage rapide : les types réellement pratiqués, du plus récent au plus ancien.
   const quickTypes = useMemo(() => {
@@ -139,21 +156,26 @@ export default function EndurancePage() {
   // Historique en liste groupée par jour (au lieu d'une navigation jour par jour).
   const historyGroups = useMemo(() => {
     const since = new Date(`${addDays(todayStr(), -(historyDays - 1))}T00:00:00`).getTime()
-    const groups: { date: string; items: EnduranceSession[] }[] = []
-    for (const s of [...sessions].filter((x) => x.startedAt >= since).sort((a, b) => b.startedAt - a.startedAt)) {
-      const date = dayKey(s.startedAt)
+    const items: JournalItem[] = [
+      ...sessions.filter((x) => x.startedAt >= since).map((session): JournalItem => ({ kind: 'session', at: session.startedAt, session })),
+      ...logs.filter((l) => l.loggedAt >= since).map((log): JournalItem => ({ kind: 'activity', at: log.loggedAt, log })),
+    ]
+    const groups: { date: string; items: JournalItem[] }[] = []
+    for (const item of items.sort((a, b) => b.at - a.at)) {
+      const date = dayKey(item.at)
       const last = groups[groups.length - 1]
-      if (last && last.date === date) last.items.push(s)
-      else groups.push({ date, items: [s] })
+      if (last && last.date === date) last.items.push(item)
+      else groups.push({ date, items: [item] })
     }
-    // Les vraies séances d'abord, la marche auto (pas du jour) en fin de journée.
-    for (const g of groups) g.items.sort((a, b) => Number(isSynthetic(a)) - Number(isSynthetic(b)) || b.startedAt - a.startedAt)
+    // Sorties et activités d'abord, la marche auto (pas du jour) en fin de journée.
+    const autoLast = (i: JournalItem) => Number(i.kind === 'session' && isSynthetic(i.session))
+    for (const g of groups) g.items.sort((a, b) => autoLast(a) - autoLast(b) || b.at - a.at)
     return groups
-  }, [sessions, historyDays])
+  }, [sessions, logs, historyDays])
   const olderCount = useMemo(() => {
     const since = new Date(`${addDays(todayStr(), -(historyDays - 1))}T00:00:00`).getTime()
-    return sessions.filter((x) => x.startedAt < since).length
-  }, [sessions, historyDays])
+    return sessions.filter((x) => x.startedAt < since).length + logs.filter((l) => l.loggedAt < since).length
+  }, [sessions, logs, historyDays])
 
   function openForm(type?: EnduranceActivityType) {
     setFormType(type)
@@ -164,6 +186,44 @@ export default function EndurancePage() {
     if (date === todayStr()) return "Aujourd'hui"
     if (date === addDays(todayStr(), -1)) return 'Hier'
     return formatDate(new Date(`${date}T12:00:00`).getTime())
+  }
+
+  /** Activité du quotidien/loisir choisie dans "Qu'as-tu fait ?". */
+  async function addActivity(entry: Omit<ActivityLog, 'id' | 'loggedAt'>, metId: string) {
+    setAddOpen(false)
+    const enduranceType = MET_TO_ENDURANCE[metId]
+    if (enduranceType) {
+      // Raccourci historique (ex. "Marche rapide" depuis la page Ajouter) : c'est une sortie.
+      const saved = await logEnduranceSession(
+        { activityType: enduranceType, durationMin: entry.durationMin, startedAt: Date.now() - entry.durationMin * 60_000 },
+        settings,
+      )
+      if (saved.externalId) setNotice('Déjà enregistrée par ta montre : fusionnée, comptée une seule fois.')
+    } else {
+      const log: ActivityLog = { ...entry, id: newId(), loggedAt: Date.now(), source: 'manual' }
+      const db = await getDb()
+      await db.put('activities', log)
+      pushRecord('activities', log.id, log)
+      void pushActivityToNutriTracker({
+        name: entry.label,
+        activityType: MET_ACTIVITIES.find((a) => a.id === metId)?.googleFitType ?? 97,
+        durationMin: entry.durationMin,
+        caloriesBurned: entry.caloriesBurned,
+        date: dayKey(log.loggedAt),
+      })
+    }
+    refresh()
+    // Les pas de cette activité ne doivent plus compter dans la marche auto du jour.
+    void refreshFitData(settings).catch(() => {})
+  }
+
+  async function removeActivity(id: string) {
+    if (!confirm('Supprimer cette activité ?')) return
+    const db = await getDb()
+    await db.delete('activities', id)
+    deleteRecord('activities', id)
+    refresh()
+    void refreshFitData(settings).catch(() => {})
   }
 
   async function addSession(input: {
@@ -207,11 +267,28 @@ export default function EndurancePage() {
         <div className="absolute inset-x-0 top-0 flex items-center gap-2 px-4 pt-[calc(env(safe-area-inset-top)+16px)]">
           <BackButton />
           <Activity className="text-teal-400" size={24} />
-          <h1 className="text-xl font-semibold tracking-tight text-white drop-shadow">Endurance</h1>
+          <div>
+            <h1 className="text-xl font-semibold leading-tight tracking-tight text-white drop-shadow">Activité</h1>
+            <p className="text-[11px] text-zinc-200 drop-shadow">Sorties, sport et quotidien</p>
+          </div>
         </div>
       </div>
 
       <div className="px-4 pt-4">
+      <div className="glass mb-2 grid grid-cols-3 divide-x divide-zinc-800 rounded-2xl py-2.5 text-center" aria-label="Aujourd'hui">
+        <div>
+          <p className="text-lg font-bold text-orange-400">{todayCalories}</p>
+          <p className="text-[10px] text-zinc-500">kcal aujourd'hui</p>
+        </div>
+        <div>
+          <p className="text-lg font-bold text-teal-300">{(stepsByDay[todayStr()] ?? 0).toLocaleString('fr-FR')}</p>
+          <p className="text-[10px] text-zinc-500">pas</p>
+        </div>
+        <div>
+          <p className="text-lg font-bold text-zinc-100">{lifeMetScore}</p>
+          <p className="text-[10px] text-zinc-500">Life MET</p>
+        </div>
+      </div>
       <div className="mb-4 grid grid-cols-3 gap-2">
         <div className="glass rounded-2xl p-3">
           <p className="text-[11px] text-zinc-500">Séances 7 j</p>
@@ -234,10 +311,10 @@ export default function EndurancePage() {
       </div>
 
       <button
-        onClick={() => openForm()}
+        onClick={() => setAddOpen(true)}
         className="flex w-full items-center justify-center gap-1.5 rounded-2xl bg-teal-500 py-3.5 text-sm font-semibold text-zinc-950 active:bg-teal-400"
       >
-        <Plus size={16} /> Enregistrer une sortie
+        <Plus size={16} /> Ajouter une activité
       </button>
       <div className="mt-2 flex gap-1.5 overflow-x-auto pb-1" aria-label="Démarrage rapide">
         {quickTypes.map((t) => (
@@ -249,6 +326,12 @@ export default function EndurancePage() {
             + {ENDURANCE_ACTIVITY_META[t].label}
           </button>
         ))}
+        <button
+          onClick={() => setAddOpen(true)}
+          className="shrink-0 rounded-full bg-zinc-900 px-3 py-2 text-xs font-medium text-zinc-300 active:bg-zinc-800"
+        >
+          + Quotidien / loisir
+        </button>
       </div>
 
       <div className="mb-5 mt-2 flex items-center justify-between gap-2 rounded-xl bg-zinc-900/60 px-3 py-2">
@@ -272,12 +355,6 @@ export default function EndurancePage() {
             <X size={14} />
           </button>
         </div>
-      )}
-
-      {todayCalories > 0 && (
-        <p className="mb-4 px-1 text-xs text-zinc-500">
-          <span className="text-orange-400">{todayCalories} kcal</span> brûlées en endurance aujourd'hui
-        </p>
       )}
 
       <section className="mb-6">
@@ -342,18 +419,28 @@ export default function EndurancePage() {
       )}
 
       <section>
-        <h2 className="mb-2 text-sm font-medium text-zinc-400">Historique</h2>
-        {historyGroups.length === 0 && <p className="text-sm text-zinc-500">Aucune sortie sur les {historyDays} derniers jours.</p>}
+        <h2 className="mb-2 text-sm font-medium text-zinc-400">Journal</h2>
+        {historyGroups.length === 0 && <p className="text-sm text-zinc-500">Rien sur les {historyDays} derniers jours.</p>}
         <div className="space-y-4">
           {historyGroups.map((g) => (
             <div key={g.date}>
-              <p className="mb-1.5 flex items-baseline justify-between px-1 text-[11px] font-medium uppercase tracking-wide text-zinc-500">
+              <p className="mb-1.5 flex items-baseline justify-between gap-2 px-1 text-[11px] font-medium uppercase tracking-wide text-zinc-500">
                 <span>{dayLabel(g.date)}</span>
-                <span className="normal-case tracking-normal text-zinc-600">{g.items.reduce((sum, x) => sum + x.caloriesBurned, 0)} kcal</span>
+                <span className="flex items-center gap-1.5 normal-case tracking-normal text-zinc-500">
+                  {stepsByDay[g.date] != null && (
+                    <span className="flex items-center gap-0.5">
+                      <Footprints size={11} className="text-teal-400" />
+                      {stepsByDay[g.date].toLocaleString('fr-FR')} pas ·
+                    </span>
+                  )}
+                  {g.items.reduce((sum, x) => sum + (x.kind === 'session' ? x.session.caloriesBurned : x.log.caloriesBurned), 0)} kcal
+                </span>
               </p>
               <ul className="space-y-2">
-                {g.items.map((s) =>
-                  isSynthetic(s) ? (
+                {g.items.map((item) => {
+                  if (item.kind === 'activity') return <ActivityLogRow key={item.log.id} log={item.log} onDelete={removeActivity} />
+                  const s = item.session
+                  return isSynthetic(s) ? (
                     <li key={s.id}>
                       <button
                         onClick={() => navigate(`/endurance/session/${s.id}`)}
@@ -361,17 +448,15 @@ export default function EndurancePage() {
                       >
                         <Footprints size={14} className="shrink-0 text-teal-400" />
                         <span className="flex-1">
-                          Pas du quotidien
-                          {stepsByDay[g.date] != null && <span className="text-zinc-500"> · {stepsByDay[g.date].toLocaleString('fr-FR')} pas</span>}
-                          <span className="text-zinc-500"> · {s.durationMin} min · auto</span>
+                          Pas du quotidien <span className="text-zinc-500">· {s.durationMin} min hors séances · auto</span>
                         </span>
                         <span className="font-semibold text-orange-400/80">{s.caloriesBurned} kcal</span>
                       </button>
                     </li>
                   ) : (
                     <SessionRow key={s.id} session={s} onOpen={() => navigate(`/endurance/session/${s.id}`)} onDelete={() => removeSession(s.id)} onPhoto={setViewerPhoto} />
-                  ),
-                )}
+                  )
+                })}
               </ul>
             </div>
           ))}
@@ -385,6 +470,19 @@ export default function EndurancePage() {
           </button>
         )}
       </section>
+
+      {addOpen && (
+        <AddActivitySheet
+          filterIds={navState.filterIds}
+          preferredTypes={quickTypes}
+          onClose={() => setAddOpen(false)}
+          onPickEndurance={(t) => {
+            setAddOpen(false)
+            openForm(t)
+          }}
+          onSubmitActivity={addActivity}
+        />
+      )}
 
       {formOpen && (
         <EnduranceForm

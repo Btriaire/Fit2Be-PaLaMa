@@ -1,5 +1,5 @@
 import { Suspense, lazy, useEffect, useState } from 'react'
-import { Route, Routes, useNavigate } from 'react-router-dom'
+import { Navigate, Route, Routes, useLocation, useNavigate } from 'react-router-dom'
 import { getDb } from './lib/db'
 import { restoreFromCloudIfNeeded, pushProfileRecord } from './lib/cloudSync'
 import { refreshFitData } from './lib/fitSync'
@@ -16,7 +16,6 @@ const SettingsPage = lazy(() => import('./pages/SettingsPage'))
 const GymHome = lazy(() => import('./pages/gym/GymHome'))
 const WorkoutRunner = lazy(() => import('./pages/gym/WorkoutRunner'))
 const ExerciseHistory = lazy(() => import('./pages/gym/ExerciseHistory'))
-const ActivitiesPage = lazy(() => import('./pages/activities/ActivitiesPage'))
 const RecoveryPage = lazy(() => import('./pages/recovery/RecoveryPage'))
 const NutritionPage = lazy(() => import('./pages/nutrition/NutritionPage'))
 const EndurancePage = lazy(() => import('./pages/endurance/EndurancePage'))
@@ -33,6 +32,13 @@ import OnboardingPage, { ONBOARDED_KEY } from './pages/OnboardingPage'
 function TimerRoute() {
   const navigate = useNavigate()
   return <TimerPage onClose={() => navigate(-1)} />
+}
+
+// Activités et Endurance ne font plus qu'une page ("Activité") : les anciens liens y mènent,
+// en ouvrant le choix d'activité s'ils demandaient le formulaire.
+function ActivitiesRedirect() {
+  const state = (useLocation().state ?? {}) as { openForm?: boolean; filterIds?: string[] }
+  return <Navigate to="/endurance" replace state={{ openActivity: !!state.openForm, filterIds: state.filterIds }} />
 }
 
 const ENTERED_KEY = 'vibefit_entered'
@@ -133,7 +139,7 @@ function App() {
           <Route path="/gym" element={<GymHome />} />
           <Route path="/gym/workout/:workoutId" element={<WorkoutRunner />} />
           <Route path="/gym/exercise/:exerciseId" element={<ExerciseHistory />} />
-          <Route path="/activities" element={<ActivitiesPage />} />
+          <Route path="/activities" element={<ActivitiesRedirect />} />
           <Route path="/recovery" element={<RecoveryPage />} />
           <Route path="/nutrition" element={<NutritionPage />} />
           <Route path="/endurance" element={<EndurancePage />} />

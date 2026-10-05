@@ -26,6 +26,17 @@ export const ENDURANCE_ACTIVITY_META: Record<
   marche: { label: 'Marche', met: 4.3, hasDistance: true, googleFitType: 46 },
 }
 
+/** Activités MET qui sont en fait de l'endurance : enregistrées comme une sortie (une seule
+ * source, avec distance/FC/progression et fusion avec la montre). */
+export const MET_TO_ENDURANCE: Record<string, EnduranceActivityType> = {
+  'running-10kmh': 'course',
+  'running-8kmh': 'course',
+  'cycling-moderate': 'velo',
+  swimming: 'natation',
+  hiking: 'marche',
+  'walking-brisk': 'marche',
+}
+
 export function computePaceMinPerKm(durationMin: number, distanceKm: number): number | null {
   if (!distanceKm || distanceKm <= 0) return null
   return durationMin / distanceKm

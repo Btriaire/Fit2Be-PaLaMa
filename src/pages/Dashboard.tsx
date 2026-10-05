@@ -344,11 +344,10 @@ export default function Dashboard() {
 
         <div className="grid grid-cols-2 gap-2.5">
           <BigModuleCard to="/gym" heroKey="gym" icon={<Dumbbell size={22} />} title="Fitness" color="text-orange-400" />
-          <BigModuleCard to="/endurance" heroKey="velo" icon={<Activity size={22} />} title="Endurance" color="text-teal-300" />
+          <BigModuleCard to="/endurance" heroKey="velo" icon={<Activity size={22} />} title="Activité" color="text-teal-300" />
         </div>
 
-        <div className="grid grid-cols-4 gap-2">
-          <ShortcutTile to="/activities" icon={<Footprints size={20} />} label="Activités" color="text-teal-300" />
+        <div className="grid grid-cols-3 gap-2">
           <ShortcutTile to="/recovery" icon={<HeartPulse size={20} />} label="Récup" color="text-indigo-300" />
           <ShortcutTile to="/nutrition" icon={<Apple size={20} />} label="Diet" color="text-orange-300" />
           <ShortcutTile to="/progression" icon={<TrendingUp size={20} />} label="Progrès" color="text-indigo-300" />
