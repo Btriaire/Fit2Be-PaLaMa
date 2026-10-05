@@ -48,6 +48,35 @@ describe('check-in du jour', () => {
     expect(reloaded.draft.sleepSource).toBe('manual')
   })
 
+  it('reprend fatigue et motivation du dernier check-in récent (elles persistent)', async () => {
+    const draft = { sleepHours: 7, sleepSource: 'manual' as const, generalFatigue: 7, muscleFatigue: 8, motivation: 2 }
+    await saveCheckin('2026-10-04', draft, PROFILE)
+    const loaded = await loadCheckinDraft(DAY)
+    expect(loaded.prefilledFromDate).toBe('2026-10-04')
+    expect(loaded.draft).toMatchObject({ generalFatigue: 7, muscleFatigue: 8, motivation: 2 })
+  })
+
+  it('ignore un check-in trop ancien (> 3 jours)', async () => {
+    await saveCheckin('2026-09-28', { sleepHours: 7, sleepSource: 'manual', generalFatigue: 9, muscleFatigue: 9, motivation: 1 }, PROFILE)
+    const loaded = await loadCheckinDraft(DAY)
+    expect(loaded.prefilledFromDate).toBeNull()
+    expect(loaded.draft.generalFatigue).toBe(5)
+  })
+
+  it('met à jour le sommeil si Google Fit l’envoie après le check-in, sauf correction manuelle', async () => {
+    await saveCheckin(DAY, { sleepHours: 7, sleepSource: 'none', generalFatigue: 3, muscleFatigue: 3, motivation: 4 }, PROFILE)
+    gfSleep = 400
+    const auto = await loadCheckinDraft(DAY)
+    expect(auto.sleepRefreshed).toBe(true)
+    expect(auto.draft.sleepHours).toBe(6.75)
+    expect(auto.draft.sleepSource).toBe('googlefit')
+
+    await saveCheckin(DAY, { ...auto.draft, sleepHours: 8, sleepSource: 'manual' }, PROFILE)
+    const manual = await loadCheckinDraft(DAY)
+    expect(manual.sleepRefreshed).toBe(false)
+    expect(manual.draft.sleepHours).toBe(8)
+  })
+
   it('score : forme parfaite = 100, tout au plus mal = bas', () => {
     expect(computeSubjectiveScore({ sleepHours: 8, generalFatigue: 1, muscleFatigue: 1, motivation: 5 }, 480)).toBe(100)
     expect(computeSubjectiveScore({ sleepHours: 3, generalFatigue: 10, muscleFatigue: 10, motivation: 1 }, 480)).toBeLessThanOrEqual(30)

@@ -38,6 +38,7 @@ export default function DailyCheckinCard({
   const [saved, setSaved] = useState<RecoveryCheckin | null>(null)
   const [expanded, setExpanded] = useState(false)
   const [flash, setFlash] = useState(false)
+  const [prefilledFrom, setPrefilledFrom] = useState<string | null>(null)
   const timer = useRef<number | null>(null)
   const pending = useRef<CheckinDraft | null>(null)
   const onChangeRef = useRef(onChange)
@@ -47,24 +48,30 @@ export default function DailyCheckinCard({
 
   useEffect(() => {
     let alive = true
-    loadCheckinDraft(date).then(({ draft: d, saved: s }) => {
+    loadCheckinDraft(date).then(({ draft: d, saved: s, prefilledFromDate, sleepRefreshed }) => {
       if (!alive) return
       setDraft(d)
       setSaved(s)
       setExpanded(!s)
+      setPrefilledFrom(prefilledFromDate)
       onChangeRef.current?.(d, s)
+      // La nuit est arrivée de Google Fit après le check-in : on l'enregistre sans rien demander.
+      if (sleepRefreshed) void persist(d, { silent: true })
     })
     return () => {
       alive = false
     }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [date])
 
-  async function persist(d: CheckinDraft) {
+  async function persist(d: CheckinDraft, opts: { silent?: boolean } = {}) {
     pending.current = null
     const s = await saveCheckin(date, d, settings)
     setSaved(s)
-    setFlash(true)
-    window.setTimeout(() => setFlash(false), 1200)
+    if (!opts.silent) {
+      setFlash(true)
+      window.setTimeout(() => setFlash(false), 1200)
+    }
     onChangeRef.current?.(d, s)
   }
 
@@ -139,7 +146,9 @@ export default function DailyCheckinCard({
           <h2 className="flex items-center gap-1.5 text-sm font-semibold">
             <ClipboardCheck size={16} className="text-teal-300" /> Check-in du jour
           </h2>
-          <p className="mt-0.5 text-[11px] text-zinc-500">10 secondes · enregistré au fur et à mesure</p>
+          <p className="mt-0.5 text-[11px] text-zinc-500">
+            {prefilledFrom && !saved ? 'Repris de ta dernière saisie — ajuste ce qui a changé' : '10 secondes · enregistré au fur et à mesure'}
+          </p>
         </div>
         <span className={`flex items-center gap-1 text-[11px] text-teal-300 transition-opacity ${flash ? 'opacity-100' : 'opacity-0'}`} aria-live="polite">
           <Check size={12} /> Enregistré

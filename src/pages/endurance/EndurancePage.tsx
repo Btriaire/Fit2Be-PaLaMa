@@ -28,14 +28,6 @@ interface NavState {
   scanResult?: ParsedMachineResult
 }
 
-function startOfWeek(): number {
-  const d = new Date()
-  const day = (d.getDay() + 6) % 7 // lundi = 0
-  d.setHours(0, 0, 0, 0)
-  d.setDate(d.getDate() - day)
-  return d.getTime()
-}
-
 export default function EndurancePage() {
   const navigate = useNavigate()
   const location = useLocation()
@@ -125,7 +117,9 @@ export default function EndurancePage() {
     return [...byType.entries()]
   }, [visibleCoachingPrograms])
 
-  const weekStart = startOfWeek()
+  // 7 derniers jours glissants, comme "Séances 7 j" de l'Accueil (une semaine calendaire
+  // affichait 1 séance le lundi matin quand l'Accueil en comptait 3).
+  const weekStart = new Date(`${addDays(todayStr(), -6)}T00:00:00`).getTime()
   const weekSessions = useMemo(() => sessions.filter((s) => s.startedAt >= weekStart && !isSynthetic(s)), [sessions, weekStart])
   const weekDistance = weekSessions.reduce((s, e) => s + (e.distanceKm ?? 0), 0)
   const weekZone2Min = weekSessions.filter((s) => s.hrZone === 2).reduce((s, e) => s + e.durationMin, 0)
@@ -220,18 +214,18 @@ export default function EndurancePage() {
       <div className="px-4 pt-4">
       <div className="mb-4 grid grid-cols-3 gap-2">
         <div className="glass rounded-2xl p-3">
-          <p className="text-[11px] text-zinc-500">Séances (sem.)</p>
+          <p className="text-[11px] text-zinc-500">Séances 7 j</p>
           <p className="mt-0.5 text-xl font-bold text-teal-400">{weekSessions.length}</p>
         </div>
         <div className="glass rounded-2xl p-3">
-          <p className="text-[11px] text-zinc-500">Distance</p>
+          <p className="text-[11px] text-zinc-500">Distance 7 j</p>
           <p className="mt-0.5 text-xl font-bold text-teal-400">
             {weekDistance.toFixed(1)}
             <span className="ml-0.5 text-xs font-medium">km</span>
           </p>
         </div>
         <div className="glass rounded-2xl p-3">
-          <p className="text-[11px] text-zinc-500">Zone 2</p>
+          <p className="text-[11px] text-zinc-500">Zone 2 · 7 j</p>
           <p className="mt-0.5 text-xl font-bold text-teal-400">
             {weekZone2Min}
             <span className="ml-0.5 text-xs font-medium">min</span>

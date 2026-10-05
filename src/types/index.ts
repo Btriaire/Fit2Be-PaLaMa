@@ -198,8 +198,9 @@ export interface RecoveryCheckin {
   sleepQuality?: 1 | 2 | 3 | 4 | 5
   stressLevel?: 1 | 2 | 3 | 4 | 5
   sleepHours?: number
-  /** D'où vient la durée de sommeil : Google Fit (pré-rempli) ou saisie à la main. */
-  sleepSource?: 'googlefit' | 'manual'
+  /** D'où vient la durée de sommeil : Google Fit, saisie à la main, ou valeur par défaut
+   * ('none', à remplacer dès que Google Fit transmet la nuit). Absent = ancien check-in, saisi. */
+  sleepSource?: 'googlefit' | 'manual' | 'none'
   /** Fatigue générale 1-10 (ex-curseur "Générale" de l'Accueil, désormais dans le check-in). */
   generalFatigue?: number
   muscleFatigue: number // 1-10 (les anciens check-ins vont de 1 à 5, sous-ensemble valide)

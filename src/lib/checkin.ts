@@ -94,33 +94,67 @@ export async function getCheckin(date: string): Promise<RecoveryCheckin | null> 
   return rows[0] ?? null
 }
 
-/** Valeurs de départ : le check-in déjà fait, sinon le sommeil Google Fit et les
- * anciens curseurs de fatigue de l'Accueil (échelle 1-5 → 1-10). */
-export async function loadCheckinDraft(date: string): Promise<{ draft: CheckinDraft; saved: RecoveryCheckin | null }> {
-  const saved = await getCheckin(date)
+export interface LoadedCheckin {
+  draft: CheckinDraft
+  saved: RecoveryCheckin | null
+  /** Fatigue/motivation reprises du dernier check-in (elles persistent d'un jour à l'autre). */
+  prefilledFromDate: string | null
+  /** Le sommeil Google Fit est arrivé après le check-in : la valeur a été mise à jour. */
+  sleepRefreshed: boolean
+}
+
+const toQuarterHours = (minutes: number) => Math.round((minutes / 60) * 4) / 4
+
+/** Valeurs de départ : le check-in déjà fait (sommeil rafraîchi si Google Fit l'a transmis
+ * depuis, sauf correction manuelle), sinon le dernier check-in récent pour la fatigue et
+ * la motivation, le sommeil Google Fit, et à défaut les anciens curseurs de l'Accueil. */
+export async function loadCheckinDraft(date: string): Promise<LoadedCheckin> {
+  const [saved, gf] = await Promise.all([getCheckin(date), getGoogleFitForDate(date)])
+  const gfHours = gf?.sleepMinutes != null ? toQuarterHours(gf.sleepMinutes) : null
+
   if (saved) {
+    const sleepSource = saved.sleepSource ?? (saved.sleepHours != null ? 'manual' : 'none')
+    const sleepRefreshed = sleepSource !== 'manual' && gfHours != null && gfHours !== saved.sleepHours
     return {
       saved,
+      prefilledFromDate: null,
+      sleepRefreshed,
       draft: {
-        sleepHours: saved.sleepHours ?? 7,
-        sleepSource: saved.sleepSource ?? (saved.sleepHours != null ? 'manual' : 'none'),
+        sleepHours: sleepRefreshed ? (gfHours as number) : (saved.sleepHours ?? 7),
+        sleepSource: sleepRefreshed ? 'googlefit' : sleepSource,
         generalFatigue: saved.generalFatigue ?? 5,
         muscleFatigue: saved.muscleFatigue,
         motivation: saved.motivation,
       },
     }
   }
-  const [gf, legacy] = await Promise.all([getGoogleFitForDate(date), getFatigue(date)])
+
+  // Dernier check-in des 3 jours précédents, au nouveau format (fatigue sur 10).
+  const all = await (await getDb()).getAllFromIndex('recovery', 'byDate')
+  const minDate = shiftDate(date, -3)
+  const previous = all
+    .filter((c) => c.date < date && c.date >= minDate && c.generalFatigue != null)
+    .sort((a, b) => b.date.localeCompare(a.date))[0]
+  const legacy = previous ? null : await getFatigue(date)
+
   return {
     saved: null,
+    prefilledFromDate: previous?.date ?? null,
+    sleepRefreshed: false,
     draft: {
-      sleepHours: gf?.sleepMinutes != null ? Math.round((gf.sleepMinutes / 60) * 4) / 4 : 7,
-      sleepSource: gf?.sleepMinutes != null ? 'googlefit' : 'none',
-      generalFatigue: legacy ? legacy.general * 2 : 5,
-      muscleFatigue: legacy ? legacy.muscular * 2 : 5,
-      motivation: 3,
+      sleepHours: gfHours ?? 7,
+      sleepSource: gfHours != null ? 'googlefit' : 'none',
+      generalFatigue: previous?.generalFatigue ?? (legacy ? legacy.general * 2 : 5),
+      muscleFatigue: previous?.muscleFatigue ?? (legacy ? legacy.muscular * 2 : 5),
+      motivation: previous?.motivation ?? 3,
     },
   }
+}
+
+function shiftDate(date: string, days: number): string {
+  const d = new Date(`${date}T12:00:00`)
+  d.setDate(d.getDate() + days)
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`
 }
 
 /** Enregistre le check-in du jour (un seul par jour), score Body Battery recalculé avec la charge du jour. */
@@ -139,7 +173,7 @@ export async function saveCheckin(date: string, draft: CheckinDraft, settings: S
     id: keep?.id ?? newId(),
     date,
     sleepHours: draft.sleepHours,
-    ...(draft.sleepSource !== 'none' ? { sleepSource: draft.sleepSource } : {}),
+    sleepSource: draft.sleepSource,
     generalFatigue: draft.generalFatigue,
     muscleFatigue: draft.muscleFatigue,
     motivation: draft.motivation as RecoveryCheckin['motivation'],
