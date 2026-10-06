@@ -1,21 +1,23 @@
 import { SOURCE_LABEL, inferSource } from '../../lib/dataSource'
 import { useEffect, useRef, useState } from 'react'
 import { useNavigate, useParams } from 'react-router-dom'
-import { ChevronLeft, Timer, Route, HeartPulse, Flame, Zap, Gauge, Mountain, Trash2, TrendingUp, Activity, Pencil, Check, X, Split, Camera, Loader2 } from 'lucide-react'
+import { ChevronLeft, Timer, Route, HeartPulse, Flame, Zap, Gauge, Mountain, Trash2, TrendingUp, Activity, Pencil, X, Split, Camera, Loader2 } from 'lucide-react'
 import {
   getEnduranceSession,
   getEnduranceSessions,
   deleteEnduranceSession,
-  updateEnduranceActivityType,
   attachSessionPhoto,
-  splitWalkIntoActivity,
-  WALK_SPLIT_ACTIVITIES,
   computePaceMinPerKm,
   formatPace,
   ENDURANCE_ACTIVITY_META,
 } from '../../lib/endurance'
 import { scanMachineResults, compressImageForDisplay } from '../../lib/machineScan'
 import { isSynthetic } from '../../lib/enduranceMerge'
+import { getDb } from '../../lib/db'
+import { WALK_CATEGORIES, allocationLogsFor, needsCategorizing } from '../../lib/walkAllocation'
+import { refreshFitData } from '../../lib/fitSync'
+import WalkAllocationSheet from '../../components/WalkAllocationSheet'
+import EnduranceEditSheet from './EnduranceEditSheet'
 import { getSettings } from '../../lib/settings'
 import { computeCaloriesFromPhaseLog } from '../../lib/met'
 import { HR_ZONE_META, computeMaxHr } from '../../lib/heartRate'
@@ -26,7 +28,7 @@ import { formatDate, formatTime } from '../../lib/date'
 import { ENDURANCE_PROGRAMS } from '../../lib/endurancePrograms'
 import RouteMap from '../../components/RouteMap'
 import ActivityHero from '../../components/ActivityHero'
-import type { EnduranceActivityType, EnduranceSession } from '../../types'
+import type { ActivityLog, EnduranceSession } from '../../types'
 
 const PHASE_INTENSITY_COLOR: Record<'facile' | 'modéré' | 'dur', string> = {
   facile: 'var(--color-turquoise)',
@@ -73,13 +75,11 @@ export default function EnduranceSessionDetail() {
   const { sessionId } = useParams<{ sessionId: string }>()
   const navigate = useNavigate()
   const [session, setSession] = useState<EnduranceSession | null | undefined>(undefined)
-  const [editingType, setEditingType] = useState(false)
+  const [editOpen, setEditOpen] = useState(false)
+  const [allocOpen, setAllocOpen] = useState(false)
+  const [logs, setLogs] = useState<ActivityLog[]>([])
   const [photoViewerOpen, setPhotoViewerOpen] = useState(false)
   const [programHistory, setProgramHistory] = useState<EnduranceSession[]>([])
-  const [splitOpen, setSplitOpen] = useState(false)
-  const [splitActivity, setSplitActivity] = useState(WALK_SPLIT_ACTIVITIES[0])
-  const [splitMinutes, setSplitMinutes] = useState('15')
-  const [splitting, setSplitting] = useState(false)
   const [scanning, setScanning] = useState(false)
   const [scanError, setScanError] = useState<string | null>(null)
   const photoInputRef = useRef<HTMLInputElement>(null)
@@ -108,6 +108,7 @@ export default function EnduranceSessionDetail() {
   useEffect(() => {
     if (!sessionId) return
     getEnduranceSession(sessionId).then((s) => setSession(s ?? null))
+    getDb().then((db) => db.getAll('activities')).then(setLogs)
   }, [sessionId])
 
   useEffect(() => {
@@ -126,26 +127,11 @@ export default function EnduranceSessionDetail() {
     navigate('/endurance')
   }
 
-  async function changeActivityType(activityType: EnduranceActivityType) {
-    if (!session) return
-    const updated = await updateEnduranceActivityType(session.id, activityType, settings)
-    if (updated) setSession(updated)
-    setEditingType(false)
-  }
-
-  async function confirmSplit() {
-    if (!session) return
-    const minutes = parseInt(splitMinutes, 10)
-    if (!minutes || minutes <= 0) return
-    setSplitting(true)
-    await splitWalkIntoActivity(session.id, splitActivity, minutes, settings)
-    setSplitting(false)
-    setSplitOpen(false)
-    if (minutes >= session.durationMin) {
-      navigate('/endurance')
-      return
-    }
-    getEnduranceSession(session.id).then((s) => setSession(s ?? null))
+  async function reloadSession() {
+    if (!sessionId) return
+    const [s2, all] = await Promise.all([getEnduranceSession(sessionId), getDb().then((db) => db.getAll('activities'))])
+    setSession(s2 ?? null)
+    setLogs(all)
   }
 
   if (session === undefined) {
@@ -185,13 +171,15 @@ export default function EnduranceSessionDetail() {
               {formatDate(session.startedAt)} · {formatTime(session.startedAt)}
             </p>
           </div>
-          <button
-            onClick={() => setEditingType((v) => !v)}
-            className="rounded-full bg-zinc-950/40 p-2 text-white active:bg-zinc-900"
-            aria-label="Changer le type d'activité"
-          >
-            <Pencil size={16} />
-          </button>
+          {!isSynthetic(session) && (
+            <button
+              onClick={() => setEditOpen(true)}
+              className="flex items-center gap-1.5 rounded-full bg-zinc-950/50 px-3 py-2 text-xs font-semibold text-white active:bg-zinc-900"
+              aria-label="Modifier la sortie"
+            >
+              <Pencil size={14} /> Modifier
+            </button>
+          )}
         </div>
       </div>
 
@@ -220,28 +208,13 @@ export default function EnduranceSessionDetail() {
           </div>
         )}
 
-        {editingType && (
-          <div className="mb-4 grid grid-cols-2 gap-1.5">
-            {(Object.keys(ENDURANCE_ACTIVITY_META) as EnduranceActivityType[]).map((key) => (
-              <button
-                key={key}
-                onClick={() => changeActivityType(key)}
-                className={`flex items-center justify-between rounded-lg px-2.5 py-2.5 text-left text-xs font-medium ${
-                  key === session.activityType ? 'bg-teal-500 text-zinc-950' : 'bg-zinc-900 text-zinc-300'
-                }`}
-              >
-                {ENDURANCE_ACTIVITY_META[key].label}
-                {key === session.activityType && <Check size={14} />}
-              </button>
-            ))}
-          </div>
-        )}
 
         <div className="mb-4 grid grid-cols-2 gap-2">
           <Metric icon={<Timer size={13} />} label="Durée" value={`${session.durationMin} min`} />
           {session.distanceKm != null && <Metric icon={<Route size={13} />} label="Distance" value={`${session.distanceKm} km`} />}
           {pace && <Metric icon={<Gauge size={13} />} label="Allure" value={formatPace(pace)} />}
           <Metric icon={<Flame size={13} />} label="Calories" value={`${session.caloriesBurned} kcal`} tag="→ Balance kcal, indice cardiaque" />
+          {session.rpe != null && <Metric icon={<Activity size={13} />} label="Ressenti" value={`${session.rpe} / 10`} tag="→ Charge du jour" />}
         </div>
 
         {session.notes && <p className="mb-4 px-1 text-[11px] text-zinc-600">ℹ️ {session.notes}</p>}
@@ -249,48 +222,37 @@ export default function EnduranceSessionDetail() {
 
         {session.activityType === 'marche' && (
           <section className="glass mb-4 rounded-2xl p-4">
-            <button onClick={() => setSplitOpen((v) => !v)} className="flex w-full items-center gap-1.5 text-xs font-medium uppercase tracking-wide text-zinc-500">
-              <Split size={13} className="text-teal-400" /> Une partie de cette marche était une autre activité ?
-            </button>
-            {splitOpen && (
-              <div className="mt-3">
-                <p className="mb-2 text-[11px] text-zinc-600">
-                  Évite de compter ces pas deux fois : retire des minutes de cette marche pour les reverser dans une activité "Quotidien".
-                </p>
-                <div className="mb-3 grid grid-cols-2 gap-1.5">
-                  {WALK_SPLIT_ACTIVITIES.map((a) => (
-                    <button
-                      key={a.label}
-                      onClick={() => setSplitActivity(a)}
-                      className={`rounded-lg px-2.5 py-2 text-left text-xs font-medium ${
-                        splitActivity.label === a.label ? 'bg-teal-500 text-zinc-950' : 'bg-zinc-900 text-zinc-300'
-                      }`}
-                    >
-                      {a.label}
-                    </button>
-                  ))}
-                </div>
-                <div className="flex items-center gap-2">
-                  <input
-                    type="number"
-                    inputMode="numeric"
-                    value={splitMinutes}
-                    onChange={(e) => setSplitMinutes(e.target.value)}
-                    min={1}
-                    max={session.durationMin}
-                    className="w-20 rounded-lg bg-zinc-900 px-3 py-2 text-center outline-none focus:ring-1 focus:ring-teal-500"
-                  />
-                  <span className="text-xs text-zinc-500">min sur {session.durationMin} min à reclasser en "{splitActivity.label}"</span>
-                </div>
-                <button
-                  onClick={confirmSplit}
-                  disabled={splitting}
-                  className="mt-3 flex w-full items-center justify-center gap-1.5 rounded-xl bg-teal-500 py-2.5 text-sm font-semibold text-zinc-950 active:bg-teal-400 disabled:opacity-60"
-                >
-                  Confirmer
-                </button>
-              </div>
+            <h2 className="mb-1 flex items-center gap-1.5 text-xs font-medium uppercase tracking-wide text-zinc-500">
+              <Split size={13} className="text-teal-400" /> À quoi correspondait cette marche ?
+            </h2>
+            {allocationLogsFor(session.id, logs).length > 0 ? (
+              <ul className="mb-2 mt-2 space-y-1 text-xs text-zinc-300">
+                {allocationLogsFor(session.id, logs).map((l) => (
+                  <li key={l.id} className="flex justify-between">
+                    <span>{WALK_CATEGORIES.find((c) => c.activityLabel === l.label)?.label ?? l.label}</span>
+                    <span className="text-zinc-500">
+                      {l.durationMin} min · {l.caloriesBurned} kcal
+                    </span>
+                  </li>
+                ))}
+                {session.durationMin > 0 && (
+                  <li className="flex justify-between text-zinc-500">
+                    <span>Journée normale (reste)</span>
+                    <span>{session.durationMin} min</span>
+                  </li>
+                )}
+              </ul>
+            ) : (
+              <p className="mb-2 text-[11px] text-zinc-500">
+                {needsCategorizing(session, logs) ? 'Courses, jardinage, trajets… réattribue tout ou partie de ces pas (ex. 50 % / 50 %).' : 'Confirmée comme marche.'}
+              </p>
             )}
+            <button
+              onClick={() => setAllocOpen(true)}
+              className="flex w-full items-center justify-center gap-1.5 rounded-xl bg-teal-500/15 py-2.5 text-sm font-semibold text-teal-300 active:bg-teal-500/25"
+            >
+              {allocationLogsFor(session.id, logs).length > 0 || session.walkCategorized ? 'Modifier la répartition' : 'Catégoriser'}
+            </button>
           </section>
         )}
 
@@ -470,6 +432,32 @@ export default function EnduranceSessionDetail() {
           <TrendingUp size={16} /> Voir la progression sur {meta.label.toLowerCase()}
         </button>
       </div>
+
+      {editOpen && (
+        <EnduranceEditSheet
+          session={session}
+          onClose={() => setEditOpen(false)}
+          onSaved={(updated) => {
+            setSession(updated)
+            setEditOpen(false)
+            // Une durée de marche/course corrigée change la marche auto du jour.
+            void refreshFitData(settings).catch(() => {})
+          }}
+        />
+      )}
+
+      {allocOpen && (
+        <WalkAllocationSheet
+          walk={session}
+          logs={logs}
+          onClose={() => setAllocOpen(false)}
+          onSaved={async () => {
+            setAllocOpen(false)
+            await reloadSession()
+            void refreshFitData(settings).catch(() => {})
+          }}
+        />
+      )}
 
       {photoViewerOpen && session.photoDataUrl && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/90 p-4" onClick={() => setPhotoViewerOpen(false)}>

@@ -146,9 +146,9 @@ export default function Dashboard() {
   const windowStart = windowEnd - 7 * 86_400_000
   const weeklySessions =
     workouts.filter((w) => w.finishedAt && w.startedAt >= windowStart && w.startedAt <= windowEnd).length +
-    endurance.filter((e) => !e.id.startsWith('steps-') && e.startedAt >= windowStart && e.startedAt <= windowEnd).length
+    endurance.filter((e) => !e.id.startsWith('steps-') && e.durationMin > 0 && e.startedAt >= windowStart && e.startedAt <= windowEnd).length
   const sessionsToday =
-    todayWorkouts.length + endurance.filter((e) => !e.id.startsWith('steps-') && isSameDay(e.startedAt, selectedDate)).length
+    todayWorkouts.length + endurance.filter((e) => !e.id.startsWith('steps-') && e.durationMin > 0 && isSameDay(e.startedAt, selectedDate)).length
 
   const lastSession = latestSession(workouts, endurance, activities)
   const suggestion = isToday

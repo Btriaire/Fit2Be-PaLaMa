@@ -15,6 +15,7 @@ export function ExerciseBlock({
   onFocus,
   onRemove,
   onEditSet,
+  onDeleteSet,
 }: {
   we: WorkoutExercise
   onAddSet: (set: Omit<SetEntry, 'id' | 'exerciseId' | 'completedAt' | 'isPr'>) => void
@@ -23,7 +24,8 @@ export function ExerciseBlock({
   restTimerDefaultSec: number
   onFocus: () => void
   onRemove: () => void
-  onEditSet: (setId: string, patch: { weightKg: number; reps: number }) => void
+  onEditSet: (setId: string, patch: { weightKg: number; reps: number; rpe?: number; isWarmup: boolean }) => void
+  onDeleteSet: (setId: string) => void
 }) {
   const exercise = ALL_EXERCISES.find((e) => e.id === we.exerciseId)
   const estimatedMin = estimateExerciseDurationMin(restTimerDefaultSec)
@@ -36,18 +38,30 @@ export function ExerciseBlock({
   const [editingSetId, setEditingSetId] = useState<string | null>(null)
   const [editWeight, setEditWeight] = useState('')
   const [editReps, setEditReps] = useState('')
+  const [editRpe, setEditRpe] = useState('')
+  const [editWarmup, setEditWarmup] = useState(false)
 
   function startEditSet(s: SetEntry) {
     setEditingSetId(s.id)
     setEditWeight(String(s.weightKg))
     setEditReps(String(s.reps))
+    setEditRpe(s.rpe != null ? String(s.rpe) : '')
+    setEditWarmup(s.isWarmup)
   }
 
   function confirmEditSet() {
-    const w = parseFloat(editWeight)
+    const w = parseFloat(editWeight.replace(',', '.'))
     const r = parseInt(editReps, 10)
-    if (!w || !r || !editingSetId) return
-    onEditSet(editingSetId, { weightKg: w, reps: r })
+    if (Number.isNaN(w) || w < 0 || !r || !editingSetId) return
+    const rpeVal = editRpe ? parseFloat(editRpe.replace(',', '.')) : undefined
+    onEditSet(editingSetId, { weightKg: w, reps: r, rpe: rpeVal != null && rpeVal > 0 ? Math.min(10, rpeVal) : undefined, isWarmup: editWarmup })
+    setEditingSetId(null)
+  }
+
+  function deleteEditedSet() {
+    if (!editingSetId) return
+    if (!confirm('Supprimer cette série ?')) return
+    onDeleteSet(editingSetId)
     setEditingSetId(null)
   }
 
@@ -175,26 +189,51 @@ export function ExerciseBlock({
         <ul className="mb-2 space-y-1">
           {we.sets.map((s, i) =>
             editingSetId === s.id ? (
-              <li key={s.id} className="flex items-center gap-1.5 rounded-lg bg-zinc-900 px-2.5 py-1.5">
-                <input
-                  inputMode="decimal"
-                  value={editWeight}
-                  onChange={(e) => setEditWeight(e.target.value)}
-                  className="w-14 rounded-md bg-zinc-800 px-1.5 py-1 text-center text-xs outline-none focus:ring-1 focus:ring-orange-500"
-                />
-                <span className="text-zinc-600">×</span>
-                <input
-                  inputMode="numeric"
-                  value={editReps}
-                  onChange={(e) => setEditReps(e.target.value)}
-                  className="w-14 rounded-md bg-zinc-800 px-1.5 py-1 text-center text-xs outline-none focus:ring-1 focus:ring-orange-500"
-                />
-                <button onClick={confirmEditSet} className="ml-auto rounded-md bg-orange-500 p-1.5 text-zinc-950 active:bg-orange-400">
-                  <Check size={13} strokeWidth={3} />
-                </button>
-                <button onClick={() => setEditingSetId(null)} className="rounded-md bg-zinc-800 p-1.5 text-zinc-400 active:bg-zinc-700">
-                  <X size={13} />
-                </button>
+              <li key={s.id} className="space-y-1.5 rounded-lg bg-zinc-900 px-2.5 py-2">
+                <div className="flex items-center gap-1.5">
+                  <span className="text-xs text-zinc-500">S{i + 1}</span>
+                  <input
+                    inputMode="decimal"
+                    value={editWeight}
+                    onChange={(e) => setEditWeight(e.target.value)}
+                    aria-label="Poids (kg)"
+                    className="w-14 rounded-md bg-zinc-800 px-1.5 py-1.5 text-center text-xs outline-none focus:ring-1 focus:ring-orange-500"
+                  />
+                  <span className="text-xs text-zinc-600">kg ×</span>
+                  <input
+                    inputMode="numeric"
+                    value={editReps}
+                    onChange={(e) => setEditReps(e.target.value)}
+                    aria-label="Répétitions"
+                    className="w-12 rounded-md bg-zinc-800 px-1.5 py-1.5 text-center text-xs outline-none focus:ring-1 focus:ring-orange-500"
+                  />
+                  <input
+                    inputMode="decimal"
+                    value={editRpe}
+                    onChange={(e) => setEditRpe(e.target.value)}
+                    placeholder="RPE"
+                    aria-label="RPE"
+                    className="w-12 rounded-md bg-zinc-800 px-1.5 py-1.5 text-center text-xs outline-none focus:ring-1 focus:ring-orange-500"
+                  />
+                </div>
+                <div className="flex items-center gap-1.5">
+                  <button
+                    onClick={() => setEditWarmup((v) => !v)}
+                    aria-pressed={editWarmup}
+                    className={clsx('rounded-md px-2 py-1.5 text-[10px] font-semibold uppercase', editWarmup ? 'bg-zinc-600 text-zinc-100' : 'bg-zinc-800 text-zinc-500')}
+                  >
+                    Échauffement
+                  </button>
+                  <button onClick={deleteEditedSet} className="flex items-center gap-1 rounded-md bg-zinc-800 px-2 py-1.5 text-[10px] font-semibold uppercase text-red-400 active:bg-red-500/10">
+                    <Trash2 size={11} /> Supprimer
+                  </button>
+                  <button onClick={confirmEditSet} className="ml-auto rounded-md bg-orange-500 p-1.5 text-zinc-950 active:bg-orange-400" aria-label="Valider la correction">
+                    <Check size={14} strokeWidth={3} />
+                  </button>
+                  <button onClick={() => setEditingSetId(null)} className="rounded-md bg-zinc-800 p-1.5 text-zinc-400 active:bg-zinc-700" aria-label="Annuler">
+                    <X size={14} />
+                  </button>
+                </div>
               </li>
             ) : (
               <li

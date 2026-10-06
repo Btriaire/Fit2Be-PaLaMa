@@ -204,7 +204,7 @@ export function ActivityLogRow({ log, onDelete }: { log: ActivityLog; onDelete: 
         <div className="min-w-0">
           <p className="truncate text-sm font-medium">{log.label}</p>
           <p className="text-xs text-zinc-500">
-            {formatTime(log.loggedAt)} · {log.durationMin} min
+            {log.fromWalkId ? 'Part de marche' : formatTime(log.loggedAt)} · {log.durationMin} min
           </p>
         </div>
       </div>

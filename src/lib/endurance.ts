@@ -204,6 +204,57 @@ export async function updateEnduranceActivityType(
   return updated
 }
 
+export interface EnduranceEdit {
+  activityType: EnduranceActivityType
+  startedAt: number
+  durationMin: number
+  distanceKm?: number
+  avgHeartRate?: number
+  caloriesBurned: number
+  rpe?: number
+  notes?: string
+}
+
+/** Estimation de calories pour une sortie corrigée à la main (même priorité qu'à la saisie :
+ * FC > MET du type, sans la part de repos pour la marche). */
+export function estimateEnduranceCalories(
+  e: Pick<EnduranceEdit, 'activityType' | 'durationMin' | 'avgHeartRate'>,
+  settings: Settings,
+): number {
+  const meta = ENDURANCE_ACTIVITY_META[e.activityType]
+  const est =
+    (e.avgHeartRate ? computeCaloriesFromHr(e.avgHeartRate, e.durationMin, settings) : null) ??
+    computeCaloriesForUser(meta.met, e.durationMin, settings)
+  return e.activityType === 'marche' ? Math.max(0, est - bmrShareForDuration(e.durationMin, settings)) : est
+}
+
+/** Corrige une sortie a posteriori. `editedAt` la protège : la synchro montre ne la réécrira plus. */
+export async function updateEnduranceSession(id: string, edit: EnduranceEdit, settings: Settings): Promise<EnduranceSession | null> {
+  const db = await getDb()
+  const session = await db.get('endurance', id)
+  if (!session) return null
+  const hrZone = edit.avgHeartRate ? computeHrZone(edit.avgHeartRate, settings.ageYears, settings.restingHeartRateBpm) : undefined
+  const updated: EnduranceSession = {
+    ...session,
+    activityType: edit.activityType,
+    startedAt: edit.startedAt,
+    durationMin: edit.durationMin,
+    distanceKm: edit.distanceKm,
+    avgHeartRate: edit.avgHeartRate,
+    hrZone,
+    caloriesBurned: edit.caloriesBurned,
+    rpe: edit.rpe,
+    notes: edit.notes?.trim() || undefined,
+    editedAt: Date.now(),
+  }
+  for (const k of Object.keys(updated) as (keyof EnduranceSession)[]) {
+    if (updated[k] === undefined) delete updated[k]
+  }
+  await db.put('endurance', updated)
+  pushRecord('endurance', id, updated)
+  return updated
+}
+
 /** Attache une photo (écran de machine) à une sortie déjà enregistrée — notamment une
  * activité importée (Google Fit...) qui n'a jamais eu de photo puisqu'elle n'a pas été
  * créée via le scan. Les métriques machine (watts, FC pic, dénivelé...) sont de toute

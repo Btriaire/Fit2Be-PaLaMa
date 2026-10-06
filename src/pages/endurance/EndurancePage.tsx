@@ -1,12 +1,14 @@
-import { useEffect, useMemo, useState } from 'react'
+import { useEffect, useMemo, useState, type ReactNode } from 'react'
 import { useLocation, useNavigate } from 'react-router-dom'
-import { Activity, ChevronDown, ChevronRight, Flame, Footprints, HeartPulse, Loader2, Plus, RefreshCw, Route, Trash2, TrendingUp, Timer, Watch, X } from 'lucide-react'
+import { Activity, ChevronDown, ChevronRight, Flame, Footprints, Tags, HeartPulse, Loader2, Plus, RefreshCw, Route, Trash2, TrendingUp, Timer, Watch, X } from 'lucide-react'
 import { ENDURANCE_ACTIVITY_META, MET_TO_ENDURANCE, computePaceMinPerKm, formatPace, getEnduranceSessions, logEnduranceSession, deleteEnduranceSession, getLoggedActivityTypes } from '../../lib/endurance'
 import { getDb, newId } from '../../lib/db'
-import { pushRecord, deleteRecord } from '../../lib/cloudSync'
+import { pushRecord } from '../../lib/cloudSync'
 import { pushActivityToNutriTracker } from '../../lib/nutriTrackerSync'
 import { MET_ACTIVITIES } from '../../lib/met'
 import { AddActivitySheet, ActivityLogRow } from '../activities/AddActivitySheet'
+import WalkAllocationSheet from '../../components/WalkAllocationSheet'
+import { WALK_CATEGORIES, allocationLogsFor, deleteActivityLog, needsCategorizing } from '../../lib/walkAllocation'
 import { getSettings } from '../../lib/settings'
 import { HR_ZONE_META } from '../../lib/heartRate'
 import { formatDate, formatTime, isToday, todayStr, addDays, dayKey } from '../../lib/date'
@@ -45,6 +47,9 @@ export default function EndurancePage() {
   const [sessions, setSessions] = useState<EnduranceSession[]>([])
   const [logs, setLogs] = useState<ActivityLog[]>([])
   const [addOpen, setAddOpen] = useState(navState.openActivity ?? false)
+  // Marche en cours de catégorisation ; `reviewing` = enchaîner sur la suivante à préciser.
+  const [allocWalk, setAllocWalk] = useState<EnduranceSession | null>(null)
+  const [reviewing, setReviewing] = useState(false)
   const [loggedTypes, setLoggedTypes] = useState<Array<{ activityType: EnduranceActivityType; lastDate: number }>>([])
   const [formOpen, setFormOpen] = useState(navState.openForm ?? false)
   const [formType, setFormType] = useState<EnduranceActivityType | undefined>(undefined)
@@ -133,7 +138,7 @@ export default function EndurancePage() {
   // 7 derniers jours glissants, comme "Séances 7 j" de l'Accueil (une semaine calendaire
   // affichait 1 séance le lundi matin quand l'Accueil en comptait 3).
   const weekStart = new Date(`${addDays(todayStr(), -6)}T00:00:00`).getTime()
-  const weekSessions = useMemo(() => sessions.filter((s) => s.startedAt >= weekStart && !isSynthetic(s)), [sessions, weekStart])
+  const weekSessions = useMemo(() => sessions.filter((s) => s.startedAt >= weekStart && !isSynthetic(s) && s.durationMin > 0), [sessions, weekStart])
   const weekDistance = weekSessions.reduce((s, e) => s + (e.distanceKm ?? 0), 0)
   const weekZone2Min = weekSessions.filter((s) => s.hrZone === 2).reduce((s, e) => s + e.durationMin, 0)
   // Même total que "kcal brûlées" de l'Accueil : sorties + activités + pas du quotidien.
@@ -177,6 +182,27 @@ export default function EndurancePage() {
     return sessions.filter((x) => x.startedAt < since).length + logs.filter((l) => l.loggedAt < since).length
   }, [sessions, logs, historyDays])
 
+  // Marches de la vie courante des 7 derniers jours pas encore précisées (pas du jour, marches montre).
+  const walksToCategorize = useMemo(() => {
+    const since = new Date(`${addDays(todayStr(), -6)}T00:00:00`).getTime()
+    return sessions.filter((s) => s.startedAt >= since && needsCategorizing(s, logs)).sort((a, b) => b.startedAt - a.startedAt)
+  }, [sessions, logs])
+
+  function allocationSummary(walkId: string): string | null {
+    const parts = allocationLogsFor(walkId, logs)
+    if (parts.length === 0) return null
+    return parts.map((l) => `${WALK_CATEGORIES.find((c) => c.activityLabel === l.label)?.label ?? l.label} ${l.durationMin}′`).join(' · ')
+  }
+
+  async function onWalkAllocated(walkId: string) {
+    const next = reviewing ? walksToCategorize.find((w) => w.id !== walkId) : undefined
+    setAllocWalk(next ?? null)
+    if (!next) setReviewing(false)
+    await refresh()
+    // La marche auto du jour se recalcule sans les minutes réattribuées.
+    void refreshFitData(settings).catch(() => {})
+  }
+
   function openForm(type?: EnduranceActivityType) {
     setFormType(type)
     setFormOpen(true)
@@ -219,9 +245,8 @@ export default function EndurancePage() {
 
   async function removeActivity(id: string) {
     if (!confirm('Supprimer cette activité ?')) return
-    const db = await getDb()
-    await db.delete('activities', id)
-    deleteRecord('activities', id)
+    // Une part de marche rend ses minutes à la marche d'origine.
+    await deleteActivityLog(id)
     refresh()
     void refreshFitData(settings).catch(() => {})
   }
@@ -348,6 +373,27 @@ export default function EndurancePage() {
         </button>
       </div>
 
+      {walksToCategorize.length > 0 && (
+        <button
+          onClick={() => {
+            setReviewing(true)
+            setAllocWalk(walksToCategorize[0])
+          }}
+          className="mb-4 flex w-full items-center gap-3 rounded-2xl border border-indigo-400/30 bg-indigo-500/10 p-3 text-left active:scale-[0.99] transition-transform"
+        >
+          <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-indigo-500/20 text-indigo-300">
+            <Tags size={17} />
+          </span>
+          <span className="min-w-0 flex-1">
+            <span className="block text-sm font-semibold">
+              {walksToCategorize.length} marche{walksToCategorize.length > 1 ? 's' : ''} à préciser cette semaine
+            </span>
+            <span className="block text-xs text-zinc-400">Courses, jardinage, trajets… ? 10 secondes chacune.</span>
+          </span>
+          <ChevronRight size={16} className="shrink-0 text-zinc-500" />
+        </button>
+      )}
+
       {notice && (
         <div className="mb-4 flex items-start gap-2 rounded-xl border border-teal-500/30 bg-teal-500/10 p-3 text-xs text-teal-200" role="status">
           <span className="flex-1">{notice}</span>
@@ -440,11 +486,33 @@ export default function EndurancePage() {
                 {g.items.map((item) => {
                   if (item.kind === 'activity') return <ActivityLogRow key={item.log.id} log={item.log} onDelete={removeActivity} />
                   const s = item.session
+                  const walkFooter =
+                    s.activityType === 'marche' ? (
+                      <WalkTag
+                        summary={allocationSummary(s.id)}
+                        pending={needsCategorizing(s, logs)}
+                        onClick={() => {
+                          setReviewing(false)
+                          setAllocWalk(s)
+                        }}
+                      />
+                    ) : null
+                  // Marche entièrement réattribuée : gardée (pour ne pas être réimportée), affichée en une ligne.
+                  if (s.durationMin === 0 && s.activityType === 'marche') {
+                    return (
+                      <li key={s.id} className="rounded-xl border border-dashed border-zinc-800 px-3 py-2">
+                        <p className="text-xs text-zinc-500">
+                          {isSynthetic(s) ? 'Pas du quotidien' : `Marche ${s.externalId ? 'montre ' : ''}${formatTime(s.startedAt)}`} — entièrement répartie
+                        </p>
+                        {walkFooter}
+                      </li>
+                    )
+                  }
                   return isSynthetic(s) ? (
-                    <li key={s.id}>
+                    <li key={s.id} className="rounded-xl border border-dashed border-zinc-800">
                       <button
                         onClick={() => navigate(`/endurance/session/${s.id}`)}
-                        className="flex w-full items-center gap-2.5 rounded-xl border border-dashed border-zinc-800 px-3 py-2 text-left text-xs text-zinc-400 active:bg-zinc-900"
+                        className="flex w-full items-center gap-2.5 px-3 pt-2 text-left text-xs text-zinc-400 active:bg-zinc-900"
                       >
                         <Footprints size={14} className="shrink-0 text-teal-400" />
                         <span className="flex-1">
@@ -452,9 +520,17 @@ export default function EndurancePage() {
                         </span>
                         <span className="font-semibold text-orange-400/80">{s.caloriesBurned} kcal</span>
                       </button>
+                      <div className="px-3 pb-2">{walkFooter}</div>
                     </li>
                   ) : (
-                    <SessionRow key={s.id} session={s} onOpen={() => navigate(`/endurance/session/${s.id}`)} onDelete={() => removeSession(s.id)} onPhoto={setViewerPhoto} />
+                    <SessionRow
+                      key={s.id}
+                      session={s}
+                      onOpen={() => navigate(`/endurance/session/${s.id}`)}
+                      onDelete={() => removeSession(s.id)}
+                      onPhoto={setViewerPhoto}
+                      footer={walkFooter}
+                    />
                   )
                 })}
               </ul>
@@ -470,6 +546,21 @@ export default function EndurancePage() {
           </button>
         )}
       </section>
+
+      {allocWalk && (
+        <WalkAllocationSheet
+          key={allocWalk.id}
+          walk={allocWalk}
+          logs={logs}
+          steps={isSynthetic(allocWalk) ? stepsByDay[dayKey(allocWalk.startedAt)] : undefined}
+          saveLabel={reviewing && walksToCategorize.length > 1 ? 'Enregistrer · suivante' : 'Enregistrer'}
+          onClose={() => {
+            setAllocWalk(null)
+            setReviewing(false)
+          }}
+          onSaved={() => void onWalkAllocated(allocWalk.id)}
+        />
+      )}
 
       {addOpen && (
         <AddActivitySheet
@@ -613,11 +704,13 @@ function SessionRow({
   onOpen,
   onDelete,
   onPhoto,
+  footer,
 }: {
   session: EnduranceSession
   onOpen: () => void
   onDelete: () => void
   onPhoto: (dataUrl: string) => void
+  footer?: ReactNode
 }) {
   const meta = ENDURANCE_ACTIVITY_META[s.activityType]
   const pace = s.distanceKm ? computePaceMinPerKm(s.durationMin, s.distanceKm) : null
@@ -695,6 +788,29 @@ function SessionRow({
           <RouteMap route={s.route} className="h-28 w-full" />
         </div>
       )}
+      {footer && (
+        <div className="mt-2" onClick={(e) => e.stopPropagation()}>
+          {footer}
+        </div>
+      )}
     </li>
+  )
+}
+
+/** Sous une marche : à préciser (bouton) ou résumé de sa répartition (modifiable). */
+function WalkTag({ summary, pending, onClick }: { summary: string | null; pending: boolean; onClick: () => void }) {
+  if (pending) {
+    return (
+      <button onClick={onClick} className="flex items-center gap-1 rounded-full bg-indigo-500/15 px-2.5 py-1 text-[11px] font-medium text-indigo-200 active:bg-indigo-500/25">
+        <Tags size={11} /> C'était quoi ? Courses, jardinage…
+      </button>
+    )
+  }
+  return (
+    <button onClick={onClick} className="flex max-w-full items-center gap-1 text-left text-[11px] text-zinc-500 active:text-zinc-300">
+      <Tags size={11} className="shrink-0" />
+      <span className="truncate">{summary ? `Dont ${summary}` : 'Marche confirmée'}</span>
+      <span className="shrink-0 text-indigo-300">· modifier</span>
+    </button>
   )
 }

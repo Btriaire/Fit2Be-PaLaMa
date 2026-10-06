@@ -106,6 +106,18 @@ describe('Marche automatique depuis les pas Google Fit', () => {
     expect((await sessions()).map((s) => s.id)).toEqual(['real-1'])
   })
 
+  it('déduit les parts de marche réattribuées (même hors « quotidien ») et garde la marque « catégorisée »', async () => {
+    const db = await getDb()
+    await autoLogWalkFromStepsIfNeeded(PROFILE)
+    const synthetic = (await sessions())[0]
+    await db.put('endurance', { ...synthetic, walkCategorized: true })
+    await db.put('activities', { id: 't1', category: 'deplacement', label: 'Trajets à pied', metValue: 3.5, durationMin: 20, caloriesBurned: 50, loggedAt: noon, fromWalkId: synthetic.id })
+    await autoLogWalkFromStepsIfNeeded(PROFILE)
+    const [s] = await sessions()
+    expect(s.durationMin).toBe(40)
+    expect(s.walkCategorized).toBe(true)
+  })
+
   it('rattrape aussi les jours passés, pas seulement aujourd’hui', async () => {
     fitDays = [fitDay({ date: '2026-09-08' }), fitDay({ date: '2026-09-09', steps: 7000, activeMinutes: 50 }), fitDay()]
     await autoLogWalkFromStepsIfNeeded(PROFILE)

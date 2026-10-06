@@ -41,7 +41,7 @@ export async function computePersonalGoals(now = Date.now()): Promise<PersonalGo
   const [workouts, endurance] = await Promise.all([getAllWorkouts(), db.getAll('endurance')])
   const stamps = [
     ...workouts.filter((w) => w.finishedAt).map((w) => w.startedAt),
-    ...endurance.filter((e) => !e.id.startsWith('steps-')).map((e) => e.startedAt),
+    ...endurance.filter((e) => !e.id.startsWith('steps-') && e.durationMin > 0).map((e) => e.startedAt),
   ]
   const weeks = [0, 1, 2, 3].map((i) => {
     const end = now - i * 7 * 86_400_000

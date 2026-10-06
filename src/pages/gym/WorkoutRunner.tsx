@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react'
 import { useNavigate, useParams } from 'react-router-dom'
-import { Bookmark, ChevronLeft, Plus } from 'lucide-react'
-import { getWorkout, saveWorkout, finishWorkout as finishWorkoutAndSync, getBestPerformance, detectPr } from '../../lib/workouts'
+import { Bookmark, Check, ChevronDown, ChevronLeft, Pencil, Plus, Trash2 } from 'lucide-react'
+import { getWorkout, saveWorkout, finishWorkout as finishWorkoutAndSync, getBestPerformance, detectPr, deleteWorkout, estimateWorkoutCalories } from '../../lib/workouts'
 import { newId } from '../../lib/db'
 import { getSettings } from '../../lib/settings'
 import { getTodayGoogleFit, syncGoogleFit } from '../../lib/googleFit'
@@ -104,18 +104,48 @@ export default function WorkoutRunner() {
   /** Correction a posteriori du poids/reps d'une série déjà loguée (erreur de
    * saisie) — ne retouche jamais isPr, qui dépend du contexte des séries
    * précédentes au moment où elle a été loguée. */
-  function updateSet(exerciseId: string, setId: string, patch: { weightKg: number; reps: number }) {
+  function updateSet(exerciseId: string, setId: string, patch: { weightKg: number; reps: number; rpe?: number; isWarmup: boolean }) {
     if (!workout) return
     persist({
       ...workout,
       exercises: workout.exercises.map((we) =>
-        we.exerciseId === exerciseId ? { ...we, sets: we.sets.map((s) => (s.id === setId ? { ...s, ...patch } : s)) } : we,
+        we.exerciseId === exerciseId
+          ? {
+              ...we,
+              sets: we.sets.map((s) => {
+                if (s.id !== setId) return s
+                const next = { ...s, ...patch }
+                if (patch.rpe === undefined) delete next.rpe
+                return next
+              }),
+            }
+          : we,
       ),
     })
   }
 
+  function deleteSet(exerciseId: string, setId: string) {
+    if (!workout) return
+    persist({
+      ...workout,
+      exercises: workout.exercises.map((we) => (we.exerciseId === exerciseId ? { ...we, sets: we.sets.filter((s) => s.id !== setId) } : we)),
+    })
+  }
+
+  async function removeWholeWorkout() {
+    if (!workout || !confirm(`Supprimer la séance "${workout.name}" ?`)) return
+    await deleteWorkout(workout.id)
+    navigate('/gym')
+  }
+
   async function finishWorkout() {
     if (!workout) return
+    // Une séance déjà terminée qu'on rouvre pour la corriger : surtout ne pas refixer sa
+    // fin à maintenant (une séance d'il y a 3 jours durait sinon 3 jours, calories comprises).
+    if (workout.finishedAt) {
+      navigate('/gym')
+      return
+    }
     const finished = await finishWorkoutAndSync(workout, settings)
     setWorkout(finished)
     navigate('/gym')
@@ -134,16 +164,23 @@ export default function WorkoutRunner() {
         <button onClick={() => navigate('/gym')} className="rounded-full p-1.5 active:bg-zinc-900">
           <ChevronLeft size={22} />
         </button>
-        <h1 className="text-base font-semibold">{workout.name}</h1>
+        <h1 className="min-w-0 flex-1 truncate px-2 text-center text-base font-semibold">{workout.name}</h1>
         <button
           onClick={finishWorkout}
-          className="rounded-full bg-orange-500 px-3 py-1.5 text-xs font-semibold text-zinc-950 active:bg-orange-400"
+          className="flex items-center gap-1 rounded-full bg-orange-500 px-3 py-1.5 text-xs font-semibold text-zinc-950 active:bg-orange-400"
         >
-          Terminer
+          {workout.finishedAt ? (
+            <>
+              <Check size={13} strokeWidth={3} /> OK
+            </>
+          ) : (
+            'Terminer'
+          )}
         </button>
       </header>
 
       <div className="space-y-4 px-4 py-4">
+        <WorkoutDetailsCard workout={workout} kcal={estimateWorkoutCalories(workout, settings)} onChange={persist} onDelete={removeWholeWorkout} />
         {workout.exercises.map((we) => (
           <ExerciseBlock
             key={we.exerciseId}
@@ -155,6 +192,7 @@ export default function WorkoutRunner() {
             onFocus={() => setFocusExerciseId(we.exerciseId)}
             onRemove={() => removeExercise(we.exerciseId)}
             onEditSet={(setId, patch) => updateSet(we.exerciseId, setId, patch)}
+            onDeleteSet={(setId) => deleteSet(we.exerciseId, setId)}
           />
         ))}
 
@@ -202,6 +240,113 @@ export default function WorkoutRunner() {
             />
           )
         })()}
+    </div>
+  )
+}
+
+const pad = (n: number) => String(n).padStart(2, '0')
+const dateInput = (ts: number) => {
+  const d = new Date(ts)
+  return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`
+}
+const timeInput = (ts: number) => {
+  const d = new Date(ts)
+  return `${pad(d.getHours())}:${pad(d.getMinutes())}`
+}
+
+/** Nom, date, heure, durée et notes de la séance — modifiables à tout moment, même des jours après. */
+function WorkoutDetailsCard({
+  workout,
+  kcal,
+  onChange,
+  onDelete,
+}: {
+  workout: Workout
+  kcal: number
+  onChange: (w: Workout) => void
+  onDelete: () => void
+}) {
+  const finished = !!workout.finishedAt
+  const [open, setOpen] = useState(false)
+  const [name, setName] = useState(workout.name)
+  const [date, setDate] = useState(dateInput(workout.startedAt))
+  const [time, setTime] = useState(timeInput(workout.startedAt))
+  const [duration, setDuration] = useState(workout.finishedAt ? String(Math.max(1, Math.round((workout.finishedAt - workout.startedAt) / 60000))) : '')
+  const [notes, setNotes] = useState(workout.notes ?? '')
+  const durationMin = workout.finishedAt ? Math.round((workout.finishedAt - workout.startedAt) / 60000) : null
+
+  function save() {
+    const startedAt = new Date(`${date}T${time || '12:00'}:00`).getTime()
+    const dur = parseInt(duration, 10)
+    onChange({
+      ...workout,
+      name: name.trim() || workout.name,
+      startedAt,
+      ...(finished && dur > 0 ? { finishedAt: startedAt + dur * 60000 } : {}),
+      notes: notes.trim() || undefined,
+    })
+    setOpen(false)
+  }
+
+  const field = 'w-full rounded-lg bg-zinc-900 px-3 py-2.5 text-center text-sm outline-none focus:ring-1 focus:ring-orange-500'
+  return (
+    <div className="glass rounded-2xl p-3.5">
+      <button onClick={() => setOpen((v) => !v)} className="flex w-full items-center justify-between gap-2 text-left">
+        <span className="min-w-0">
+          <span className="block text-xs text-zinc-500">
+            {finished ? 'Séance terminée — corrige ce que tu veux, tout est enregistré' : 'Séance en cours'}
+          </span>
+          <span className="mt-0.5 block text-sm text-zinc-200">
+            {new Date(workout.startedAt).toLocaleDateString('fr-FR', { weekday: 'short', day: 'numeric', month: 'short' })} · {timeInput(workout.startedAt)}
+            {durationMin != null && ` · ${durationMin} min · ${kcal} kcal`}
+          </span>
+        </span>
+        <span className="flex shrink-0 items-center gap-1 text-xs font-medium text-orange-300">
+          <Pencil size={12} /> Détails <ChevronDown size={14} className={`transition-transform ${open ? 'rotate-180' : ''}`} />
+        </span>
+      </button>
+      {open && (
+        <div className="mt-3 space-y-2.5">
+          <div>
+            <label className="mb-1 block text-xs text-zinc-500">Nom</label>
+            <input value={name} onChange={(e) => setName(e.target.value)} className={`${field} text-left`} />
+          </div>
+          <div className={`grid gap-2 ${finished ? 'grid-cols-[1.5fr_1fr_1fr]' : 'grid-cols-2'}`}>
+            <div>
+              <label className="mb-1 block text-xs text-zinc-500">Date</label>
+              <input type="date" value={date} onChange={(e) => setDate(e.target.value)} className={`${field} px-1.5`} />
+            </div>
+            <div>
+              <label className="mb-1 block text-xs text-zinc-500">Début</label>
+              <input type="time" value={time} onChange={(e) => setTime(e.target.value)} className={field} />
+            </div>
+            {finished && (
+              <div>
+                <label className="mb-1 block text-xs text-zinc-500">Durée (min)</label>
+                <input inputMode="numeric" value={duration} onChange={(e) => setDuration(e.target.value)} className={field} />
+              </div>
+            )}
+          </div>
+          <div>
+            <label className="mb-1 block text-xs text-zinc-500">Notes</label>
+            <textarea
+              value={notes}
+              onChange={(e) => setNotes(e.target.value)}
+              rows={2}
+              className="w-full resize-none rounded-lg bg-zinc-900 px-3 py-2 text-sm outline-none focus:ring-1 focus:ring-orange-500"
+            />
+          </div>
+          <p className="text-[11px] text-zinc-500">Touche une série pour corriger poids, reps, RPE, échauffement ou la supprimer.</p>
+          <div className="flex gap-2">
+            <button onClick={onDelete} className="flex items-center gap-1 rounded-xl bg-zinc-900 px-3 py-2.5 text-xs font-medium text-red-400 active:bg-red-500/10">
+              <Trash2 size={13} /> Supprimer la séance
+            </button>
+            <button onClick={save} className="flex-1 rounded-xl bg-orange-500 py-2.5 text-sm font-semibold text-zinc-950 active:bg-orange-400">
+              Enregistrer
+            </button>
+          </div>
+        </div>
+      )}
     </div>
   )
 }

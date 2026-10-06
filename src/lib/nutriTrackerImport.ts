@@ -79,7 +79,8 @@ function matchEnduranceType(a: RemoteActivity): EnduranceActivityType | null {
  * auquel cas on ne fait que combler ce qui manque. */
 function refreshImported(local: EnduranceSession, a: RemoteActivity): EnduranceSession | null {
   const distanceKm = a.distanceM != null ? Math.round((a.distanceM / 1000) * 100) / 100 : undefined
-  const userEnriched = !!local.photoDataUrl || local.rpe != null || (!!local.machineStats && local.machineStats.machineType !== 'other')
+  const userEnriched =
+    !!local.editedAt || !!local.walkCategorized || !!local.photoDataUrl || local.rpe != null || (!!local.machineStats && local.machineStats.machineType !== 'other')
   const next: EnduranceSession = {
     ...local,
     distanceKm: local.distanceKm ?? distanceKm,

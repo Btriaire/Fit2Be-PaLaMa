@@ -91,6 +91,9 @@ export interface ActivityLog {
    * jamais réimporter deux fois la même activité. */
   externalId?: string
   source?: DataSource
+  /** Part d'une marche (sortie ou "pas du quotidien") réattribuée à cette activité
+   * (ex. 50 % courses) : id de la marche d'origine. */
+  fromWalkId?: string
 }
 
 // ---- Endurance ----
@@ -183,6 +186,12 @@ export interface EnduranceSession {
   /** Données FC importées d'une capture Apple Health/Google Fit (zones,
    * récupération) — bien plus précises que l'estimation MET/FC seule. */
   healthCapture?: HealthScreenCapture
+  /** Corrigée à la main après coup : la synchro montre ne réécrit plus ses chiffres. */
+  editedAt?: number
+  /** Marche dont l'usage a été précisé (catégorisée, même 100 % "journée normale"). */
+  walkCategorized?: boolean
+  /** Calories de la marche réattribuées à des activités (pour pouvoir les lui rendre). */
+  allocatedKcal?: number
   /** id de l'entrée côté NutriTracker si importée de là-bas — sert à ne
    * jamais réimporter deux fois la même activité. */
   externalId?: string

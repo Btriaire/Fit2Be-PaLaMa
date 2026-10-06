@@ -61,7 +61,10 @@ async function processDay(day: GoogleFitDay, settings: Settings): Promise<void> 
   // vraie marche importée faisait disparaître tous les autres pas du jour, et
   // une course n'était pas déduite du tout (ses pas comptaient deux fois).
   const dayActivities = await db.getAllFromIndex('activities', 'byLoggedAt', IDBKeyRange.bound(dayStart, dayEnd))
-  const activityMin = dayActivities.filter((a) => a.category === 'quotidien' || WALKING_ACTIVITY_LABELS.has(a.label)).reduce((s, a) => s + a.durationMin, 0)
+  // Parts de marche réattribuées a posteriori (courses, jardinage, trajets…) : toujours déduites.
+  const activityMin = dayActivities
+    .filter((a) => a.category === 'quotidien' || WALKING_ACTIVITY_LABELS.has(a.label) || !!a.fromWalkId)
+    .reduce((s, a) => s + a.durationMin, 0)
   const onFootMin = existing.filter((s) => s.id !== id && ON_FOOT_TYPES.has(s.activityType)).reduce((s, e) => s + e.durationMin, 0)
   const overlapMin = activityMin + onFootMin
   const durationMin = Math.max(0, rawDurationMin - overlapMin)
@@ -93,6 +96,8 @@ async function processDay(day: GoogleFitDay, settings: Settings): Promise<void> 
   // Sans ce garde-fou, chaque ouverture de l'app réécrivait et repoussait vers
   // le VPS les 14 jours de marche, même inchangés (~14 POST /api/cloudsync).
   const previous = existing.find((s) => s.id === id)
+  // La catégorisation faite par l'utilisateur survit aux recalculs.
+  if (previous?.walkCategorized) session.walkCategorized = true
   if (previous && previous.durationMin === session.durationMin && previous.caloriesBurned === session.caloriesBurned && previous.notes === session.notes) return
   await db.put('endurance', session)
   pushRecord('endurance', id, session)
