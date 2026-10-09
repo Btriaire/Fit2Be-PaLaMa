@@ -77,7 +77,6 @@ async function pullAll(): Promise<Partial<Record<SyncableStore, CloudRecord[]>> 
   }
 }
 
-const RESTORE_FLAG_KEY = 'fit2be:cloudRestoreDone'
 
 /** Repeuple IndexedDB depuis le VPS — utile après une réinstallation de la
  * PWA (le service worker/l'écran d'accueil sont refaits à neuf mais
@@ -89,10 +88,15 @@ export async function restoreFromCloudIfNeeded(
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   db: { getAll: (store: SyncableStore) => Promise<Array<{ id: string }>>; put: (store: SyncableStore, value: any) => Promise<unknown> },
 ): Promise<void> {
-  if (localStorage.getItem(RESTORE_FLAG_KEY)) return
+  // Pas de drapeau « une fois par navigateur » : une restauration sautée (ancienne
+  // session, réseau) ne doit pas bloquer les données pour toujours. La fusion ne
+  // réécrit jamais une entrée locale, donc rejouer est sans risque.
   try {
     const grouped = await pullAll()
-    if (!grouped) return // réessaiera au prochain lancement
+    if (!grouped) {
+      recordSyncResult(false)
+      return // réessaiera au prochain lancement
+    }
     for (const store of SYNCABLE_STORES) {
       const remoteRecords = grouped[store]
       if (!remoteRecords || remoteRecords.length === 0) continue
@@ -102,9 +106,8 @@ export async function restoreFromCloudIfNeeded(
         if (!localIds.has(rec.id)) await db.put(store, rec.data)
       }
     }
-    localStorage.setItem(RESTORE_FLAG_KEY, String(Date.now()))
   } catch {
-    // best effort — a failed restore attempt shouldn't block app startup,
-    // and we deliberately don't set the flag so it retries next launch
+    // best effort — la restauration réessaiera au prochain lancement connecté
+    recordSyncResult(false)
   }
 }
