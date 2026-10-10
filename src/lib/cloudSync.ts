@@ -78,6 +78,27 @@ async function pullAll(): Promise<Partial<Record<SyncableStore, CloudRecord[]>> 
 }
 
 
+/** Renvoie au VPS les enregistrements locaux qu'il n'a pas. Un envoi part en
+ * « fire-and-forget » : si iOS suspend l'app avant la fin de la requête, la séance
+ * n'arrive jamais et rien ne la rattrape. Ne touche qu'aux ids absents du serveur
+ * (jamais d'écrasement d'une version distante). */
+export async function pushMissingToCloud(db: {
+  getAll: (store: SyncableStore) => Promise<Array<{ id: string }>>
+}): Promise<number> {
+  const remote = await pullAll()
+  if (!remote) return 0
+  let pushed = 0
+  for (const store of ['workouts', 'endurance', 'activities', 'weightLogs', 'recovery'] as const) {
+    const remoteIds = new Set((remote[store] ?? []).map((r) => r.id))
+    for (const rec of await db.getAll(store)) {
+      if (remoteIds.has(rec.id)) continue
+      pushRecord(store, rec.id, rec)
+      pushed++
+    }
+  }
+  return pushed
+}
+
 /** Repeuple IndexedDB depuis le VPS — utile après une réinstallation de la
  * PWA (le service worker/l'écran d'accueil sont refaits à neuf mais
  * IndexedDB aurait dû survivre ; ceci est le filet de sécurité si jamais ce

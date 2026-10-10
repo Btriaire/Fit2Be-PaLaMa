@@ -1,7 +1,7 @@
 import { Suspense, lazy, useEffect, useState } from 'react'
 import { Navigate, Route, Routes, useLocation, useNavigate } from 'react-router-dom'
 import { getDb } from './lib/db'
-import { restoreFromCloudIfNeeded, pushProfileRecord } from './lib/cloudSync'
+import { restoreFromCloudIfNeeded, pushMissingToCloud, pushProfileRecord } from './lib/cloudSync'
 import { refreshFitData } from './lib/fitSync'
 import { syncLatestWeightFromNutriTracker } from './lib/weight'
 import { getSettings, hasStoredSettings } from './lib/settings'
@@ -65,6 +65,7 @@ function App() {
     // la fusion des doublons doit voir les séances déjà connues.
     getDb()
       .then(restoreFromCloudIfNeeded)
+      .then(() => getDb().then(pushMissingToCloud))
       .finally(() => void refreshFitData(getSettings()).catch(() => {}))
     void syncLatestWeightFromNutriTracker()
     // Pousse le profil (âge, sexe, taille, FC repos) au boot, pas seulement

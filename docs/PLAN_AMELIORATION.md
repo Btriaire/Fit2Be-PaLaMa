@@ -32,7 +32,7 @@ statut : **à faire**, **en cours**, **fait**.
 | F2 | La synchro tourne à chaque ouverture (Accueil, Endurance, Gym) | Délai minimal commun (déjà en place via `refreshFitData`), à étendre aux pages | en partie |
 | F3 | Les calculs (ACWR, monotonie, volume) recalculés à chaque rendu | Mémoïsation et calcul hors rendu | à faire |
 | F4 | Restauration VPS : rejouée à chaque lancement connecté | Fusion incrémentale (`updatedAt` depuis la dernière synchro) | à faire |
-| F5 | Séances de gym non envoyées au VPS après le 1er octobre (à vérifier) | Diagnostic `pushRecord` + rapport d'échec visible | à faire, priorité haute |
+| F5 | Envois fire-and-forget : une séance peut ne jamais partir si iOS suspend l'app | Renvoi au lancement des enregistrements absents du VPS (`pushMissingToCloud`) | fait (renvoi) ; diagnostic du 1er octobre à confirmer avec l'utilisateur |
 
 ## 4. Paramètres
 

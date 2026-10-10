@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from 'react'
-import { Mic, Loader2, Download, AlertCircle } from 'lucide-react'
+import { Mic, Loader2, Download, AlertCircle, ChevronDown } from 'lucide-react'
 
 type PodcastFile = { name: string; mtime: string; sizeKb: number }
 type Status = { success: boolean; running: boolean; files: PodcastFile[] }
@@ -18,7 +18,8 @@ const PERIODS: { key: PeriodKey; label: string }[] = [
 export default function PodcastPlayer() {
   const [period, setPeriod] = useState<PeriodKey>('7d')
   const [running, setRunning] = useState(false)
-  const [latest, setLatest] = useState<PodcastFile | null>(null)
+  const [files, setFiles] = useState<PodcastFile[]>([])
+  const [showHistory, setShowHistory] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const pollRef = useRef<ReturnType<typeof setInterval> | null>(null)
 
@@ -28,12 +29,15 @@ export default function PodcastPlayer() {
       const data = (await res.json()) as Status
       if (data.success) {
         setRunning(data.running)
-        setLatest(data.files?.[0] ?? null)
+        setFiles(data.files || [])
       }
     } catch {
       // silencieux — VPS injoignable temporairement
     }
   }
+
+  const latest = files[0] ?? null
+  const history = files.slice(1)
 
   useEffect(() => {
     fetchStatus()
@@ -129,6 +133,35 @@ export default function PodcastPlayer() {
             </a>
           </div>
           <audio controls preload="none" className="h-8 w-full" src={`/api/podcast/download/${latest.name}?inline=1`} />
+        </div>
+      )}
+
+      {history.length > 0 && (
+        <div className="mt-2">
+          <button
+            onClick={() => setShowHistory((v) => !v)}
+            className="flex w-full items-center justify-between gap-2 py-2 text-[11px] text-zinc-500"
+          >
+            <span>📁 Historique ({history.length})</span>
+            <ChevronDown size={13} className={showHistory ? 'rotate-180 transition-transform' : 'transition-transform'} />
+          </button>
+          {showHistory && (
+            <div className="max-h-[280px] space-y-1.5 overflow-y-auto pr-1">
+              {history.map((f) => (
+                <div key={f.name} className="rounded-xl border border-zinc-800 bg-zinc-900/50 px-3 py-2">
+                  <div className="mb-1.5 flex items-center justify-between gap-2">
+                    <span className="text-[11px] text-zinc-500">
+                      {new Date(f.mtime).toLocaleDateString('fr-FR')} · {f.sizeKb} Ko
+                    </span>
+                    <a href={`/api/podcast/download/${f.name}`} title="Télécharger" className="text-zinc-500 active:text-zinc-300">
+                      <Download size={12} />
+                    </a>
+                  </div>
+                  <audio controls preload="none" className="h-7 w-full" src={`/api/podcast/download/${f.name}?inline=1`} />
+                </div>
+              ))}
+            </div>
+          )}
         </div>
       )}
     </div>

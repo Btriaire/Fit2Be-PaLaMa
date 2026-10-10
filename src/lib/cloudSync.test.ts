@@ -1,5 +1,5 @@
 import { afterEach, describe, expect, it, vi } from 'vitest'
-import { restoreFromCloudIfNeeded } from './cloudSync'
+import { pushMissingToCloud, restoreFromCloudIfNeeded } from './cloudSync'
 
 const FLAG = 'fit2be:cloudRestoreDone'
 
@@ -46,5 +46,23 @@ describe('restauration depuis le VPS', () => {
     vi.stubGlobal('fetch', f)
     await restoreFromCloudIfNeeded(fakeDb().db)
     expect(f).toHaveBeenCalled()
+  })
+})
+
+describe('renvoi des enregistrements manquants', () => {
+  it('renvoie seulement les séances absentes du serveur', async () => {
+    const f = vi.fn(async (_url: string, init?: RequestInit) => new Response(JSON.stringify(init?.method === 'POST' ? { ok: true } : { workouts: [{ id: 'a', data: {}, updatedAt: 1 }] }), { status: 200, headers: { 'content-type': 'application/json' } }))
+    vi.stubGlobal('fetch', f)
+    const { db } = fakeDb({ workouts: [{ id: 'a' }, { id: 'b' }] })
+    const n = await pushMissingToCloud(db)
+    expect(n).toBe(1)
+    const posted = f.mock.calls.filter((c) => c[1]?.method === 'POST')
+    expect(posted.length).toBe(1)
+    expect(JSON.parse(posted[0][1]?.body as string).id).toBe('b')
+  })
+
+  it('ne fait rien hors ligne ou sans mot de passe', async () => {
+    vi.stubGlobal('fetch', respond(401, {}))
+    expect(await pushMissingToCloud(fakeDb({ workouts: [{ id: 'a' }] }).db)).toBe(0)
   })
 })
