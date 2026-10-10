@@ -78,7 +78,7 @@ export default function LevelSlider({
         </div>
         <span className="w-12 shrink-0 text-[10px] leading-none text-zinc-500">{maxLabel}</span>
       </div>
-      <p className="truncate pl-14 text-[11px] leading-snug text-zinc-400">{hint}</p>
+      <p className="line-clamp-2 pl-14 text-[11px] leading-snug text-zinc-400">{hint}</p>
     </div>
   )
 }

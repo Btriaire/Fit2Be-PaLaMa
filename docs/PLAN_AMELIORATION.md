@@ -18,11 +18,11 @@ statut : **à faire**, **en cours**, **fait**.
 
 | # | Problème | Action | Statut |
 |---|---|---|---|
-| E1 | Curseurs de check-in : texte d'aide tronqué sur une ligne | Permettre 2 lignes sur mobile, garder la densité | à faire |
+| E1 | Curseurs de check-in : texte d'aide tronqué sur une ligne | Jusqu'à 2 lignes, densité conservée | fait |
 | E2 | Zones tactiles parfois < 44 px (boutons « Ajouter », chips) | Audit des cibles, minimum 44 px | à faire |
 | E3 | Listes longues (volume, historique) | Grilles et groupement par jour, « voir plus » | fait (volume, historique) |
 | E4 | Formulaires avec plusieurs onglets | Garder un seul champ mis en avant | à faire |
-| E5 | Pas de retour sur « mise à jour en cours » après une modification | Afficher l'état de sauvegarde près de l'action | à faire |
+| E5 | Pas de retour sur « mise à jour en cours » après une modification | Heure du dernier enregistrement affichée en permanence | fait |
 
 ## 3. Efficience (performance, données, synchro)
 

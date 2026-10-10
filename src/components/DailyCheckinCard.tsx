@@ -37,7 +37,7 @@ export default function DailyCheckinCard({
   const [draft, setDraft] = useState<CheckinDraft | null>(null)
   const [saved, setSaved] = useState<RecoveryCheckin | null>(null)
   const [expanded, setExpanded] = useState(false)
-  const [flash, setFlash] = useState(false)
+  const [savedAt, setSavedAt] = useState<number | null>(null)
   const [prefilledFrom, setPrefilledFrom] = useState<string | null>(null)
   const timer = useRef<number | null>(null)
   const pending = useRef<CheckinDraft | null>(null)
@@ -69,8 +69,7 @@ export default function DailyCheckinCard({
     const s = await saveCheckin(date, d, settings)
     setSaved(s)
     if (!opts.silent) {
-      setFlash(true)
-      window.setTimeout(() => setFlash(false), 1200)
+      setSavedAt(Date.now())
     }
     onChangeRef.current?.(d, s)
   }
@@ -150,8 +149,14 @@ export default function DailyCheckinCard({
             {prefilledFrom && !saved ? 'Repris de ta dernière saisie — ajuste ce qui a changé' : '10 secondes · enregistré au fur et à mesure'}
           </p>
         </div>
-        <span className={`flex items-center gap-1 text-[11px] text-teal-300 transition-opacity ${flash ? 'opacity-100' : 'opacity-0'}`} aria-live="polite">
-          <Check size={12} /> Enregistré
+        <span className="flex items-center gap-1 text-[11px] text-teal-300" aria-live="polite">
+          {savedAt ? (
+            <>
+              <Check size={12} /> Enregistré à {new Date(savedAt).toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' })}
+            </>
+          ) : (
+            <span className="text-zinc-500">Modifie, c'est enregistré</span>
+          )}
         </span>
       </div>
 
