@@ -140,13 +140,13 @@ export default function DailyCheckinCard({
   }
 
   return (
-    <section className="glass space-y-4 rounded-3xl p-4" aria-label="Check-in du jour">
+    <section className="glass space-y-3 rounded-3xl p-3.5" aria-label="Check-in du jour">
       <div className="flex items-start justify-between gap-2">
         <div>
-          <h2 className="flex items-center gap-1.5 text-sm font-semibold">
+          <h2 className="flex items-center gap-1.5 text-[13px] font-semibold">
             <ClipboardCheck size={16} className="text-teal-300" /> Check-in du jour
           </h2>
-          <p className="mt-0.5 text-[11px] text-zinc-500">
+          <p className="text-[11px] text-zinc-500">
             {prefilledFrom && !saved ? 'Repris de ta dernière saisie — ajuste ce qui a changé' : '10 secondes · enregistré au fur et à mesure'}
           </p>
         </div>
@@ -220,7 +220,7 @@ export default function DailyCheckinCard({
 
       <button
         onClick={done}
-        className="flex w-full items-center justify-center gap-1.5 rounded-2xl bg-teal-500 py-3 text-sm font-semibold text-zinc-950 active:bg-teal-400"
+        className="flex w-full items-center justify-center gap-1.5 rounded-xl bg-teal-500 py-2.5 text-sm font-semibold text-zinc-950 active:bg-teal-400"
       >
         <Check size={16} /> {saved ? "C'est à jour" : "C'est bon"}
       </button>
