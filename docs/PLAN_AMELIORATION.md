@@ -38,7 +38,7 @@ statut : **à faire**, **en cours**, **fait**.
 
 | # | Problème | Action | Statut |
 |---|---|---|---|
-| P1 | Réglages : 11 sections dans une seule page | Regroupement par thème (Profil, Objectifs, Synchro, Données, Avancé) | à faire |
+| P1 | Réglages : 11 sections dans une seule page | Titres par thème ; bloc « Objectifs » séparé de « Entraînement et santé » | en partie (découpage en pages à faire) |
 | P2 | Objectif de sommeil, FC repos, zones : réglables mais peu expliqués | Une phrase d'explication sous chaque réglage (repos, FC repos, sommeil) | fait (3 réglages) |
 | P3 | Export/import JSON sans aperçu | Afficher le nombre d'éléments avant import | à faire |
 | P4 | Pas de réglage de la fréquence de synchro | Option « auto / manuel » | à faire |

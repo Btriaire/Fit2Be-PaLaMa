@@ -258,6 +258,7 @@ export default function SettingsPage() {
       </section>
 
       <section className="glass mb-4 space-y-4 rounded-2xl p-4">
+        <h2 className="text-sm font-medium text-zinc-400">Objectifs</h2>
         <div>
           <p className="mb-1 text-xs text-zinc-400">Objectif calorique quotidien</p>
           <div className="mb-2 grid grid-cols-2 gap-2">
@@ -326,6 +327,10 @@ export default function SettingsPage() {
             </div>
           </div>
         </div>
+      </section>
+
+      <section className="glass mb-4 space-y-4 rounded-2xl p-4">
+        <h2 className="text-sm font-medium text-zinc-400">Entraînement et santé</h2>
         <Field label="Repos par défaut entre séries" value={restTimerDefaultSec} onChange={setRestTimerDefaultSec} suffix="sec" hint="Durée du minuteur qui se lance après chaque série en mode Gym." />
         <Field label="FC de repos (pour le VO2max estimé)" value={restingHeartRateBpm} onChange={setRestingHeartRateBpm} suffix="bpm" hint="Mesure-la au réveil, avant de te lever. Sert aux zones de FC (Karvonen) et au VO2max. Vide = 60 bpm par défaut." />
         <div className="rounded-lg bg-zinc-900 p-3">
