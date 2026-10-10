@@ -1,9 +1,11 @@
 import { useState } from 'react'
 import { RotateCcw, X } from 'lucide-react'
 import { ENDURANCE_ACTIVITY_META, estimateEnduranceCalories, updateEnduranceSession } from '../../lib/endurance'
+import { ENDURANCE_PROGRAMS } from '../../lib/endurancePrograms'
+import { HR_ZONE_META } from '../../lib/heartRate'
 import { getSettings } from '../../lib/settings'
 import { todayStr } from '../../lib/date'
-import type { EnduranceActivityType, EnduranceSession } from '../../types'
+import type { EnduranceActivityType, EnduranceSession, HrZone } from '../../types'
 
 const pad = (n: number) => String(n).padStart(2, '0')
 const toDateInput = (ts: number) => {
@@ -39,6 +41,12 @@ export default function EnduranceEditSheet({
   const [kcal, setKcal] = useState(String(session.caloriesBurned))
   const [rpe, setRpe] = useState<number | null>(session.rpe ?? null)
   const [notes, setNotes] = useState(session.notes ?? '')
+  // Zone : auto (d'après la FC moyenne) tant qu'on ne la choisit pas. Une séance par intervalles
+  // a une FC moyenne basse (les récupérations la tirent vers le bas) : on peut la corriger.
+  const [zone, setZone] = useState<HrZone | null>(session.hrZone ?? null)
+  const [zoneManual, setZoneManual] = useState(false)
+  const [programId, setProgramId] = useState<string | null>(session.programId ?? null)
+  const programs = ENDURANCE_PROGRAMS.filter((p) => p.activityType === type)
   const [saving, setSaving] = useState(false)
   const meta = ENDURANCE_ACTIVITY_META[type]
   const durationMin = Math.round(num(duration) ?? 0)
@@ -63,6 +71,8 @@ export default function EnduranceEditSheet({
           caloriesBurned: Math.round(num(kcal) ?? 0),
           rpe: rpe ?? undefined,
           notes,
+          hrZone: zoneManual ? (zone ?? undefined) : undefined,
+          programId: programId ?? undefined,
         },
         settings,
       )
@@ -163,6 +173,49 @@ export default function EnduranceEditSheet({
               ))}
             </div>
           </div>
+
+          <div>
+            <label className={label}>Zone de FC {zoneManual ? '(choisie)' : '(auto, d’après la FC moyenne)'}</label>
+            <div className="grid grid-cols-5 gap-1">
+              {([1, 2, 3, 4, 5] as HrZone[]).map((z) => (
+                <button
+                  key={z}
+                  onClick={() => {
+                    setZone(z)
+                    setZoneManual(true)
+                  }}
+                  aria-pressed={zoneManual && zone === z}
+                  className={`rounded-md py-2 text-xs font-semibold ${zoneManual && zone === z ? 'text-zinc-950' : 'bg-zinc-900 text-zinc-400'}`}
+                  style={zoneManual && zone === z ? { backgroundColor: HR_ZONE_META[z].color } : undefined}
+                >
+                  Z{z}
+                </button>
+              ))}
+            </div>
+            {zoneManual && (
+              <button onClick={() => setZoneManual(false)} className="mt-1 text-[11px] text-teal-300">
+                Revenir au calcul automatique
+              </button>
+            )}
+          </div>
+
+          {programs.length > 0 && (
+            <div>
+              <label className={label}>Programme suivi</label>
+              <select
+                value={programId ?? ''}
+                onChange={(e) => setProgramId(e.target.value || null)}
+                className="w-full rounded-lg bg-zinc-900 px-3 py-2.5 text-sm outline-none focus:ring-1 focus:ring-teal-500"
+              >
+                <option value="">Aucun (séance libre)</option>
+                {programs.map((p) => (
+                  <option key={p.id} value={p.id}>
+                    {p.name}
+                  </option>
+                ))}
+              </select>
+            </div>
+          )}
 
           <div>
             <label className={label}>Notes</label>

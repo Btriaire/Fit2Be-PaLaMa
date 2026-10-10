@@ -7,7 +7,7 @@ import { pushRecord, deleteRecord } from './cloudSync'
 import { toMachineStats, type ParsedMachineResult } from './machineScan'
 import { dedupeSessions, isImported, isSameWorkout } from './enduranceMerge'
 import type { Settings } from './settings'
-import type { ActivityCategory, ActivityLog, EnduranceActivityType, EnduranceSession, HealthScreenCapture, MachineStats, PhaseLogEntry, RoutePoint } from '../types'
+import type { ActivityCategory, ActivityLog, EnduranceActivityType, EnduranceSession, HealthScreenCapture, HrZone, MachineStats, PhaseLogEntry, RoutePoint } from '../types'
 
 // googleFitType : code d'activité Google Fit repris par NutriTracker Palama
 // (app/lib/google-fit.ts:ACTIVITY_LABELS) pour le libellé/icône de son flux
@@ -205,6 +205,10 @@ export async function updateEnduranceActivityType(
 }
 
 export interface EnduranceEdit {
+  /** Zone choisie à la main (ex. séance par intervalles : la FC moyenne ment sur l'effort réel). */
+  hrZone?: HrZone
+  /** Programme suivi, renseigné a posteriori. */
+  programId?: string
   activityType: EnduranceActivityType
   startedAt: number
   durationMin: number
@@ -233,10 +237,13 @@ export async function updateEnduranceSession(id: string, edit: EnduranceEdit, se
   const db = await getDb()
   const session = await db.get('endurance', id)
   if (!session) return null
-  const hrZone = edit.avgHeartRate ? computeHrZone(edit.avgHeartRate, settings.ageYears, settings.restingHeartRateBpm) : undefined
+  // Zone manuelle prioritaire ; sinon calculée sur la FC moyenne.
+  const hrZone =
+    edit.hrZone ?? (edit.avgHeartRate ? computeHrZone(edit.avgHeartRate, settings.ageYears, settings.restingHeartRateBpm) : undefined)
   const updated: EnduranceSession = {
     ...session,
     activityType: edit.activityType,
+    programId: edit.programId,
     startedAt: edit.startedAt,
     durationMin: edit.durationMin,
     distanceKm: edit.distanceKm,
