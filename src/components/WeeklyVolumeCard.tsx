@@ -47,20 +47,19 @@ export default function WeeklyVolumeCard() {
         <p className="mb-3 mt-1 text-xs text-zinc-400">
           Repère : {VOLUME_TARGET_MIN} à {VOLUME_TARGET_MAX} séries de travail par muscle et par semaine.
         </p>
-        <ul className="space-y-2">
+        <ul className="grid grid-cols-2 gap-1.5">
           {groups.map((g) => (
-            <li key={g.label}>
-              <div className="mb-1 flex items-baseline justify-between text-xs">
-                <span className="text-zinc-200">{g.label}</span>
-                <span className="text-zinc-400">
-                  <span className="font-mono tabular-nums text-zinc-100">{g.sets}</span> · {VOLUME_STATUS_LABEL[g.status]}
-                </span>
+            <li key={g.label} className="rounded-lg bg-zinc-900/70 px-2.5 py-2">
+              <div className="flex items-baseline justify-between gap-1 text-[11px]">
+                <span className="truncate text-zinc-200">{g.label}</span>
+                <span className="shrink-0 font-mono tabular-nums text-zinc-100">{g.sets}</span>
               </div>
-              <div className="relative h-2 rounded-full bg-zinc-800">
+              <div className="relative mt-1.5 h-1.5 rounded-full bg-zinc-800">
                 <div className={`h-full rounded-full ${BAR_COLOR[g.status]}`} style={{ width: `${Math.min(1, g.sets / SCALE_MAX) * 100}%` }} />
-                <span className="absolute top-[-2px] h-3 w-px bg-zinc-500" style={{ left: `${(VOLUME_TARGET_MIN / SCALE_MAX) * 100}%` }} aria-hidden="true" />
-                <span className="absolute top-[-2px] h-3 w-px bg-zinc-500" style={{ left: `${(VOLUME_TARGET_MAX / SCALE_MAX) * 100}%` }} aria-hidden="true" />
+                <span className="absolute top-[-2px] h-2.5 w-px bg-zinc-500" style={{ left: `${(VOLUME_TARGET_MIN / SCALE_MAX) * 100}%` }} aria-hidden="true" />
+                <span className="absolute top-[-2px] h-2.5 w-px bg-zinc-500" style={{ left: `${(VOLUME_TARGET_MAX / SCALE_MAX) * 100}%` }} aria-hidden="true" />
               </div>
+              <p className="mt-1 text-[10px] text-zinc-500">{VOLUME_STATUS_LABEL[g.status]}</p>
             </li>
           ))}
         </ul>
