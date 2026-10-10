@@ -1,9 +1,9 @@
 import { afterEach, describe, expect, it, vi } from 'vitest'
 
-vi.mock('../../api/_auth.js', () => ({ requireAuth: vi.fn(() => true) }))
+vi.mock('../_auth.js', () => ({ requireAuth: vi.fn(() => true) }))
 
-import handler from '../../api/podcast/status'
-import { requireAuth } from '../../api/_auth.js'
+import handler from './status'
+import { requireAuth } from '../_auth.js'
 
 function res() {
   const r = { code: 200, body: undefined as unknown }
