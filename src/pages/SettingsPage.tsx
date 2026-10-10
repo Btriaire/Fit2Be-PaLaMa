@@ -326,8 +326,8 @@ export default function SettingsPage() {
             </div>
           </div>
         </div>
-        <Field label="Repos par défaut entre séries" value={restTimerDefaultSec} onChange={setRestTimerDefaultSec} suffix="sec" />
-        <Field label="FC de repos (pour le VO2max estimé)" value={restingHeartRateBpm} onChange={setRestingHeartRateBpm} suffix="bpm" />
+        <Field label="Repos par défaut entre séries" value={restTimerDefaultSec} onChange={setRestTimerDefaultSec} suffix="sec" hint="Durée du minuteur qui se lance après chaque série en mode Gym." />
+        <Field label="FC de repos (pour le VO2max estimé)" value={restingHeartRateBpm} onChange={setRestingHeartRateBpm} suffix="bpm" hint="Mesure-la au réveil, avant de te lever. Sert aux zones de FC (Karvonen) et au VO2max. Vide = 60 bpm par défaut." />
         <div className="rounded-lg bg-zinc-900 p-3">
           <p className="mb-2 text-xs text-zinc-400">
             Tes zones cardiaques — FC max estimée {zoneMax} bpm (Tanaka), calculées sur ta FC de réserve (Karvonen)
@@ -346,7 +346,7 @@ export default function SettingsPage() {
             ))}
           </ul>
         </div>
-        <Field label="Objectif de sommeil" value={sleepTargetMin} onChange={setSleepTargetMin} suffix="min" />
+        <Field label="Objectif de sommeil" value={sleepTargetMin} onChange={setSleepTargetMin} suffix="min" hint="Ta durée de sommeil visée (480 min = 8 h). Compare la nuit réelle à cet objectif dans la Récup et le score de forme." />
         <button
           onClick={submit}
           className="w-full rounded-xl bg-zinc-100 py-3 text-sm font-semibold text-zinc-950 active:bg-zinc-300"
@@ -493,12 +493,15 @@ function Field({
   onChange,
   suffix,
   onBlur,
+  hint,
 }: {
   label: string
   value: string
   onChange: (v: string) => void
   suffix: string
   onBlur?: () => void
+  /** Une phrase sur ce que le réglage change dans l'app (P2). */
+  hint?: string
 }) {
   return (
     <div>
@@ -513,6 +516,7 @@ function Field({
         />
         <span className="text-xs text-zinc-500">{suffix}</span>
       </div>
+      {hint && <p className="mt-1 text-[11px] leading-snug text-zinc-500">{hint}</p>}
     </div>
   )
 }
