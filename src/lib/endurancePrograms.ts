@@ -83,6 +83,25 @@ export const ENDURANCE_PROGRAMS: EnduranceProgram[] = [
     },
   },
   {
+    id: 'velo-norvegien',
+    name: 'Vélo 4×4 norvégien — VO2max',
+    activityType: 'velo-appart',
+    focus: 'Intervalles VO2max 4×4 min, ~42 min',
+    difficulty: 'dur',
+    description:
+      "Protocole 4×4 min à 90-95 % de la FC max, séparés de 3 min de récup active (~60-70 % FC max). Mis au point à la NTNU (Norvège), il améliore la VO2max sur quelques semaines, à 2 ou 3 séances par semaine. Commence par 2-3 intervalles si tu débutes.",
+    fallbackNote: FALLBACK_NOTE,
+    phases: [
+      { label: 'Échauffement', durationSec: 600, intensity: 'facile', target: '70-80 RPM · résistance légère, finir par 2 courts sprints' },
+      ...intervals(
+        4,
+        { label: 'Effort 4 min', durationSec: 240, intensity: 'dur', target: '90-95 % FC max · 85-95 RPM · résistance soutenue' },
+        { label: 'Récup active 3 min', durationSec: 180, intensity: 'facile', target: '60-70 % FC max · 70 RPM · résistance très légère' },
+      ).slice(0, -1),
+      { label: 'Retour au calme', durationSec: 420, intensity: 'facile', target: '60-70 RPM · résistance légère' },
+    ],
+  },
+  {
     id: 'velo-hiit',
     name: 'Vélo HIIT — Brûle-graisse',
     activityType: 'velo-appart',
