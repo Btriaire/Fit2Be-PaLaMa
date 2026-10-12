@@ -43,7 +43,8 @@ const DEFAULTS: Settings = {
   sex: 'homme',
   dailyCalorieTarget: 2400,
   restTimerDefaultSec: 90,
-  restingHeartRateBpm: 60,
+  // 0 = non mesurée : les zones retombent sur le % de la FC max, sans FC de repos inventée.
+  restingHeartRateBpm: 0,
   sleepTargetMin: 480,
   motivationVoice: 'off',
   goal: 'maintien',

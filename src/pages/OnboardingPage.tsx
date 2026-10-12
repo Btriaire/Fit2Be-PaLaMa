@@ -30,7 +30,7 @@ export default function OnboardingPage({ onDone }: { onDone: () => void }) {
   const ageN = num(age)
   const heightN = num(height)
   const weightN = num(weight)
-  const restN = restHr.trim() === '' ? 60 : num(restHr)
+  const restN = restHr.trim() === '' ? 0 : num(restHr)
 
   const errors = {
     age: !(ageN >= 14 && ageN <= 90) ? 'Entre 14 et 90 ans' : null,
@@ -129,7 +129,7 @@ export default function OnboardingPage({ onDone }: { onDone: () => void }) {
 
           <NumField
             id="ob-hr"
-            label="FC de repos (facultatif — 60 par défaut)"
+            label="FC de repos (facultatif — sinon zones sur la FC max)"
             suffix="bpm"
             value={restHr}
             onChange={setRestHr}

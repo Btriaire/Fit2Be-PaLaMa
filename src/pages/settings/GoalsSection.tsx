@@ -107,7 +107,7 @@ export default function GoalsSection({ zoneAge }: { zoneAge: number }) {
       <section className="glass mb-4 space-y-4 rounded-2xl p-4">
         <h2 className="text-sm font-medium text-zinc-400">Entraînement et santé</h2>
         <Field label="Repos par défaut entre séries" value={restTimerDefaultSec} onChange={setRestTimerDefaultSec} suffix="sec" hint="Durée du minuteur qui se lance après chaque série en mode Gym." />
-        <Field label="FC de repos (pour le VO2max estimé)" value={restingHeartRateBpm} onChange={setRestingHeartRateBpm} suffix="bpm" hint="Mesure-la au réveil, avant de te lever. Sert aux zones de FC (Karvonen) et au VO2max. Vide = 60 bpm par défaut." />
+        <Field label="FC de repos (pour le VO2max estimé)" value={restingHeartRateBpm} onChange={setRestingHeartRateBpm} suffix="bpm" hint="Mesure-la au réveil, avant de te lever. Sert aux zones de FC (Karvonen) et au VO2max. Vide = zones sur la FC max, sans VO2max." />
         <div className="rounded-lg bg-zinc-900 p-3">
           <p className="mb-2 text-xs text-zinc-400">
             Tes zones cardiaques — FC max estimée {zoneMax} bpm (Tanaka), calculées sur ta FC de réserve (Karvonen)

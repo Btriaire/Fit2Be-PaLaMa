@@ -49,7 +49,7 @@ statut : **à faire**, **en cours**, **fait**.
 |---|---|---|---|
 | H1 | Le sommeil sans source Google Fit repose sur un check-in manuel | Afficher explicitement la source et son âge | en partie (badge Google Fit) |
 | H2 | La fatigue générale et musculaire pèsent autant que le sommeil dans le score | Revoir les pondérations, les documenter dans la page Référence | à faire |
-| H3 | Zones FC : formule Tanaka fixe, pas de correction selon la FC repos mesurée | Proposer Karvonen par défaut quand la FC repos est renseignée | à faire |
+| H3 | Zones FC : une FC de repos inventée (60 bpm) était utilisée par défaut | Défaut à 0 = non mesurée : zones sur le % de FC max, VO2max masqué ; Karvonen dès qu'elle est renseignée | fait |
 | H4 | Calories d'une marche : formule NEAT, pas de réglage de la marche par pas | Recalibrer avec une pesée ou un test | à faire |
 | H5 | Score de readiness dépend de données parfois absentes | Afficher « données insuffisantes » plutôt qu'un chiffre | à faire |
 

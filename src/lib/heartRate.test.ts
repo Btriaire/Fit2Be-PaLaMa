@@ -49,3 +49,11 @@ describe('fourchettes en bpm', () => {
     expect(zoneBoundsBpm(30, 0)[0].minBpm).toBe(94) // 50 % de 187 = 93,5
   })
 })
+
+describe('FC de repos non renseignée (0)', () => {
+  it('la zone se calcule sur le % de la FC max, sans FC de repos inventée', () => {
+    // 30 ans → FC max 187 ; 0.7 × 187 = 131 → zone 3 (0.7-0.8) à 135 bpm, zone 2 à 120
+    expect(computeHrZone(135, 30, 0)).toBe(computeHrZone(135, 30))
+    expect(computeHrZone(120, 30, 0)).toBe(2)
+  })
+})
