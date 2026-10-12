@@ -28,7 +28,7 @@ statut : **à faire**, **en cours**, **fait**.
 
 | # | Problème | Action | Statut |
 |---|---|---|---|
-| F1 | Le journal Activité et l'Accueil relisent toute la base à chaque changement | Requêtes par jour / index IndexedDB | à faire |
+| F1 | Le journal relit toute la base à chaque changement | Non prioritaire : ~70 sorties, 7 activités, 60 jours de pas, soit quelques ms par relecture. Reprendre si les volumes montent (plusieurs milliers de lignes) | reporté, sans gain mesurable aujourd'hui |
 | F2 | La synchro tourne à chaque ouverture (Accueil, Endurance, Gym) | Délai minimal commun (déjà en place via `refreshFitData`), à étendre aux pages | en partie |
 | F3 | Les calculs (ACWR, monotonie, volume) recalculés à chaque rendu | Mémoïsation et calcul hors rendu | à faire |
 | F4 | Restauration VPS : rejouée à chaque lancement connecté | Fusion incrémentale (`updatedAt` depuis la dernière synchro) | à faire |
