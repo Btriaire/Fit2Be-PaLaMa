@@ -8,7 +8,7 @@ statut : **à faire**, **en cours**, **fait**.
 
 | # | Problème observé | Action | Statut |
 |---|---|---|---|
-| U1 | 4 pages à plus de 500 lignes (Réglages, Accueil, Formulaire sortie, Récup, Gym) : difficiles à faire évoluer | Découper en sections (composants par bloc) | en partie (`settings/DataSection.tsx` et `settings/IntegrationsSection.tsx` extraits ; profil, objectifs, entraînement restent dans la page) |
+| U1 | 4 pages à plus de 500 lignes (Réglages, Accueil, Formulaire sortie, Récup, Gym) : difficiles à faire évoluer | Découper en sections (composants par bloc) | en partie (`settings/DataSection.tsx`, `IntegrationsSection.tsx`, `ProfileSection.tsx` extraits ; objectifs et entraînement restent dans la page) |
 | U2 | Le même concept a des noms différents selon l'écran (« Séances 7 j », « Séances »…) | Glossaire unique (`lib/labels.ts`) | à faire |
 | U3 | Une correction se fait à plusieurs endroits (sortie, séance, série) | Même patron « Modifier » partout | en partie (sorties, séances, séries faits) |
 | U4 | Le check-in est ouvert en permanence tant qu'il n'est pas fait | Réduire à une ligne de résumé après 1 saisie | à faire |
