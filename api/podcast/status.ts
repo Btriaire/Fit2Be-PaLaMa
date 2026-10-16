@@ -18,7 +18,7 @@ const VPS_MANAGER_URL = process.env.VPS_MANAGER_URL || 'http://46.202.131.240:90
 export default async function handler(req: VercelRequest, res: VercelResponse) {
   if (!requireAuth(req, res)) return
   try {
-    const r = await fetch(`${VPS_MANAGER_URL}/api/notebooklm-fit2be/status`, { cache: 'no-store' })
+    const r = await fetch(`${VPS_MANAGER_URL}/api/notebooklm-fit2be/status`, { cache: 'no-store', headers: { 'x-jarvis-token': process.env.JARVIS_TOKEN || '' } })
     const data = await r.json()
     res.status(r.status).json(data)
   } catch {

@@ -31,7 +31,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
   try {
     const r = await fetch(`${VPS_MANAGER_URL}/api/notebooklm-fit2be/run`, {
       method: 'POST',
-      headers: { 'content-type': 'application/json' },
+      headers: { 'content-type': 'application/json', 'x-jarvis-token': process.env.JARVIS_TOKEN || '' },
       body: JSON.stringify({ period }),
     })
     const data = await r.json()

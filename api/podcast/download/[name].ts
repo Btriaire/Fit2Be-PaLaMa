@@ -32,7 +32,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
   const rangeHeader = typeof range === 'string' ? range : undefined
 
   const r = await fetch(`${VPS_MANAGER_URL}/api/notebooklm-fit2be/download/${name}`, {
-    headers: rangeHeader ? { Range: rangeHeader } : undefined,
+    headers: { ...(rangeHeader ? { Range: rangeHeader } : {}), 'x-jarvis-token': process.env.JARVIS_TOKEN || '' },
   })
   if (!r.ok || !r.body) {
     res.status(404).json({ error: 'Fichier introuvable' })
